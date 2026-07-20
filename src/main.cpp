@@ -5,23 +5,38 @@ static const uint8_t LOADCELL_DOUT_PIN = 2;
 static const uint8_t LOADCELL_SCK_PIN = 3;
 
 static const uint8_t TARE_SAMPLES = 20;
-static const uint8_t READING_SAMPLES = 10;
+static const uint8_t CALIBRATION_SAMPLES = 20;
+static const uint8_t WEIGHT_SAMPLES = 10;
+
+/*
+ * Sustituye este valor por la masa real utilizada.
+ *
+ * Ejemplos:
+ * 500.0F  para 500 g
+ * 1000.0F para 1 kg
+ */
+static const float KNOWN_MASS_GRAMS = 1500.0F;
 
 HX711 scale;
 
-static void perform_tare(void)
+static void clear_serial_input(void)
 {
-    Serial.println();
-    Serial.println("Remove all weight from the scale.");
-    Serial.println("Taring...");
+    while (Serial.available() > 0)
+    {
+        Serial.read();
+    }
+}
 
-    scale.tare(TARE_SAMPLES);
+static void wait_for_serial_input(void)
+{
+    clear_serial_input();
 
-    Serial.print("Tare offset: ");
-    Serial.println(scale.get_offset());
+    while (Serial.available() == 0)
+    {
+        delay(10);
+    }
 
-    Serial.println("Tare completed.");
-    Serial.println();
+    clear_serial_input();
 }
 
 void setup(void)
@@ -31,7 +46,7 @@ void setup(void)
     scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 
     Serial.println();
-    Serial.println("=== HX711 tare experiment ===");
+    Serial.println("=== HX711 calibration experiment ===");
 
     if (!scale.wait_ready_timeout(2000))
     {
@@ -44,64 +59,85 @@ void setup(void)
     }
 
     /*
-     * Todavía no estamos calibrando.
-     * El factor se deja en 1.
+     * Factor igual a 1.
+     *
+     * De esta forma, get_value() representa cuentas netas,
+     * todavía no gramos.
      */
     scale.set_scale(1.0F);
 
+    Serial.println();
+    Serial.println("Remove all weight from the scale.");
+    Serial.println("Wait until the system is stable.");
+    Serial.println("Send any character to perform the tare.");
+
+    wait_for_serial_input();
+
+    Serial.println("Taring...");
+
+    scale.tare(TARE_SAMPLES);
+
+    Serial.print("Tare offset: ");
+    Serial.println(scale.get_offset());
+
+    Serial.println();
+    Serial.print("Place the known mass: ");
+    Serial.print(KNOWN_MASS_GRAMS, 2);
+    Serial.println(" g");
+
+    Serial.println("Wait until the reading is stable.");
+    Serial.println("Send any character to calculate calibration.");
+
+    wait_for_serial_input();
+
     /*
-     * Espera para que puedas dejar la báscula
-     * completamente descargada tras el arranque.
+     * get_value() calcula:
+     *
+     * media de lecturas - offset de tara
      */
-    Serial.println("Tare will start in 3 seconds.");
-    delay(3000);
+    const float net_counts =
+        scale.get_value(CALIBRATION_SAMPLES);
 
-    perform_tare();
+    /*
+     * El factor queda expresado en cuentas por gramo.
+     */
+    const float calibration_factor =
+        net_counts / KNOWN_MASS_GRAMS;
 
-    Serial.println("Commands:");
-    Serial.println("  t = perform tare again");
+    Serial.println();
+    Serial.print("Net counts: ");
+    Serial.println(net_counts, 2);
+
+    Serial.print("Calibration factor: ");
+    Serial.print(calibration_factor, 6);
+    Serial.println(" counts/g");
+
+    /*
+     * A partir de este momento get_units()
+     * devolverá gramos.
+     */
+    scale.set_scale(calibration_factor);
+
+    Serial.println();
+    Serial.println("Calibration completed.");
+    Serial.println("Measurements are now expressed in grams.");
 }
 
 void loop(void)
 {
-    /*
-     * Permite repetir la tara escribiendo 't'
-     * en el monitor serie.
-     */
-    if (Serial.available() > 0)
+    if (scale.wait_ready_timeout(1000))
     {
-        const char command = Serial.read();
+        const float weight_grams =
+            scale.get_units(WEIGHT_SAMPLES);
 
-        if ((command == 't') || (command == 'T'))
-        {
-            perform_tare();
-        }
+        Serial.print("Weight: ");
+        Serial.print(weight_grams, 2);
+        Serial.println(" g");
     }
-
-    if (!scale.wait_ready_timeout(1000))
+    else
     {
         Serial.println("ERROR: HX711 not ready.");
-        delay(500);
-        return;
     }
-
-    const long raw_average =
-        scale.read_average(READING_SAMPLES);
-
-    const long tare_offset =
-        scale.get_offset();
-
-    const long net_counts =
-        raw_average - tare_offset;
-
-    Serial.print("Raw: ");
-    Serial.print(raw_average);
-
-    Serial.print(" | Offset: ");
-    Serial.print(tare_offset);
-
-    Serial.print(" | Net: ");
-    Serial.println(net_counts);
 
     delay(500);
 }
