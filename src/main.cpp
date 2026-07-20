@@ -1,19 +1,27 @@
 #include <Arduino.h>
+#include "HX711.h"
 
-void setup(void)
-{
-    pinMode(LED_BUILTIN, OUTPUT);
-    Serial.begin(115200);
-    Serial.println("Program started");
+// HX711 circuit wiring
+const int LOADCELL_DOUT_PIN = 2;
+const int LOADCELL_SCK_PIN = 3;
+
+HX711 scale;
+
+void setup() {
+  Serial.begin(115200);
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 }
 
-void loop(void)
-{
-    digitalWrite(LED_BUILTIN, HIGH);
-    Serial.println("LED on");
-    delay(500);
+void loop() {
 
-    digitalWrite(LED_BUILTIN, LOW);
-    Serial.println("LED off");
-    delay(500);
+  if (scale.is_ready()) {
+    long reading = scale.read();
+    Serial.print("HX711 reading: ");
+    Serial.println(reading);
+  } else {
+    Serial.println("HX711 not found.");
+  }
+
+  delay(1000);
+  
 }
