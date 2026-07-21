@@ -5,17 +5,17 @@ static const uint8_t LOADCELL_DOUT_PIN = 2;
 static const uint8_t LOADCELL_SCK_PIN = 3;
 
 static const uint8_t TARE_SAMPLES = 20;
-static const uint8_t CALIBRATION_SAMPLES = 20;
 static const uint8_t WEIGHT_SAMPLES = 10;
 
 /*
- * Sustituye este valor por la masa real utilizada.
+ * Factor provisional obtenido con:
  *
- * Ejemplos:
- * 500.0F  para 500 g
- * 1000.0F para 1 kg
+ * Masa conocida: 1500 g
+ * Cuentas netas: 68384
+ *
+ * Debe recalibrarse cuando el montaje mecánico sea definitivo.
  */
-static const float KNOWN_MASS_GRAMS = 1500.0F;
+static const float CALIBRATION_FACTOR = 45.589332F;
 
 HX711 scale;
 
@@ -27,16 +27,48 @@ static void clear_serial_input(void)
     }
 }
 
-static void wait_for_serial_input(void)
+static void perform_tare(void)
 {
-    clear_serial_input();
+    Serial.println();
+    Serial.println("Taring...");
+    Serial.println("Do not apply the load to be measured.");
 
-    while (Serial.available() == 0)
+    scale.tare(TARE_SAMPLES);
+
+    Serial.print("New tare offset: ");
+    Serial.println(scale.get_offset());
+
+    Serial.println("Tare completed.");
+    Serial.println();
+}
+
+static void process_serial_commands(void)
+{
+    if (Serial.available() == 0)
     {
-        delay(10);
+        return;
     }
 
+    const char command = Serial.read();
+
+    /*
+     * Elimina caracteres pendientes, como retorno de carro
+     * y salto de línea enviados por el monitor serie.
+     */
     clear_serial_input();
+
+    switch (command)
+    {
+        case 't':
+        case 'T':
+            perform_tare();
+            break;
+
+        default:
+            Serial.println("Unknown command.");
+            Serial.println("Available command: t = tare");
+            break;
+    }
 }
 
 void setup(void)
@@ -46,7 +78,7 @@ void setup(void)
     scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 
     Serial.println();
-    Serial.println("=== HX711 calibration experiment ===");
+    Serial.println("=== Load cell level indicator ===");
 
     if (!scale.wait_ready_timeout(2000))
     {
@@ -59,85 +91,47 @@ void setup(void)
     }
 
     /*
-     * Factor igual a 1.
-     *
-     * De esta forma, get_value() representa cuentas netas,
-     * todavía no gramos.
+     * Configura la relación entre cuentas ADC y gramos.
      */
-    scale.set_scale(1.0F);
-
-    Serial.println();
-    Serial.println("Remove all weight from the scale.");
-    Serial.println("Wait until the system is stable.");
-    Serial.println("Send any character to perform the tare.");
-
-    wait_for_serial_input();
-
-    Serial.println("Taring...");
-
-    scale.tare(TARE_SAMPLES);
-
-    Serial.print("Tare offset: ");
-    Serial.println(scale.get_offset());
-
-    Serial.println();
-    Serial.print("Place the known mass: ");
-    Serial.print(KNOWN_MASS_GRAMS, 2);
-    Serial.println(" g");
-
-    Serial.println("Wait until the reading is stable.");
-    Serial.println("Send any character to calculate calibration.");
-
-    wait_for_serial_input();
-
-    /*
-     * get_value() calcula:
-     *
-     * media de lecturas - offset de tara
-     */
-    const float net_counts =
-        scale.get_value(CALIBRATION_SAMPLES);
-
-    /*
-     * El factor queda expresado en cuentas por gramo.
-     */
-    const float calibration_factor =
-        net_counts / KNOWN_MASS_GRAMS;
-
-    Serial.println();
-    Serial.print("Net counts: ");
-    Serial.println(net_counts, 2);
+    scale.set_scale(CALIBRATION_FACTOR);
 
     Serial.print("Calibration factor: ");
-    Serial.print(calibration_factor, 6);
+    Serial.print(CALIBRATION_FACTOR, 6);
     Serial.println(" counts/g");
 
     /*
-     * A partir de este momento get_units()
-     * devolverá gramos.
+     * Por ahora hacemos una tara automática.
+     * En una etapa posterior se sustituirá o complementará
+     * con un pulsador físico.
      */
-    scale.set_scale(calibration_factor);
-
     Serial.println();
-    Serial.println("Calibration completed.");
-    Serial.println("Measurements are now expressed in grams.");
+    Serial.println("Automatic tare will start in 3 seconds.");
+    Serial.println("Leave the scale unloaded or with the empty container.");
+
+    delay(3000);
+
+    perform_tare();
+
+    Serial.println("Command: t = perform tare");
 }
 
 void loop(void)
 {
-    if (scale.wait_ready_timeout(1000))
-    {
-        const float weight_grams =
-            scale.get_units(WEIGHT_SAMPLES);
+    process_serial_commands();
 
-        Serial.print("Weight: ");
-        Serial.print(weight_grams, 2);
-        Serial.println(" g");
-    }
-    else
+    if (!scale.wait_ready_timeout(1000))
     {
         Serial.println("ERROR: HX711 not ready.");
+        delay(500);
+        return;
     }
+
+    const float weight_grams =
+        scale.get_units(WEIGHT_SAMPLES);
+
+    Serial.print("Weight: ");
+    Serial.print(weight_grams, 2);
+    Serial.println(" g");
 
     delay(500);
 }
