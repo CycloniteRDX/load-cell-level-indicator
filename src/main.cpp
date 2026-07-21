@@ -3,21 +3,38 @@
 
 static const uint8_t LOADCELL_DOUT_PIN = 2;
 static const uint8_t LOADCELL_SCK_PIN = 3;
+static const uint8_t TARE_BUTTON_PIN = 4;
 
 static const uint8_t TARE_SAMPLES = 20;
-static const uint8_t WEIGHT_SAMPLES = 10;
 
 /*
- * Factor provisional obtenido con:
+ * Usamos una lectura individual para que el programa vuelva rápidamente
+ * a comprobar el pulsador.
  *
- * Masa conocida: 1500 g
- * Cuentas netas: 68384
- *
- * Debe recalibrarse cuando el montaje mecánico sea definitivo.
+ * Más adelante implementaremos un filtrado propio sin bloquear el programa
+ * durante muchas conversiones consecutivas.
+ */
+static const uint8_t WEIGHT_SAMPLES = 1;
+
+static const unsigned long BUTTON_DEBOUNCE_MS = 40;
+static const unsigned long PRINT_PERIOD_MS = 500;
+
+/*
+ * Factor provisional obtenido con el montaje mecánico actual.
  */
 static const float CALIBRATION_FACTOR = 45.589332F;
 
 HX711 scale;
+
+static float latest_weight_grams = 0.0F;
+static bool measurement_available = false;
+
+static bool last_raw_button_state = HIGH;
+static bool stable_button_state = HIGH;
+
+static unsigned long last_button_change_ms = 0;
+static unsigned long last_print_ms = 0;
+
 
 static void clear_serial_input(void)
 {
@@ -27,20 +44,28 @@ static void clear_serial_input(void)
     }
 }
 
+
 static void perform_tare(void)
 {
     Serial.println();
     Serial.println("Taring...");
-    Serial.println("Do not apply the load to be measured.");
+    Serial.println("Leave only the empty platform or container.");
 
     scale.tare(TARE_SAMPLES);
 
     Serial.print("New tare offset: ");
     Serial.println(scale.get_offset());
 
+    /*
+     * La medida anterior ya no utiliza el offset actual.
+     * La descartamos hasta obtener una conversión nueva.
+     */
+    measurement_available = false;
+
     Serial.println("Tare completed.");
     Serial.println();
 }
+
 
 static void process_serial_commands(void)
 {
@@ -51,10 +76,6 @@ static void process_serial_commands(void)
 
     const char command = Serial.read();
 
-    /*
-     * Elimina caracteres pendientes, como retorno de carro
-     * y salto de línea enviados por el monitor serie.
-     */
     clear_serial_input();
 
     switch (command)
@@ -71,9 +92,95 @@ static void process_serial_commands(void)
     }
 }
 
+
+static bool tare_button_pressed(void)
+{
+    const unsigned long now = millis();
+    const bool raw_button_state = digitalRead(TARE_BUTTON_PIN);
+
+    /*
+     * Si la lectura instantánea cambia, comienza un nuevo periodo
+     * de estabilización.
+     */
+    if (raw_button_state != last_raw_button_state)
+    {
+        last_raw_button_state = raw_button_state;
+        last_button_change_ms = now;
+    }
+
+    /*
+     * El nuevo estado solo se acepta si permanece sin cambios
+     * durante BUTTON_DEBOUNCE_MS.
+     */
+    if ((now - last_button_change_ms) >= BUTTON_DEBOUNCE_MS)
+    {
+        if (raw_button_state != stable_button_state)
+        {
+            stable_button_state = raw_button_state;
+
+            /*
+             * INPUT_PULLUP:
+             *
+             * HIGH = pulsador liberado
+             * LOW  = pulsador presionado
+             *
+             * Solo devolvemos true durante la transición a LOW.
+             */
+            if (stable_button_state == LOW)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+
+static void update_weight_measurement(void)
+{
+    /*
+     * is_ready() no espera bloqueando.
+     * Si todavía no existe una conversión, volvemos inmediatamente.
+     */
+    if (!scale.is_ready())
+    {
+        return;
+    }
+
+    latest_weight_grams = scale.get_units(WEIGHT_SAMPLES);
+    measurement_available = true;
+}
+
+
+static void print_weight_periodically(void)
+{
+    const unsigned long now = millis();
+
+    if ((now - last_print_ms) < PRINT_PERIOD_MS)
+    {
+        return;
+    }
+
+    last_print_ms = now;
+
+    if (!measurement_available)
+    {
+        Serial.println("Waiting for weight measurement...");
+        return;
+    }
+
+    Serial.print("Weight: ");
+    Serial.print(latest_weight_grams, 2);
+    Serial.println(" g");
+}
+
+
 void setup(void)
 {
     Serial.begin(115200);
+
+    pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
 
     scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 
@@ -90,20 +197,12 @@ void setup(void)
         }
     }
 
-    /*
-     * Configura la relación entre cuentas ADC y gramos.
-     */
     scale.set_scale(CALIBRATION_FACTOR);
 
     Serial.print("Calibration factor: ");
     Serial.print(CALIBRATION_FACTOR, 6);
     Serial.println(" counts/g");
 
-    /*
-     * Por ahora hacemos una tara automática.
-     * En una etapa posterior se sustituirá o complementará
-     * con un pulsador físico.
-     */
     Serial.println();
     Serial.println("Automatic tare will start in 3 seconds.");
     Serial.println("Leave the scale unloaded or with the empty container.");
@@ -112,26 +211,21 @@ void setup(void)
 
     perform_tare();
 
-    Serial.println("Command: t = perform tare");
+    Serial.println("Controls:");
+    Serial.println("  Physical button on D4 = tare");
+    Serial.println("  Serial command 't'    = tare");
 }
+
 
 void loop(void)
 {
     process_serial_commands();
 
-    if (!scale.wait_ready_timeout(1000))
+    if (tare_button_pressed())
     {
-        Serial.println("ERROR: HX711 not ready.");
-        delay(500);
-        return;
+        perform_tare();
     }
 
-    const float weight_grams =
-        scale.get_units(WEIGHT_SAMPLES);
-
-    Serial.print("Weight: ");
-    Serial.print(weight_grams, 2);
-    Serial.println(" g");
-
-    delay(500);
+    update_weight_measurement();
+    print_weight_periodically();
 }
