@@ -670,82 +670,13 @@ No se debe reiniciar el proyecto desde cero si ya existe una etapa funcional.
 
 # Estado actual del proyecto
 
-Se ha completado la primera versión mínima funcional utilizando:
-
-* Arduino Nano con ATmega328P.
-* PlatformIO y VS Code.
-* Framework Arduino.
-* Librería `bogde/HX711`.
-* Célula de carga conectada mediante HX711.
-* Programación C++ procedural, evitando características avanzadas de C++.
-
-El hito está identificado mediante la etiqueta:
-
-```text
-v0.1-minimal-functional
-```
-
-La versión incluye:
-
-* Lectura de cuentas crudas del HX711.
-* Tara y observación del offset.
-* Calibración interactiva con una masa conocida.
-* Conversión de cuentas ADC a gramos.
-* Factor de calibración provisional almacenado en el código.
-* Modo normal de medición.
-* Tara mediante puerto serie.
-* Pulsador físico de tara con `INPUT_PULLUP`.
-* Debounce por software y detección de una pulsación individual.
-* Tres LED para indicar nivel bajo, medio y alto.
-* Umbrales provisionales de 500 g y 1000 g.
-* Histéresis de 20 g alrededor de los umbrales.
-* Ejecución periódica mediante `millis()` en lugar de un `delay()` principal largo.
-* Lectura de una conversión del HX711 cada vez que está disponible.
-
-El montaje mecánico continúa siendo provisional. El factor de calibración, el retorno a cero, la repetibilidad y la estabilidad no deben considerarse definitivos hasta disponer de una plataforma mecánica rígida y de alivio de tensión para el cable de la célula.
+v0.2 estructurada completada
+main.cpp reducido a setup/loop
+módulos app, scale, button y level_indicator
 
 # Próximo paso previsto
 
-El siguiente paso es realizar una refactorización sin cambiar el comportamiento observable del firmware.
-
-Se creará la rama:
-
-```text
-refactor/separation-of-responsibilities
-```
-
-La versión etiquetada `v0.1-minimal-functional` se conservará como referencia funcional para comparar el comportamiento durante la refactorización.
-
-La arquitectura inicial prevista es:
-
-```text
-src/
-├── main.cpp
-├── config.h
-├── app/
-│   ├── app.cpp
-│   └── app.h
-├── scale/
-│   ├── scale.cpp
-│   └── scale.h
-├── button/
-│   ├── button.cpp
-│   └── button.h
-└── level_indicator/
-    ├── level_indicator.cpp
-    └── level_indicator.h
-```
-
-Responsabilidades iniciales:
-
-* `main`: contiene únicamente `setup()` y `loop()` y delega el trabajo.
-* `app`: coordina la báscula, los botones, los LED y la salida de diagnóstico.
-* `scale`: encapsula la librería Bogde, la tara, la calibración y la lectura en gramos.
-* `button`: gestiona la entrada física, el debounce y los eventos de pulsación.
-* `level_indicator`: contiene los estados de nivel, los umbrales, la histéresis y el control de los tres LED.
-* `config`: contiene pines, periodos, umbrales y parámetros configurables.
-
-La refactorización se realizará progresivamente. Después de mover cada responsabilidad se compilará, cargará y probará el firmware para confirmar que conserva el mismo comportamiento.
+siguiente etapa: calibración persistente o driver HX711 propio
 
 # Funcionalidades posteriores al primer refactor
 
