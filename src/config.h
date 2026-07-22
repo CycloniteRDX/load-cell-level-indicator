@@ -1,0 +1,53 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#include <stdint.h>
+
+/*
+ * HX711 connections.
+ */
+static const uint8_t LOADCELL_DOUT_PIN = 2U;
+static const uint8_t LOADCELL_SCK_PIN = 3U;
+
+/*
+ * User input.
+ */
+static const uint8_t TARE_BUTTON_PIN = 4U;
+
+/*
+ * Level indicator LEDs.
+ */
+static const uint8_t LOW_LEVEL_LED_PIN = 5U;
+static const uint8_t MEDIUM_LEVEL_LED_PIN = 6U;
+static const uint8_t HIGH_LEVEL_LED_PIN = 7U;
+
+/*
+ * HX711 sampling configuration.
+ */
+static const uint8_t TARE_SAMPLES = 20U;
+static const uint8_t WEIGHT_SAMPLES = 1U;
+
+/*
+ * Timing configuration.
+ */
+static const unsigned long BUTTON_DEBOUNCE_MS = 40UL;
+static const unsigned long PRINT_PERIOD_MS = 500UL;
+
+/*
+ * Provisional calibration factor for the current
+ * mechanical assembly.
+ */
+static const float CALIBRATION_FACTOR = 45.589332F;
+
+/*
+ * Provisional level thresholds.
+ */
+static const float LOW_MEDIUM_THRESHOLD_GRAMS = 500.0F;
+static const float MEDIUM_HIGH_THRESHOLD_GRAMS = 1000.0F;
+
+/*
+ * Prevents rapid level changes around the thresholds.
+ */
+static const float LEVEL_HYSTERESIS_GRAMS = 20.0F;
+
+#endif

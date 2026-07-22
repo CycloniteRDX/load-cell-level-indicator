@@ -1,33 +1,7 @@
 #include <Arduino.h>
 #include <HX711.h>
 
-static const uint8_t LOADCELL_DOUT_PIN = 2;
-static const uint8_t LOADCELL_SCK_PIN = 3;
-
-static const uint8_t TARE_BUTTON_PIN = 4;
-
-static const uint8_t LOW_LEVEL_LED_PIN = 5;
-static const uint8_t MEDIUM_LEVEL_LED_PIN = 6;
-static const uint8_t HIGH_LEVEL_LED_PIN = 7;
-
-static const uint8_t TARE_SAMPLES = 20;
-static const uint8_t WEIGHT_SAMPLES = 1;
-
-static const unsigned long BUTTON_DEBOUNCE_MS = 40;
-static const unsigned long PRINT_PERIOD_MS = 500;
-
-static const float CALIBRATION_FACTOR = 45.589332F;
-
-/*
- * Umbrales provisionales.
- */
-static const float LOW_MEDIUM_THRESHOLD_GRAMS = 500.0F;
-static const float MEDIUM_HIGH_THRESHOLD_GRAMS = 1000.0F;
-
-/*
- * Evita cambios continuos de LED cerca de los umbrales.
- */
-static const float LEVEL_HYSTERESIS_GRAMS = 20.0F;
+#include "config.h"
 
 
 typedef enum
