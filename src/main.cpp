@@ -2,16 +2,7 @@
 #include <HX711.h>
 
 #include "config.h"
-
-
-typedef enum
-{
-    LEVEL_UNKNOWN,
-    LEVEL_LOW,
-    LEVEL_MEDIUM,
-    LEVEL_HIGH
-} level_state_t;
-
+#include "level_indicator.h"
 
 HX711 scale;
 
@@ -24,8 +15,6 @@ static bool stable_button_state = HIGH;
 static unsigned long last_button_change_ms = 0;
 static unsigned long last_print_ms = 0;
 
-static level_state_t current_level = LEVEL_UNKNOWN;
-
 
 static void clear_serial_input(void)
 {
@@ -33,139 +22,6 @@ static void clear_serial_input(void)
     {
         Serial.read();
     }
-}
-
-
-static void set_level_leds(level_state_t level)
-{
-    /*
-     * Primero apagamos todos los LED.
-     */
-    digitalWrite(LOW_LEVEL_LED_PIN, LOW);
-    digitalWrite(MEDIUM_LEVEL_LED_PIN, LOW);
-    digitalWrite(HIGH_LEVEL_LED_PIN, LOW);
-
-    /*
-     * Después encendemos solamente el correspondiente.
-     */
-    switch (level)
-    {
-        case LEVEL_LOW:
-            digitalWrite(LOW_LEVEL_LED_PIN, HIGH);
-            break;
-
-        case LEVEL_MEDIUM:
-            digitalWrite(MEDIUM_LEVEL_LED_PIN, HIGH);
-            break;
-
-        case LEVEL_HIGH:
-            digitalWrite(HIGH_LEVEL_LED_PIN, HIGH);
-            break;
-
-        case LEVEL_UNKNOWN:
-        default:
-            /*
-             * Si todavía no existe una medida válida,
-             * permanecen todos apagados.
-             */
-            break;
-    }
-}
-
-
-static void update_level_indicator(float weight_grams)
-{
-    /*
-     * En la primera medida todavía no existe un estado anterior.
-     * Elegimos directamente el nivel correspondiente.
-     */
-    if (current_level == LEVEL_UNKNOWN)
-    {
-        if (weight_grams < LOW_MEDIUM_THRESHOLD_GRAMS)
-        {
-            current_level = LEVEL_LOW;
-        }
-        else if (weight_grams < MEDIUM_HIGH_THRESHOLD_GRAMS)
-        {
-            current_level = LEVEL_MEDIUM;
-        }
-        else
-        {
-            current_level = LEVEL_HIGH;
-        }
-
-        set_level_leds(current_level);
-        return;
-    }
-
-    switch (current_level)
-    {
-        case LEVEL_LOW:
-
-            /*
-             * Permitimos saltar directamente a HIGH si el peso
-             * aumenta mucho entre dos medidas.
-             */
-            if (weight_grams >=
-                (MEDIUM_HIGH_THRESHOLD_GRAMS +
-                 LEVEL_HYSTERESIS_GRAMS))
-            {
-                current_level = LEVEL_HIGH;
-            }
-            else if (weight_grams >=
-                     (LOW_MEDIUM_THRESHOLD_GRAMS +
-                      LEVEL_HYSTERESIS_GRAMS))
-            {
-                current_level = LEVEL_MEDIUM;
-            }
-
-            break;
-
-        case LEVEL_MEDIUM:
-
-            if (weight_grams <=
-                (LOW_MEDIUM_THRESHOLD_GRAMS -
-                 LEVEL_HYSTERESIS_GRAMS))
-            {
-                current_level = LEVEL_LOW;
-            }
-            else if (weight_grams >=
-                     (MEDIUM_HIGH_THRESHOLD_GRAMS +
-                      LEVEL_HYSTERESIS_GRAMS))
-            {
-                current_level = LEVEL_HIGH;
-            }
-
-            break;
-
-        case LEVEL_HIGH:
-
-            /*
-             * También permitimos un salto directo a LOW si
-             * retiramos prácticamente toda la carga.
-             */
-            if (weight_grams <=
-                (LOW_MEDIUM_THRESHOLD_GRAMS -
-                 LEVEL_HYSTERESIS_GRAMS))
-            {
-                current_level = LEVEL_LOW;
-            }
-            else if (weight_grams <=
-                     (MEDIUM_HIGH_THRESHOLD_GRAMS -
-                      LEVEL_HYSTERESIS_GRAMS))
-            {
-                current_level = LEVEL_MEDIUM;
-            }
-
-            break;
-
-        case LEVEL_UNKNOWN:
-        default:
-            current_level = LEVEL_UNKNOWN;
-            break;
-    }
-
-    set_level_leds(current_level);
 }
 
 
@@ -185,9 +41,7 @@ static void perform_tare(void)
      * ha cambiado.
      */
     measurement_available = false;
-    current_level = LEVEL_UNKNOWN;
-
-    set_level_leds(LEVEL_UNKNOWN);
+    level_indicator_reset();
 
     Serial.println("Tare completed.");
     Serial.println();
@@ -275,27 +129,7 @@ static void update_weight_measurement(void)
 
     measurement_available = true;
 
-    update_level_indicator(latest_weight_grams);
-}
-
-
-static const char *level_to_string(level_state_t level)
-{
-    switch (level)
-    {
-        case LEVEL_LOW:
-            return "LOW";
-
-        case LEVEL_MEDIUM:
-            return "MEDIUM";
-
-        case LEVEL_HIGH:
-            return "HIGH";
-
-        case LEVEL_UNKNOWN:
-        default:
-            return "UNKNOWN";
-    }
+    level_indicator_update(latest_weight_grams);
 }
 
 
@@ -319,7 +153,7 @@ static void print_weight_periodically(void)
     Serial.print("Weight: ");
     Serial.print(latest_weight_grams, 2);
     Serial.print(" g | Level: ");
-    Serial.println(level_to_string(current_level));
+    Serial.println(level_indicator_get_state_name());
 }
 
 
@@ -329,14 +163,7 @@ void setup(void)
 
     pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
 
-    pinMode(LOW_LEVEL_LED_PIN, OUTPUT);
-    pinMode(MEDIUM_LEVEL_LED_PIN, OUTPUT);
-    pinMode(HIGH_LEVEL_LED_PIN, OUTPUT);
-
-    /*
-     * Estado seguro al arrancar.
-     */
-    set_level_leds(LEVEL_UNKNOWN);
+    level_indicator_init();
 
     scale.begin(
         LOADCELL_DOUT_PIN,
