@@ -3,16 +3,15 @@
 
 #include "config.h"
 #include "level_indicator.h"
+#include "button.h"
 
 HX711 scale;
 
 static float latest_weight_grams = 0.0F;
 static bool measurement_available = false;
 
-static bool last_raw_button_state = HIGH;
-static bool stable_button_state = HIGH;
+static button_t tare_button;
 
-static unsigned long last_button_change_ms = 0;
 static unsigned long last_print_ms = 0;
 
 
@@ -74,49 +73,6 @@ static void process_serial_commands(void)
 }
 
 
-static bool tare_button_pressed(void)
-{
-    const unsigned long now = millis();
-    const bool raw_button_state =
-        digitalRead(TARE_BUTTON_PIN);
-
-    /*
-     * Cuando cambia la lectura instantánea, reiniciamos
-     * el periodo de debounce.
-     */
-    if (raw_button_state != last_raw_button_state)
-    {
-        last_raw_button_state = raw_button_state;
-        last_button_change_ms = now;
-    }
-
-    /*
-     * Solo aceptamos el nuevo estado si permanece estable.
-     */
-    if ((now - last_button_change_ms) >=
-        BUTTON_DEBOUNCE_MS)
-    {
-        if (raw_button_state != stable_button_state)
-        {
-            stable_button_state = raw_button_state;
-
-            /*
-             * Con INPUT_PULLUP:
-             *
-             * HIGH = liberado
-             * LOW  = pulsado
-             */
-            if (stable_button_state == LOW)
-            {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-
 static void update_weight_measurement(void)
 {
     if (!scale.is_ready())
@@ -161,7 +117,11 @@ void setup(void)
 {
     Serial.begin(115200);
 
-    pinMode(TARE_BUTTON_PIN, INPUT_PULLUP);
+    button_init(
+        &tare_button,
+        TARE_BUTTON_PIN,
+        BUTTON_DEBOUNCE_MS
+    );
 
     level_indicator_init();
 
@@ -217,7 +177,7 @@ void loop(void)
 {
     process_serial_commands();
 
-    if (tare_button_pressed())
+    if (button_was_pressed(&tare_button))
     {
         perform_tare();
     }
