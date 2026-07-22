@@ -7,6 +7,7 @@
 #include "level_indicator.h"
 #include "scale.h"
 #include "calibration_storage.h"
+#include "indicator_leds.h"
 
 
 static float latest_weight_grams = 0.0F;
@@ -596,6 +597,7 @@ void app_init(void)
         BUTTON_DEBOUNCE_MS
     );
 
+    indicator_leds_init();
     level_indicator_init();
 
     Serial.println();
@@ -692,7 +694,7 @@ void app_init(void)
     Serial.println(F(
         "  Serial command 'q'    = cancel calibration"
     ));
-    
+
     Serial.println(F(
         " Hold button on D8 for 3 s = start calibration"
     ));

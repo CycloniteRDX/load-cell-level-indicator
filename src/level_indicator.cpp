@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "level_indicator.h"
+#include "indicator_leds.h"
 
 
 typedef enum
@@ -22,37 +23,39 @@ typedef enum
 static level_state_t current_level = LEVEL_UNKNOWN;
 
 
-static void set_level_leds(level_state_t level)
+static void set_level_leds(
+    level_state_t level
+)
 {
-    /*
-     * Turn off all LEDs first.
-     */
-    digitalWrite(LOW_LEVEL_LED_PIN, LOW);
-    digitalWrite(MEDIUM_LEVEL_LED_PIN, LOW);
-    digitalWrite(HIGH_LEVEL_LED_PIN, LOW);
-
-    /*
-     * Turn on only the LED associated with the level.
-     */
     switch (level)
     {
         case LEVEL_LOW:
-            digitalWrite(LOW_LEVEL_LED_PIN, HIGH);
+            indicator_leds_set(
+                true,
+                false,
+                false
+            );
             break;
 
         case LEVEL_MEDIUM:
-            digitalWrite(MEDIUM_LEVEL_LED_PIN, HIGH);
+            indicator_leds_set(
+                false,
+                true,
+                false
+            );
             break;
 
         case LEVEL_HIGH:
-            digitalWrite(HIGH_LEVEL_LED_PIN, HIGH);
+            indicator_leds_set(
+                false,
+                false,
+                true
+            );
             break;
 
         case LEVEL_UNKNOWN:
         default:
-            /*
-             * All LEDs remain off.
-             */
+            indicator_leds_off();
             break;
     }
 }
@@ -60,10 +63,6 @@ static void set_level_leds(level_state_t level)
 
 void level_indicator_init(void)
 {
-    pinMode(LOW_LEVEL_LED_PIN, OUTPUT);
-    pinMode(MEDIUM_LEVEL_LED_PIN, OUTPUT);
-    pinMode(HIGH_LEVEL_LED_PIN, OUTPUT);
-
     level_indicator_reset();
 }
 
