@@ -1,11 +1,10 @@
 #include <Arduino.h>
-#include <HX711.h>
 
 #include "config.h"
 #include "level_indicator.h"
 #include "button.h"
+#include "scale.h"
 
-HX711 scale;
 
 static float latest_weight_grams = 0.0F;
 static bool measurement_available = false;
@@ -30,10 +29,10 @@ static void perform_tare(void)
     Serial.println("Taring...");
     Serial.println("Leave only the empty platform or container.");
 
-    scale.tare(TARE_SAMPLES);
+    scale_tare();
 
     Serial.print("New tare offset: ");
-    Serial.println(scale.get_offset());
+    Serial.println(scale_get_offset());
 
     /*
      * La medida anterior deja de ser válida porque el offset
@@ -75,14 +74,14 @@ static void process_serial_commands(void)
 
 static void update_weight_measurement(void)
 {
-    if (!scale.is_ready())
+    float weight_grams = 0.0F;
+
+    if (!scale_read_weight(&weight_grams))
     {
         return;
     }
 
-    latest_weight_grams =
-        scale.get_units(WEIGHT_SAMPLES);
-
+    latest_weight_grams = weight_grams;
     measurement_available = true;
 
     level_indicator_update(latest_weight_grams);
@@ -125,15 +124,11 @@ void setup(void)
 
     level_indicator_init();
 
-    scale.begin(
-        LOADCELL_DOUT_PIN,
-        LOADCELL_SCK_PIN
-    );
 
     Serial.println();
     Serial.println("=== Load cell level indicator ===");
 
-    if (!scale.wait_ready_timeout(2000))
+    if (!scale_init())
     {
         Serial.println("ERROR: HX711 not found.");
 
@@ -143,10 +138,12 @@ void setup(void)
         }
     }
 
-    scale.set_scale(CALIBRATION_FACTOR);
 
     Serial.print("Calibration factor: ");
-    Serial.print(CALIBRATION_FACTOR, 6);
+    Serial.print(
+        scale_get_calibration_factor(),
+        6
+    );
     Serial.println(" counts/g");
 
     Serial.println();
