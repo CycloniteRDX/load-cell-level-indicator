@@ -1,16 +1,19 @@
 #include <Arduino.h>
 #include <HX711.h>
+#include <math.h>
 
 #include "config.h"
 #include "scale.h"
 
+static HX711 hx711;
+
+static float current_calibration_factor = 1.0F;
 
 /*
  * Private HX711 object.
  *
  * static makes it accessible only inside this source file.
  */
-static HX711 hx711;
 
 
 bool scale_init(void)
@@ -25,7 +28,41 @@ bool scale_init(void)
         return false;
     }
 
-    hx711.set_scale(CALIBRATION_FACTOR);
+    /*
+     * Start with a neutral factor.
+     *
+     * The application will provide the actual
+     * factor after initialization.
+     */
+    hx711.set_scale(1.0F);
+    current_calibration_factor = 1.0F;
+
+    return true;
+}
+
+
+bool scale_set_calibration_factor(
+    float calibration_factor
+)
+{
+    /*
+     * A negative calibration factor is valid.
+     * Its sign depends on the polarity of the
+     * load-cell signal.
+     *
+     * Zero, NaN and infinity are not valid.
+     */
+    if (isnan(calibration_factor) ||
+        isinf(calibration_factor) ||
+        (fabsf(calibration_factor) < 0.000001F))
+    {
+        return false;
+    }
+
+    hx711.set_scale(calibration_factor);
+
+    current_calibration_factor =
+        calibration_factor;
 
     return true;
 }
@@ -67,5 +104,5 @@ long scale_get_offset(void)
 
 float scale_get_calibration_factor(void)
 {
-    return CALIBRATION_FACTOR;
+    return current_calibration_factor;
 }

@@ -148,6 +148,20 @@ void app_init(void)
         }
     }
 
+    if (!scale_set_calibration_factor(
+        DEFAULT_CALIBRATION_FACTOR))
+    {
+        Serial.println(
+            "ERROR: Invalid default calibration factor."
+        );
+
+        while (true)
+        {
+            delay(1000);
+        }
+    }
+
+
     Serial.print("Calibration factor: ");
     Serial.print(
         scale_get_calibration_factor(),

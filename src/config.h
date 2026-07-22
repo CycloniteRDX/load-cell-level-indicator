@@ -34,10 +34,13 @@ static const unsigned long BUTTON_DEBOUNCE_MS = 40UL;
 static const unsigned long PRINT_PERIOD_MS = 500UL;
 
 /*
- * Provisional calibration factor for the current
- * mechanical assembly.
+ * Provisional fallback calibration factor.
+ *
+ * It will be used when no valid calibration
+ * has been stored in non-volatile memory.
  */
-static const float CALIBRATION_FACTOR = 45.589332F;
+static const float DEFAULT_CALIBRATION_FACTOR =
+    45.589332F;
 
 /*
  * Provisional level thresholds.

@@ -3,12 +3,26 @@
 
 #include <stdbool.h>
 
+
 /*
  * Initializes the load-cell measurement system.
  *
  * Returns true when the HX711 is detected and ready.
  */
 bool scale_init(void);
+
+
+/*
+ * Applies a calibration factor at runtime.
+ *
+ * Negative factors are allowed because the sign
+ * depends on the load-cell wiring direction.
+ *
+ * Returns false when the factor is invalid.
+ */
+bool scale_set_calibration_factor(
+    float calibration_factor
+);
 
 
 /*
@@ -28,8 +42,6 @@ bool scale_read_weight(float *weight_grams);
 
 /*
  * Returns the current tare offset in raw ADC counts.
- *
- * This is mainly useful for diagnostics.
  */
 long scale_get_offset(void);
 
@@ -38,5 +50,6 @@ long scale_get_offset(void);
  * Returns the calibration factor currently in use.
  */
 float scale_get_calibration_factor(void);
+
 
 #endif
