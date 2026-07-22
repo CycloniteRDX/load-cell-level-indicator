@@ -668,19 +668,159 @@ No se debe reiniciar el proyecto desde cero si ya existe una etapa funcional.
 
 ---
 
+# Estado actual del proyecto
+
+Se ha completado la primera versión mínima funcional utilizando:
+
+* Arduino Nano con ATmega328P.
+* PlatformIO y VS Code.
+* Framework Arduino.
+* Librería `bogde/HX711`.
+* Célula de carga conectada mediante HX711.
+* Programación C++ procedural, evitando características avanzadas de C++.
+
+El hito está identificado mediante la etiqueta:
+
+```text
+v0.1-minimal-functional
+```
+
+La versión incluye:
+
+* Lectura de cuentas crudas del HX711.
+* Tara y observación del offset.
+* Calibración interactiva con una masa conocida.
+* Conversión de cuentas ADC a gramos.
+* Factor de calibración provisional almacenado en el código.
+* Modo normal de medición.
+* Tara mediante puerto serie.
+* Pulsador físico de tara con `INPUT_PULLUP`.
+* Debounce por software y detección de una pulsación individual.
+* Tres LED para indicar nivel bajo, medio y alto.
+* Umbrales provisionales de 500 g y 1000 g.
+* Histéresis de 20 g alrededor de los umbrales.
+* Ejecución periódica mediante `millis()` en lugar de un `delay()` principal largo.
+* Lectura de una conversión del HX711 cada vez que está disponible.
+
+El montaje mecánico continúa siendo provisional. El factor de calibración, el retorno a cero, la repetibilidad y la estabilidad no deben considerarse definitivos hasta disponer de una plataforma mecánica rígida y de alivio de tensión para el cable de la célula.
+
 # Próximo paso previsto
 
-El próximo paso lógico es comenzar la etapa 1:
+El siguiente paso es realizar una refactorización sin cambiar el comportamiento observable del firmware.
 
-1. Crear el proyecto de PlatformIO para Arduino Nano.
-2. Instalar `bogde/HX711`.
-3. Conectar la célula y el HX711.
-4. Ejecutar un ejemplo mínimo.
-5. Mostrar lecturas crudas por puerto serie.
-6. Comprobar la dirección y estabilidad de las lecturas.
-7. Realizar tara.
-8. Calibrar con una masa conocida.
-9. Guardar el primer commit funcional.
-10. Documentar conexiones, pines y resultados.
+Se creará la rama:
 
-La primera versión debe ser deliberadamente sencilla. No debe introducir todavía HAL, registros directos ni una arquitectura compleja.
+```text
+refactor/separation-of-responsibilities
+```
+
+La versión etiquetada `v0.1-minimal-functional` se conservará como referencia funcional para comparar el comportamiento durante la refactorización.
+
+La arquitectura inicial prevista es:
+
+```text
+src/
+├── main.cpp
+├── config.h
+├── app/
+│   ├── app.cpp
+│   └── app.h
+├── scale/
+│   ├── scale.cpp
+│   └── scale.h
+├── button/
+│   ├── button.cpp
+│   └── button.h
+└── level_indicator/
+    ├── level_indicator.cpp
+    └── level_indicator.h
+```
+
+Responsabilidades iniciales:
+
+* `main`: contiene únicamente `setup()` y `loop()` y delega el trabajo.
+* `app`: coordina la báscula, los botones, los LED y la salida de diagnóstico.
+* `scale`: encapsula la librería Bogde, la tara, la calibración y la lectura en gramos.
+* `button`: gestiona la entrada física, el debounce y los eventos de pulsación.
+* `level_indicator`: contiene los estados de nivel, los umbrales, la histéresis y el control de los tres LED.
+* `config`: contiene pines, periodos, umbrales y parámetros configurables.
+
+La refactorización se realizará progresivamente. Después de mover cada responsabilidad se compilará, cargará y probará el firmware para confirmar que conserva el mismo comportamiento.
+
+# Funcionalidades posteriores al primer refactor
+
+Después de completar y verificar la separación de responsabilidades se añadirá, como feature independiente:
+
+```text
+feature/persistent-calibration
+```
+
+Esta funcionalidad incluirá:
+
+* Pulsador o conector de servicio para iniciar la calibración.
+* Pulsación larga para evitar calibraciones accidentales.
+* Secuencia de calibración mediante estados.
+* Masa de calibración conocida.
+* Validación del factor obtenido.
+* Almacenamiento del factor en EEPROM.
+* Identificador y versión del formato almacenado.
+* Detección de EEPROM sin inicializar o con datos inválidos.
+* Conservación separada del factor de calibración y del offset de tara.
+
+El factor de calibración podrá conservarse en memoria permanente. Inicialmente, el offset de tara no se almacenará y continuará obteniéndose cuando sea necesario mediante el pulsador de tara.
+
+# Estrategia de lenguaje
+
+Mientras se utilicen el Arduino Core y `bogde/HX711`, el proyecto continuará compilándose como C++.
+
+Se utilizará un estilo procedural cercano a C:
+
+* Funciones.
+* `struct`.
+* `enum`.
+* Arrays.
+* Punteros cuando sean necesarios.
+* Variables privadas dentro de cada módulo.
+* Sin herencia.
+* Sin asignación dinámica.
+* Sin `String`.
+* Sin excepciones ni plantillas complejas.
+
+Cuando se escriba el driver propio del HX711, se intentará implementar mediante una interfaz C y archivos `.c` y `.h`. Durante la transición podrá coexistir un pequeño `main.cpp`, necesario para `setup()`, `loop()` y el Arduino Core, con módulos escritos en C.
+
+El objetivo posterior es eliminar completamente Arduino y terminar con un proyecto bare-metal en C.
+
+# Implementaciones futuras de ADC para células de carga
+
+El HX711 continuará siendo la primera implementación y la referencia funcional.
+
+Cuando esté disponible físicamente la placa SparkFun NAU7802 se seguirá esta progresión:
+
+1. Crear una prueba mínima independiente utilizando la librería SparkFun.
+2. Verificar hardware, dirección I²C, lecturas crudas, tara y calibración.
+3. Integrar provisionalmente el NAU7802 en la arquitectura separada.
+4. Crear posteriormente un driver propio del NAU7802.
+5. Implementar una HAL I²C, inicialmente sobre `Wire` y más adelante sobre el periférico del microcontrolador.
+
+El módulo ADS1232 se probará después mediante una progresión similar:
+
+1. Prueba mínima del módulo.
+2. Estudio de su interfaz y temporización.
+3. Driver propio.
+4. Comparación de ruido, estabilidad, velocidad y facilidad de integración.
+5. Uso de lo aprendido para un posible diseño de PCB propio.
+
+No se creará prematuramente una interfaz genérica para todos los ADC. Primero se implementará el HX711 y, cuando exista una segunda implementación funcional, se estudiará qué operaciones tienen realmente en común.
+
+La arquitectura futura podrá evolucionar hacia:
+
+```text
+scale
+  ↓
+load_cell_adc
+  ├── hx711
+  ├── nau7802
+  └── ads1232
+```
+
+La selección del ADC podrá realizarse mediante distintas configuraciones o entornos de PlatformIO, sin modificar la lógica principal de la aplicación.
