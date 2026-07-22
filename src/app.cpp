@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <math.h>
 
 #include "app.h"
 #include "button.h"
@@ -14,6 +15,29 @@ static bool measurement_available = false;
 static button_t tare_button;
 
 static unsigned long last_print_ms = 0;
+
+
+typedef enum
+{
+    CALIBRATION_IDLE,
+
+    /*
+     * Waiting for the user to remove the measured load
+     * and confirm the zero condition.
+     */
+    CALIBRATION_WAITING_FOR_ZERO,
+
+    /*
+     * The tare has been completed.
+     * Waiting for the reference mass.
+     */
+    CALIBRATION_WAITING_FOR_MASS
+
+} calibration_state_t;
+
+
+static calibration_state_t calibration_state =
+    CALIBRATION_IDLE;
 
 
 static void clear_serial_input(void)
@@ -109,6 +133,294 @@ static void clear_stored_calibration(void)
 }
 
 
+static bool calibration_is_active(void)
+{
+    return calibration_state !=
+           CALIBRATION_IDLE;
+}
+
+
+static void start_calibration(void)
+{
+    measurement_available = false;
+    level_indicator_reset();
+
+    calibration_state =
+        CALIBRATION_WAITING_FOR_ZERO;
+
+    Serial.println();
+    Serial.println(F(
+        "=== Calibration started ==="
+    ));
+
+    Serial.println(F(
+        "Remove the measured load."
+    ));
+
+    Serial.println(F(
+        "Leave only the empty platform or container."
+    ));
+
+    Serial.println(F(
+        "Wait until the system is stable."
+    ));
+
+    Serial.println(F(
+        "Send 'c' to confirm the zero condition."
+    ));
+
+    Serial.println(F(
+        "Send 'q' to cancel calibration."
+    ));
+
+    Serial.println();
+}
+
+
+static void confirm_calibration_zero(void)
+{
+    Serial.println();
+    Serial.println(F("Performing calibration tare..."));
+
+    scale_tare();
+
+    Serial.print("Tare offset: ");
+    Serial.println(scale_get_offset());
+
+    calibration_state =
+        CALIBRATION_WAITING_FOR_MASS;
+
+    Serial.println();
+    Serial.print(F("Place the reference mass: "));
+    Serial.print(CALIBRATION_MASS_GRAMS, 2);
+    Serial.println(F(" g"));
+
+    Serial.println(F(
+        "Wait until the measurement is stable."
+    ));
+
+    Serial.println(F(
+        "Send 'c' to calculate and save calibration."
+    ));
+
+    Serial.println(F(
+        "Send 'q' to cancel calibration."
+    ));
+
+    Serial.println();
+}
+
+
+static void complete_calibration(void)
+{
+    Serial.println();
+    Serial.println(F(
+        "Collecting calibration samples..."
+    ));
+
+    float net_counts = 0.0F;
+
+    if (!scale_read_net_counts(
+            &net_counts,
+            CALIBRATION_SAMPLES))
+    {
+        Serial.println(F(
+            "ERROR: Calibration samples "
+            "could not be read."
+        ));
+
+        Serial.println(F(
+            "Keep the mass in place and "
+            "send 'c' to try again."
+        ));
+
+        Serial.println();
+        return;
+    }
+
+    Serial.print(F("Net ADC counts: "));
+    Serial.println(net_counts, 2);
+
+    /*
+     * Reject a calibration where the applied mass
+     * produced no meaningful signal.
+     */
+    if (fabsf(net_counts) <
+        MINIMUM_CALIBRATION_SIGNAL_COUNTS)
+    {
+        Serial.println(F(
+            "ERROR: Calibration signal is too small."
+        ));
+
+        Serial.println(F(
+            "Check that the reference mass is applied."
+        ));
+
+        Serial.println(F(
+            "Send 'c' to try again or 'q' to cancel."
+        ));
+
+        Serial.println();
+        return;
+    }
+
+    const float new_calibration_factor =
+        net_counts / CALIBRATION_MASS_GRAMS;
+
+    const float previous_calibration_factor =
+        scale_get_calibration_factor();
+
+    Serial.print(F("Calculated factor: "));
+    Serial.print(new_calibration_factor, 6);
+    Serial.println(F(" counts/g"));
+
+    /*
+     * Validate and apply the new factor first.
+     */
+    if (!scale_set_calibration_factor(
+            new_calibration_factor))
+    {
+        Serial.println(F(
+            "ERROR: Calculated calibration "
+            "factor is invalid."
+        ));
+
+        Serial.println();
+        return;
+    }
+
+    /*
+     * Save it permanently.
+     */
+    if (!calibration_storage_save(
+            new_calibration_factor))
+    {
+        Serial.println(F(
+            "ERROR: New calibration could "
+            "not be saved."
+        ));
+
+        /*
+         * Restore the previous active factor so that
+         * a storage failure does not silently change
+         * the current operating configuration.
+         */
+        if (!scale_set_calibration_factor(
+                previous_calibration_factor))
+        {
+            Serial.println(F(
+                "ERROR: Previous factor could "
+                "not be restored."
+            ));
+        }
+
+        calibration_state =
+            CALIBRATION_IDLE;
+
+        measurement_available = false;
+        level_indicator_reset();
+
+        Serial.println(F(
+            "Calibration cancelled."
+        ));
+
+        Serial.println();
+        return;
+    }
+
+    calibration_state =
+        CALIBRATION_IDLE;
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    Serial.println();
+    Serial.println(F(
+        "Calibration completed successfully."
+    ));
+
+    Serial.print(F("Active factor: "));
+    Serial.print(
+        scale_get_calibration_factor(),
+        6
+    );
+    Serial.println(F(" counts/g"));
+
+    Serial.println(F(
+        "The factor has been saved to EEPROM."
+    ));
+
+    Serial.println(F(
+        "Normal measurement resumed."
+    ));
+
+    Serial.println();
+}
+
+
+static void cancel_calibration(void)
+{
+    if (!calibration_is_active())
+    {
+        Serial.println();
+        Serial.println(F(
+            "No calibration is currently active."
+        ));
+        Serial.println();
+        return;
+    }
+
+    calibration_state =
+        CALIBRATION_IDLE;
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    Serial.println();
+    Serial.println(F("Calibration cancelled."));
+
+    Serial.println(F(
+        "The active calibration factor "
+        "has not been changed."
+    ));
+
+    Serial.println(F(
+        "Normal measurement resumed."
+    ));
+
+    Serial.println();
+}
+
+
+static void process_calibration_confirmation(void)
+{
+    switch (calibration_state)
+    {
+        case CALIBRATION_IDLE:
+            start_calibration();
+            break;
+
+        case CALIBRATION_WAITING_FOR_ZERO:
+            confirm_calibration_zero();
+            break;
+
+        case CALIBRATION_WAITING_FOR_MASS:
+            complete_calibration();
+            break;
+
+        default:
+            calibration_state =
+                CALIBRATION_IDLE;
+
+            Serial.println(F(
+                "ERROR: Invalid calibration state."
+            ));
+
+            break;
+    }
+}
+
+
 static void process_serial_commands(void)
 {
     if (Serial.available() == 0)
@@ -122,35 +434,74 @@ static void process_serial_commands(void)
 
     switch (command)
     {
+        case 'c':
+        case 'C':
+            process_calibration_confirmation();
+            break;
+
+        case 'q':
+        case 'Q':
+            cancel_calibration();
+            break;
+
         case 't':
         case 'T':
-            perform_tare();
+
+            if (calibration_is_active())
+            {
+                Serial.println(F(
+                    "Tare is unavailable during calibration."
+                ));
+            }
+            else
+            {
+                perform_tare();
+            }
+
             break;
 
         case 's':
         case 'S':
-            save_current_calibration();
+
+            if (calibration_is_active())
+            {
+                Serial.println(F(
+                    "Manual save is unavailable "
+                    "during calibration."
+                ));
+            }
+            else
+            {
+                save_current_calibration();
+            }
+
             break;
-            
+
         case 'x':
         case 'X':
-            clear_stored_calibration();
+
+            if (calibration_is_active())
+            {
+                Serial.println(F(
+                    "Stored calibration cannot be cleared "
+                    "during calibration."
+                ));
+            }
+            else
+            {
+                clear_stored_calibration();
+            }
+
             break;
 
         default:
-            Serial.println("Unknown command.");
-            Serial.println(
-                "Available command: t = tare"
-            );
-            Serial.println(
-            "  t = tare"
-            );
-            Serial.println(
-                "  s = save active calibration"
-            );
-            Serial.println(
-                "  x = clear stored calibration"
-            );
+            Serial.println(F("Unknown command."));
+            Serial.println(F("Available commands:"));
+            Serial.println(F("  t = tare"));
+            Serial.println(F("  c = start/confirm calibration"));
+            Serial.println(F("  q = cancel calibration"));
+            Serial.println(F("  s = save active calibration"));
+            Serial.println(F("  x = clear stored calibration"));
             break;
     }
 }
@@ -185,9 +536,9 @@ static void print_weight_periodically(void)
 
     if (!measurement_available)
     {
-        Serial.println(
+        Serial.println(F(
             "Waiting for weight measurement..."
-        );
+        ));
         return;
     }
 
@@ -213,13 +564,13 @@ void app_init(void)
     level_indicator_init();
 
     Serial.println();
-    Serial.println(
+    Serial.println(F(
         "=== Load cell level indicator ==="
-    );
+    ));
 
     if (!scale_init())
     {
-        Serial.println("ERROR: HX711 not found.");
+        Serial.println(F("ERROR: HX711 not found."));
 
         while (true)
         {
@@ -237,27 +588,27 @@ void app_init(void)
 
     if (stored_calibration_loaded)
     {
-        Serial.println(
+        Serial.println(F(
             "Stored calibration loaded from EEPROM."
-        );
+        ));
     }
     else
     {
-        Serial.println(
+        Serial.println(F(
             "No valid stored calibration found."
-        );
+        ));
 
-        Serial.println(
+        Serial.println(F(
             "Using default calibration factor."
-        );
+        ));
     }
 
     if (!scale_set_calibration_factor(
             calibration_factor))
     {
-        Serial.println(
+        Serial.println(F(
             "ERROR: Invalid calibration factor."
-        );
+        ));
 
         while (true)
         {
@@ -271,46 +622,63 @@ void app_init(void)
         scale_get_calibration_factor(),
         6
     );
-    Serial.println(" counts/g");
+    Serial.println(F(" counts/g"));
 
     Serial.println();
-    Serial.println(
+    Serial.println(F(
         "Automatic tare will start in 3 seconds."
-    );
-    Serial.println(
+    ));
+    Serial.println(F(
         "Leave the scale unloaded or "
         "with the empty container."
-    );
+    ));
 
     delay(3000);
 
     perform_tare();
 
-    Serial.println("Controls:");
-    Serial.println(
+    Serial.println(F("Controls:"));
+    Serial.println(F(
         "  Physical button on D4 = tare"
-    );
-    Serial.println(
+    ));
+    Serial.println(F(
         "  Serial command 't'    = tare"
-    );
-    Serial.println(
+    ));
+    Serial.println(F(
     "  Serial command 's'    = save calibration"
-    );
+    ));
     Serial.println(
         "  Serial command 'x'    = clear calibration"
     );
+    Serial.println(F(
+        "  Serial command 'c'    = calibrate/confirm"
+    ));
+
+    Serial.println(F(
+        "  Serial command 'q'    = cancel calibration"
+    ));
 
     Serial.println();
-    Serial.println("Provisional levels:");
-    Serial.println("  LOW:    below 500 g");
-    Serial.println("  MEDIUM: 500 to 1000 g");
-    Serial.println("  HIGH:   above 1000 g");
+    Serial.println(F("Provisional levels:"));
+    Serial.println(F("  LOW:    below 500 g"));
+    Serial.println(F("  MEDIUM: 500 to 1000 g"));
+    Serial.println(F("  HIGH:   above 1000 g"));
 }
 
 
 void app_update(void)
 {
     process_serial_commands();
+
+    /*
+     * During calibration, normal measurements,
+     * level indication and the physical tare button
+     * remain paused.
+     */
+    if (calibration_is_active())
+    {
+        return;
+    }
 
     if (button_was_pressed(&tare_button))
     {

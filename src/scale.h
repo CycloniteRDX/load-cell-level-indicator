@@ -2,6 +2,7 @@
 #define SCALE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 
 /*
@@ -38,6 +39,19 @@ void scale_tare(void);
  * The result is written to weight_grams.
  */
 bool scale_read_weight(float *weight_grams);
+
+
+/*
+ * Reads averaged raw ADC counts after subtracting
+ * the current tare offset.
+ *
+ * This operation is blocking while the requested
+ * samples are collected.
+ */
+bool scale_read_net_counts(
+    float *net_counts,
+    uint8_t samples
+);
 
 
 /*

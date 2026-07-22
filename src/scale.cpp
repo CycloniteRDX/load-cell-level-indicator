@@ -106,3 +106,35 @@ float scale_get_calibration_factor(void)
 {
     return current_calibration_factor;
 }
+
+
+bool scale_read_net_counts(
+    float *net_counts,
+    uint8_t samples
+)
+{
+    if (net_counts == nullptr)
+    {
+        return false;
+    }
+
+    if (samples == 0U)
+    {
+        return false;
+    }
+
+    if (!hx711.wait_ready_timeout(1000UL))
+    {
+        return false;
+    }
+
+    /*
+     * get_value() returns:
+     *
+     * average raw reading - tare offset
+     */
+    *net_counts =
+        (float)hx711.get_value(samples);
+
+    return true;
+}

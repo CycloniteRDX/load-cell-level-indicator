@@ -53,4 +53,30 @@ static const float MEDIUM_HIGH_THRESHOLD_GRAMS = 1000.0F;
  */
 static const float LEVEL_HYSTERESIS_GRAMS = 20.0F;
 
+/*
+ * Provisional reference mass used during calibration.
+ *
+ * This value must match the real calibration mass.
+ */
+static const float CALIBRATION_MASS_GRAMS =
+    1500.0F;
+
+
+/*
+ * Number of HX711 samples used to calculate
+ * the calibration factor.
+ */
+static const uint8_t CALIBRATION_SAMPLES =
+    20U;
+
+
+/*
+ * Prevents calibration when no meaningful load
+ * has been applied.
+ *
+ * This is provisional for the current test setup.
+ */
+static const float MINIMUM_CALIBRATION_SIGNAL_COUNTS =
+    5000.0F;
+
 #endif
