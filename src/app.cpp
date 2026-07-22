@@ -13,6 +13,7 @@ static float latest_weight_grams = 0.0F;
 static bool measurement_available = false;
 
 static button_t tare_button;
+static button_t calibration_button;
 
 static unsigned long last_print_ms = 0;
 
@@ -166,7 +167,7 @@ static void start_calibration(void)
     ));
 
     Serial.println(F(
-        "Send 'c' to confirm the zero condition."
+        "Send 'c' or press CAL to confirm the zero condition."
     ));
 
     Serial.println(F(
@@ -200,7 +201,7 @@ static void confirm_calibration_zero(void)
     ));
 
     Serial.println(F(
-        "Send 'c' to calculate and save calibration."
+        "Send 'c' or press CAL to calculate and save calibration."
     ));
 
     Serial.println(F(
@@ -230,8 +231,7 @@ static void complete_calibration(void)
         ));
 
         Serial.println(F(
-            "Keep the mass in place and "
-            "send 'c' to try again."
+            "Keep the mass in place and confirm again."
         ));
 
         Serial.println();
@@ -421,6 +421,36 @@ static void process_calibration_confirmation(void)
 }
 
 
+static void process_calibration_button(void)
+{
+    /*
+     * While calibration is active, every ordinary
+     * press confirms the current calibration step.
+     */
+    if (calibration_is_active())
+    {
+        if (button_was_pressed(
+                &calibration_button))
+        {
+            process_calibration_confirmation();
+        }
+
+        return;
+    }
+
+    /*
+     * During normal operation, a long press is required
+     * to start the calibration workflow.
+     */
+    if (button_was_held(
+            &calibration_button,
+            CALIBRATION_START_HOLD_MS))
+    {
+        process_calibration_confirmation();
+    }
+}
+
+
 static void process_serial_commands(void)
 {
     if (Serial.available() == 0)
@@ -560,6 +590,11 @@ void app_init(void)
         TARE_BUTTON_PIN,
         BUTTON_DEBOUNCE_MS
     );
+    button_init(
+        &calibration_button,
+        CALIBRATION_BUTTON_PIN,
+        BUTTON_DEBOUNCE_MS
+    );
 
     level_indicator_init();
 
@@ -657,6 +692,14 @@ void app_init(void)
     Serial.println(F(
         "  Serial command 'q'    = cancel calibration"
     ));
+    
+    Serial.println(F(
+        " Hold button on D8 for 3 s = start calibration"
+    ));
+
+    Serial.println(F(
+        " Press button on D8 = confirm calibration step"
+    ));
 
     Serial.println();
     Serial.println(F("Provisional levels:"));
@@ -671,9 +714,16 @@ void app_update(void)
     process_serial_commands();
 
     /*
-     * During calibration, normal measurements,
-     * level indication and the physical tare button
-     * remain paused.
+     * The calibration button must always be processed:
+     *
+     * - During normal operation, it may start calibration.
+     * - During calibration, it confirms each step.
+     */
+    process_calibration_button();
+
+    /*
+     * Normal measurement, level indication and physical
+     * tare remain paused during calibration.
      */
     if (calibration_is_active())
     {

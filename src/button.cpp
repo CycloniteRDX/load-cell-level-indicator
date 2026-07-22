@@ -3,6 +3,78 @@
 #include "button.h"
 
 
+/*
+ * Reads the physical input, applies debounce and updates
+ * the stable state stored inside the button object.
+ *
+ * Returns true only when a new debounced press begins.
+ */
+static bool button_update_state(button_t *button)
+{
+    if (button == nullptr)
+    {
+        return false;
+    }
+
+    const uint32_t now = millis();
+
+    const bool raw_state =
+        digitalRead(button->pin);
+
+    /*
+     * Every raw transition restarts the debounce timer.
+     */
+    if (raw_state != button->last_raw_state)
+    {
+        button->last_raw_state = raw_state;
+        button->last_change_ms = now;
+    }
+
+    /*
+     * The physical input has not remained stable for
+     * the complete debounce interval yet.
+     */
+    if ((now - button->last_change_ms) <
+        button->debounce_ms)
+    {
+        return false;
+    }
+
+    /*
+     * There is no new stable transition.
+     */
+    if (raw_state == button->stable_state)
+    {
+        return false;
+    }
+
+    /*
+     * Accept the new debounced state.
+     */
+    button->stable_state = raw_state;
+
+    if (button->stable_state == LOW)
+    {
+        /*
+         * A new debounced press has started.
+         */
+        button->pressed_since_ms = now;
+        button->hold_event_reported = false;
+
+        return true;
+    }
+
+    /*
+     * The button has been released.
+     *
+     * A future press may generate another hold event.
+     */
+    button->hold_event_reported = false;
+
+    return false;
+}
+
+
 void button_init(
     button_t *button,
     uint8_t pin,
@@ -16,62 +88,79 @@ void button_init(
 
     pinMode(pin, INPUT_PULLUP);
 
-    const bool initial_state = digitalRead(pin);
+    const bool initial_state =
+        digitalRead(pin);
+
+    const uint32_t now = millis();
 
     button->pin = pin;
 
     button->last_raw_state = initial_state;
     button->stable_state = initial_state;
 
-    button->last_change_ms = millis();
+    button->last_change_ms = now;
     button->debounce_ms = debounce_ms;
+
+    button->pressed_since_ms = now;
+    button->hold_event_reported = false;
 }
 
 
 bool button_was_pressed(button_t *button)
+{
+    return button_update_state(button);
+}
+
+
+bool button_was_held(
+    button_t *button,
+    uint32_t hold_ms
+)
 {
     if (button == nullptr)
     {
         return false;
     }
 
+    /*
+     * Update the debounce state.
+     *
+     * The ordinary press event returned here is ignored
+     * because this function is only interested in the
+     * hold event.
+     */
+    button_update_state(button);
+
+    /*
+     * A hold is only possible while the debounced state
+     * says that the button remains pressed.
+     */
+    if (button->stable_state != LOW)
+    {
+        return false;
+    }
+
+    /*
+     * This hold was already reported.
+     */
+    if (button->hold_event_reported)
+    {
+        return false;
+    }
+
     const uint32_t now = millis();
 
-    const bool raw_state =
-        digitalRead(button->pin);
-
     /*
-     * A raw-state transition restarts the debounce timer.
+     * Unsigned subtraction also works correctly when
+     * millis() eventually overflows.
      */
-    if (raw_state != button->last_raw_state)
+    if ((now - button->pressed_since_ms) <
+        hold_ms)
     {
-        button->last_raw_state = raw_state;
-        button->last_change_ms = now;
+        return false;
     }
 
-    /*
-     * Accept the new state only after it has remained
-     * stable for the configured debounce period.
-     */
-    if ((now - button->last_change_ms) >=
-        button->debounce_ms)
-    {
-        if (raw_state != button->stable_state)
-        {
-            button->stable_state = raw_state;
+    button->hold_event_reported = true;
 
-            /*
-             * INPUT_PULLUP:
-             *
-             * HIGH = released
-             * LOW  = pressed
-             */
-            if (button->stable_state == LOW)
-            {
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return true;
 }

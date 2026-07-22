@@ -13,6 +13,7 @@ static const uint8_t LOADCELL_SCK_PIN = 3U;
  * User input.
  */
 static const uint8_t TARE_BUTTON_PIN = 4U;
+static const uint8_t CALIBRATION_BUTTON_PIN = 8U;
 
 /*
  * Level indicator LEDs.
@@ -31,6 +32,8 @@ static const uint8_t WEIGHT_SAMPLES = 1U;
  * Timing configuration.
  */
 static const unsigned long BUTTON_DEBOUNCE_MS = 40UL;
+static const unsigned long CALIBRATION_START_HOLD_MS =
+    3000UL;
 static const unsigned long PRINT_PERIOD_MS = 500UL;
 
 /*
