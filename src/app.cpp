@@ -5,6 +5,7 @@
 #include "config.h"
 #include "level_indicator.h"
 #include "scale.h"
+#include "calibration_storage.h"
 
 
 static float latest_weight_grams = 0.0F;
@@ -49,6 +50,65 @@ static void perform_tare(void)
 }
 
 
+static void save_current_calibration(void)
+{
+    const float calibration_factor =
+        scale_get_calibration_factor();
+
+    Serial.println();
+    Serial.print(
+        "Saving calibration factor: "
+    );
+    Serial.print(calibration_factor, 6);
+    Serial.println(" counts/g");
+
+    if (!calibration_storage_save(
+            calibration_factor))
+    {
+        Serial.println(
+            "ERROR: Calibration could not be saved."
+        );
+
+        Serial.println();
+        return;
+    }
+
+    Serial.println(
+        "Calibration saved successfully."
+    );
+
+    Serial.println();
+}
+
+
+static void clear_stored_calibration(void)
+{
+    Serial.println();
+
+    if (!calibration_storage_clear())
+    {
+        Serial.println(
+            "ERROR: Stored calibration "
+            "could not be cleared."
+        );
+
+        Serial.println();
+        return;
+    }
+
+    Serial.println(
+        "Stored calibration cleared."
+    );
+
+    Serial.println(
+        "The active factor remains unchanged "
+        "until the next restart."
+    );
+
+    Serial.println();
+}
+
+
 static void process_serial_commands(void)
 {
     if (Serial.available() == 0)
@@ -67,10 +127,29 @@ static void process_serial_commands(void)
             perform_tare();
             break;
 
+        case 's':
+        case 'S':
+            save_current_calibration();
+            break;
+            
+        case 'x':
+        case 'X':
+            clear_stored_calibration();
+            break;
+
         default:
             Serial.println("Unknown command.");
             Serial.println(
                 "Available command: t = tare"
+            );
+            Serial.println(
+            "  t = tare"
+            );
+            Serial.println(
+                "  s = save active calibration"
+            );
+            Serial.println(
+                "  x = clear stored calibration"
             );
             break;
     }
@@ -148,11 +227,36 @@ void app_init(void)
         }
     }
 
-    if (!scale_set_calibration_factor(
-        DEFAULT_CALIBRATION_FACTOR))
+    float calibration_factor =
+    DEFAULT_CALIBRATION_FACTOR;
+
+    const bool stored_calibration_loaded =
+        calibration_storage_load(
+            &calibration_factor
+        );
+
+    if (stored_calibration_loaded)
     {
         Serial.println(
-            "ERROR: Invalid default calibration factor."
+            "Stored calibration loaded from EEPROM."
+        );
+    }
+    else
+    {
+        Serial.println(
+            "No valid stored calibration found."
+        );
+
+        Serial.println(
+            "Using default calibration factor."
+        );
+    }
+
+    if (!scale_set_calibration_factor(
+            calibration_factor))
+    {
+        Serial.println(
+            "ERROR: Invalid calibration factor."
         );
 
         while (true)
@@ -188,6 +292,12 @@ void app_init(void)
     );
     Serial.println(
         "  Serial command 't'    = tare"
+    );
+    Serial.println(
+    "  Serial command 's'    = save calibration"
+    );
+    Serial.println(
+        "  Serial command 'x'    = clear calibration"
     );
 
     Serial.println();
