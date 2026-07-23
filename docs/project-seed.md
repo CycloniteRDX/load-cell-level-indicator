@@ -740,24 +740,38 @@ El factor de calibración actual sigue siendo provisional porque la plataforma m
 
 El valor `DEFAULT_CALIBRATION_FACTOR` es un respaldo compilado en el firmware. La calibración específica y más reciente de cada dispositivo se guarda en EEPROM.
 
-## Próximo paso inmediato
+## v0.4: advertencia de nivel muy bajo completada
 
-Añadir una advertencia de recipiente muy vacío como una feature independiente:
+* Cuatro estados de nivel: VERY_LOW, LOW, MEDIUM y HIGH.
+* Histéresis entre todos los niveles.
+* Aviso de recipiente muy vacío mediante parpadeo no bloqueante del LED LOW.
+* Frecuencias visuales diferenciadas:
+  - VERY_LOW: 250 ms por cambio.
+  - Espera de calibración: 500 ms por cambio.
+  - Éxito y error de calibración: 150 ms por cambio.
+* Prioridad de los patrones de operación sobre la indicación normal de nivel.
 
-```text
-feature/very-low-warning
-```
+Niveles provisionales:
 
-Comportamiento previsto:
+VERY_LOW:
+    menos de 100 g
 
-```text
-VERY_LOW → LED rojo parpadeando
-LOW      → LED rojo fijo
-MEDIUM   → LED intermedio fijo
-HIGH     → LED superior fijo
-```
+LOW:
+    de 100 a 500 g
 
-El parpadeo de `VERY_LOW` utilizará una frecuencia diferente de los patrones de calibración para que ambos estados puedan distinguirse claramente.
+MEDIUM:
+    de 500 a 1000 g
+
+HIGH:
+    más de 1000 g
+
+Con histéresis de 20g:
+
+VERY_LOW → LOW:
+    120 g o más
+
+LOW → VERY_LOW:
+    80 g o menos
 
 ## Siguiente gran etapa educativa
 
