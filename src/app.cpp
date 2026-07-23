@@ -766,9 +766,22 @@ void app_init(void)
 
     Serial.println();
     Serial.println(F("Provisional levels:"));
-    Serial.println(F("  LOW:    below 500 g"));
-    Serial.println(F("  MEDIUM: 500 to 1000 g"));
-    Serial.println(F("  HIGH:   above 1000 g"));
+
+    Serial.println(F(
+        " VERY_LOW: below 100 g"
+    ));
+
+    Serial.println(F(
+        " LOW: 100 to 500 g"
+    ));
+
+    Serial.println(F(
+        " MEDIUM: 500 to 1000 g"
+    ));
+
+    Serial.println(F(
+        " HIGH: above 1000 g"
+    ));
 }
 
 

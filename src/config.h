@@ -73,8 +73,14 @@ static const float DEFAULT_CALIBRATION_FACTOR =
 /*
  * Provisional level thresholds.
  */
-static const float LOW_MEDIUM_THRESHOLD_GRAMS = 500.0F;
-static const float MEDIUM_HIGH_THRESHOLD_GRAMS = 1000.0F;
+static const float VERY_LOW_LOW_THRESHOLD_GRAMS =
+    100.0F;
+
+static const float LOW_MEDIUM_THRESHOLD_GRAMS =
+    500.0F;
+
+static const float MEDIUM_HIGH_THRESHOLD_GRAMS =
+    1000.0F;
 
 /*
  * Prevents rapid level changes around the thresholds.

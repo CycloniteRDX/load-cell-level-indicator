@@ -22,7 +22,7 @@ void level_indicator_update(float weight_grams);
  * Returns a textual representation of the current level.
  *
  * Possible results:
- * "UNKNOWN", "LOW", "MEDIUM" or "HIGH".
+ * "UNKNOWN", "VERY_LOW", "LOW", "MEDIUM" or "HIGH".
  */
 const char *level_indicator_get_state_name(void);
 
