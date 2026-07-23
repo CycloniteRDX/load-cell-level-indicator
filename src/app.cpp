@@ -8,6 +8,7 @@
 #include "scale.h"
 #include "calibration_storage.h"
 #include "indicator_leds.h"
+#include "operation_indicator.h"
 
 
 static float latest_weight_grams = 0.0F;
@@ -59,7 +60,13 @@ static void perform_tare(void)
         "Leave only the empty platform or container."
     );
 
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_TARE
+    );
+
     scale_tare();
+
+    operation_indicator_clear();
 
     Serial.print("New tare offset: ");
     Serial.println(scale_get_offset());
@@ -150,6 +157,10 @@ static void start_calibration(void)
     calibration_state =
         CALIBRATION_WAITING_FOR_ZERO;
 
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_CALIBRATION_ZERO
+    );
+
     Serial.println();
     Serial.println(F(
         "=== Calibration started ==="
@@ -184,6 +195,10 @@ static void confirm_calibration_zero(void)
     Serial.println();
     Serial.println(F("Performing calibration tare..."));
 
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_TARE
+    );
+
     scale_tare();
 
     Serial.print("Tare offset: ");
@@ -191,6 +206,10 @@ static void confirm_calibration_zero(void)
 
     calibration_state =
         CALIBRATION_WAITING_FOR_MASS;
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_CALIBRATION_MASS
+    );
 
     Serial.println();
     Serial.print(F("Place the reference mass: "));
@@ -319,6 +338,8 @@ static void complete_calibration(void)
             CALIBRATION_IDLE;
 
         measurement_available = false;
+
+        operation_indicator_clear();
         level_indicator_reset();
 
         Serial.println(F(
@@ -333,6 +354,8 @@ static void complete_calibration(void)
         CALIBRATION_IDLE;
 
     measurement_available = false;
+
+    operation_indicator_clear();
     level_indicator_reset();
 
     Serial.println();
@@ -375,6 +398,8 @@ static void cancel_calibration(void)
         CALIBRATION_IDLE;
 
     measurement_available = false;
+
+    operation_indicator_clear();
     level_indicator_reset();
 
     Serial.println();
@@ -412,6 +437,11 @@ static void process_calibration_confirmation(void)
         default:
             calibration_state =
                 CALIBRATION_IDLE;
+
+            measurement_available = false;
+
+            operation_indicator_clear();
+            level_indicator_reset();
 
             Serial.println(F(
                 "ERROR: Invalid calibration state."
@@ -599,6 +629,7 @@ void app_init(void)
 
     indicator_leds_init();
     level_indicator_init();
+    operation_indicator_init();
 
     Serial.println();
     Serial.println(F(
@@ -703,6 +734,20 @@ void app_init(void)
         " Press button on D8 = confirm calibration step"
     ));
 
+    Serial.println(F("LED operation status:"));
+
+    Serial.println(F(
+        " All LEDs on = tare in progress"
+    ));
+
+    Serial.println(F(
+        " LOW blinking = waiting for empty platform"
+    ));
+
+    Serial.println(F(
+        " MEDIUM blinking = waiting for reference mass"
+    ));
+
     Serial.println();
     Serial.println(F("Provisional levels:"));
     Serial.println(F("  LOW:    below 500 g"));
@@ -715,13 +760,12 @@ void app_update(void)
 {
     process_serial_commands();
 
-    /*
-     * The calibration button must always be processed:
-     *
-     * - During normal operation, it may start calibration.
-     * - During calibration, it confirms each step.
-     */
     process_calibration_button();
+
+    /*
+     * Update any non-blocking operation-status pattern.
+     */
+    operation_indicator_update();
 
     /*
      * Normal measurement, level indication and physical

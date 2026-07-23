@@ -35,6 +35,12 @@ static const unsigned long BUTTON_DEBOUNCE_MS = 40UL;
 static const unsigned long CALIBRATION_START_HOLD_MS =
     3000UL;
 static const unsigned long PRINT_PERIOD_MS = 500UL;
+/*
+ * Time between LED state changes while showing
+ * a blinking operation status.
+ */
+static const unsigned long
+    OPERATION_INDICATOR_BLINK_PERIOD_MS = 500UL;
 
 /*
  * Provisional fallback calibration factor.
