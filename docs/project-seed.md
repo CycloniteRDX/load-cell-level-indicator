@@ -670,88 +670,103 @@ No se debe reiniciar el proyecto desde cero si ya existe una etapa funcional.
 
 # Estado actual del proyecto
 
-v0.2 estructurada completada
-main.cpp reducido a setup/loop
-módulos app, scale, button y level_indicator
+## v0.3: calibración persistente completada
 
-# Próximo paso previsto
+El proyecto utiliza actualmente Arduino Nano, ATmega328P, Arduino Core y la librería `bogde/HX711`.
 
-siguiente etapa: calibración persistente o driver HX711 propio
-
-# Funcionalidades posteriores al primer refactor
-
-Después de completar y verificar la separación de responsabilidades se añadirá, como feature independiente:
+La aplicación está separada en módulos:
 
 ```text
-feature/persistent-calibration
+src/
+├── main.cpp
+├── app.cpp
+├── app.h
+├── button.cpp
+├── button.h
+├── calibration_storage.cpp
+├── calibration_storage.h
+├── config.h
+├── indicator_leds.cpp
+├── indicator_leds.h
+├── level_indicator.cpp
+├── level_indicator.h
+├── operation_indicator.cpp
+├── operation_indicator.h
+├── scale.cpp
+└── scale.h
 ```
 
-Esta funcionalidad incluirá:
+Funcionalidades completadas:
 
-* Pulsador o conector de servicio para iniciar la calibración.
-* Pulsación larga para evitar calibraciones accidentales.
-* Secuencia de calibración mediante estados.
-* Masa de calibración conocida.
-* Validación del factor obtenido.
-* Almacenamiento del factor en EEPROM.
-* Identificador y versión del formato almacenado.
-* Detección de EEPROM sin inicializar o con datos inválidos.
-* Conservación separada del factor de calibración y del offset de tara.
+* Lectura de la célula de carga mediante HX711.
+* Conversión de las cuentas ADC a gramos.
+* Tara automática durante el arranque.
+* Tara manual mediante pulsador físico o puerto serie.
+* Tres niveles de peso con histéresis.
+* Separación entre la lógica de nivel y el control físico de los LED.
+* Factor de calibración modificable durante la ejecución.
+* Almacenamiento persistente del factor en EEPROM.
+* Registro EEPROM con identificador, versión y CRC.
+* Validación de factores inválidos o datos EEPROM corruptos.
+* Recuperación del factor predeterminado cuando no existe una calibración válida.
+* Máquina de estados de calibración.
+* Calibración mediante puerto serie.
+* Pulsador físico de calibración.
+* Pulsación larga para evitar iniciar una calibración accidentalmente.
+* Cancelación de la calibración mediante el pulsador de tara o el comando serie.
+* Señalización LED de tara, estados de calibración, éxito y error.
+* Literales de diagnóstico almacenados en flash mediante `F()` para reducir el consumo de SRAM.
 
-El factor de calibración podrá conservarse en memoria permanente. Inicialmente, el offset de tara no se almacenará y continuará obteniéndose cuando sea necesario mediante el pulsador de tara.
-
-# Estrategia de lenguaje
-
-Mientras se utilicen el Arduino Core y `bogde/HX711`, el proyecto continuará compilándose como C++.
-
-Se utilizará un estilo procedural cercano a C:
-
-* Funciones.
-* `struct`.
-* `enum`.
-* Arrays.
-* Punteros cuando sean necesarios.
-* Variables privadas dentro de cada módulo.
-* Sin herencia.
-* Sin asignación dinámica.
-* Sin `String`.
-* Sin excepciones ni plantillas complejas.
-
-Cuando se escriba el driver propio del HX711, se intentará implementar mediante una interfaz C y archivos `.c` y `.h`. Durante la transición podrá coexistir un pequeño `main.cpp`, necesario para `setup()`, `loop()` y el Arduino Core, con módulos escritos en C.
-
-El objetivo posterior es eliminar completamente Arduino y terminar con un proyecto bare-metal en C.
-
-# Implementaciones futuras de ADC para células de carga
-
-El HX711 continuará siendo la primera implementación y la referencia funcional.
-
-Cuando esté disponible físicamente la placa SparkFun NAU7802 se seguirá esta progresión:
-
-1. Crear una prueba mínima independiente utilizando la librería SparkFun.
-2. Verificar hardware, dirección I²C, lecturas crudas, tara y calibración.
-3. Integrar provisionalmente el NAU7802 en la arquitectura separada.
-4. Crear posteriormente un driver propio del NAU7802.
-5. Implementar una HAL I²C, inicialmente sobre `Wire` y más adelante sobre el periférico del microcontrolador.
-
-El módulo ADS1232 se probará después mediante una progresión similar:
-
-1. Prueba mínima del módulo.
-2. Estudio de su interfaz y temporización.
-3. Driver propio.
-4. Comparación de ruido, estabilidad, velocidad y facilidad de integración.
-5. Uso de lo aprendido para un posible diseño de PCB propio.
-
-No se creará prematuramente una interfaz genérica para todos los ADC. Primero se implementará el HX711 y, cuando exista una segunda implementación funcional, se estudiará qué operaciones tienen realmente en común.
-
-La arquitectura futura podrá evolucionar hacia:
+Controles actuales:
 
 ```text
-scale
-  ↓
-load_cell_adc
-  ├── hx711
-  ├── nau7802
-  └── ads1232
+D4:
+    funcionamiento normal → tara
+    calibración activa    → cancelar
+
+D8:
+    mantener pulsado      → iniciar calibración
+    pulsación breve       → confirmar paso
+
+Puerto serie:
+    t → tara
+    c → iniciar o confirmar calibración
+    q → cancelar calibración
+    s → guardar el factor activo
+    x → invalidar la calibración almacenada
 ```
 
-La selección del ADC podrá realizarse mediante distintas configuraciones o entornos de PlatformIO, sin modificar la lógica principal de la aplicación.
+El factor de calibración actual sigue siendo provisional porque la plataforma mecánica definitiva todavía no está construida.
+
+El valor `DEFAULT_CALIBRATION_FACTOR` es un respaldo compilado en el firmware. La calibración específica y más reciente de cada dispositivo se guarda en EEPROM.
+
+## Próximo paso inmediato
+
+Añadir una advertencia de recipiente muy vacío como una feature independiente:
+
+```text
+feature/very-low-warning
+```
+
+Comportamiento previsto:
+
+```text
+VERY_LOW → LED rojo parpadeando
+LOW      → LED rojo fijo
+MEDIUM   → LED intermedio fijo
+HIGH     → LED superior fijo
+```
+
+El parpadeo de `VERY_LOW` utilizará una frecuencia diferente de los patrones de calibración para que ambos estados puedan distinguirse claramente.
+
+## Siguiente gran etapa educativa
+
+Después de completar las funcionalidades de aplicación previstas, se eliminará la dependencia de `bogde/HX711` y se escribirá un driver propio del HX711 manteniendo inicialmente el Arduino Core.
+
+El driver propio se desarrollará en una rama independiente:
+
+```text
+feature/custom-hx711-driver
+```
+
+No se cambiarán simultáneamente la lógica de aplicación y el driver de comunicación.
