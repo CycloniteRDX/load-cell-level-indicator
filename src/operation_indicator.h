@@ -1,6 +1,8 @@
 #ifndef OPERATION_INDICATOR_H
 #define OPERATION_INDICATOR_H
 
+#include <stdbool.h>
+
 
 typedef enum
 {
@@ -26,7 +28,19 @@ typedef enum
      * The MEDIUM LED blinks while waiting for
      * the reference calibration mass.
      */
-    OPERATION_INDICATOR_CALIBRATION_MASS
+    OPERATION_INDICATOR_CALIBRATION_MASS,
+
+    /*
+     * All LEDs blink temporarily after a
+     * successful calibration.
+     */
+    OPERATION_INDICATOR_SUCCESS,
+
+    /*
+     * The HIGH LED blinks temporarily when
+     * a calibration error occurs.
+     */
+    OPERATION_INDICATOR_ERROR
 
 } operation_indicator_mode_t;
 
@@ -40,8 +54,10 @@ void operation_indicator_init(void);
 
 
 /*
- * Selects an operation indication mode and applies
- * its initial LED state immediately.
+ * Selects a persistent operation mode.
+ *
+ * Persistent modes remain active until another mode
+ * is selected or operation_indicator_clear() is called.
  */
 void operation_indicator_set_mode(
     operation_indicator_mode_t mode
@@ -49,18 +65,42 @@ void operation_indicator_set_mode(
 
 
 /*
- * Updates non-blocking blinking patterns.
+ * Shows the temporary successful-calibration pattern.
+ *
+ * When the pattern finishes, the LEDs are released.
+ */
+void operation_indicator_show_success(void);
+
+
+/*
+ * Shows the temporary calibration-error pattern.
+ *
+ * When the pattern finishes, the module automatically
+ * returns to return_mode.
+ */
+void operation_indicator_show_error(
+    operation_indicator_mode_t return_mode
+);
+
+
+/*
+ * Returns true while a finite success or error
+ * pattern is being displayed.
+ */
+bool operation_indicator_is_temporary_active(void);
+
+
+/*
+ * Updates all non-blocking blinking patterns.
  *
  * This function must be called repeatedly from
- * the main application loop.
+ * the application loop.
  */
 void operation_indicator_update(void);
 
 
 /*
  * Releases the LEDs and turns all of them off.
- *
- * The level indicator may take control afterwards.
  */
 void operation_indicator_clear(void);
 

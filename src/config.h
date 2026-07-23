@@ -35,12 +35,31 @@ static const unsigned long BUTTON_DEBOUNCE_MS = 40UL;
 static const unsigned long CALIBRATION_START_HOLD_MS =
     3000UL;
 static const unsigned long PRINT_PERIOD_MS = 500UL;
+
 /*
- * Time between LED state changes while showing
- * a blinking operation status.
+ * Slow blinking used while waiting for the user
+ * during the calibration workflow.
  */
 static const unsigned long
     OPERATION_INDICATOR_BLINK_PERIOD_MS = 500UL;
+
+
+/*
+ * Faster blinking used for temporary success and
+ * error feedback.
+ */
+static const unsigned long
+    OPERATION_RESULT_BLINK_PERIOD_MS = 150UL;
+
+
+/*
+ * Number of visible flashes for temporary results.
+ */
+static const uint8_t
+    CALIBRATION_SUCCESS_FLASH_COUNT = 2U;
+
+static const uint8_t
+    CALIBRATION_ERROR_FLASH_COUNT = 3U;
 
 /*
  * Provisional fallback calibration factor.

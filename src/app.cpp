@@ -183,7 +183,7 @@ static void start_calibration(void)
     ));
 
     Serial.println(F(
-        "Send 'q' to cancel calibration."
+        "Press TARE or send 'q' to cancel calibration."
     ));
 
     Serial.println();
@@ -225,7 +225,7 @@ static void confirm_calibration_zero(void)
     ));
 
     Serial.println(F(
-        "Send 'q' to cancel calibration."
+        "Press TARE or send 'q' to cancel calibration."
     ));
 
     Serial.println();
@@ -254,6 +254,10 @@ static void complete_calibration(void)
             "Keep the mass in place and confirm again."
         ));
 
+        operation_indicator_show_error(
+            OPERATION_INDICATOR_CALIBRATION_MASS
+        );
+
         Serial.println();
         return;
     }
@@ -280,6 +284,10 @@ static void complete_calibration(void)
             "Send 'c' to try again or 'q' to cancel."
         ));
 
+        operation_indicator_show_error(
+            OPERATION_INDICATOR_CALIBRATION_MASS
+        );
+
         Serial.println();
         return;
     }
@@ -304,6 +312,10 @@ static void complete_calibration(void)
             "ERROR: Calculated calibration "
             "factor is invalid."
         ));
+
+        operation_indicator_show_error(
+            OPERATION_INDICATOR_CALIBRATION_MASS
+        );
 
         Serial.println();
         return;
@@ -339,8 +351,11 @@ static void complete_calibration(void)
 
         measurement_available = false;
 
-        operation_indicator_clear();
         level_indicator_reset();
+
+        operation_indicator_show_error(
+            OPERATION_INDICATOR_NONE
+        );
 
         Serial.println(F(
             "Calibration cancelled."
@@ -355,8 +370,9 @@ static void complete_calibration(void)
 
     measurement_available = false;
 
-    operation_indicator_clear();
     level_indicator_reset();
+
+    operation_indicator_show_success();
 
     Serial.println();
     Serial.println(F(
@@ -758,19 +774,55 @@ void app_init(void)
 
 void app_update(void)
 {
-    process_serial_commands();
-
-    process_calibration_button();
-
     /*
-     * Update any non-blocking operation-status pattern.
+     * Update the current visual pattern first.
      */
     operation_indicator_update();
 
     /*
-     * Normal measurement, level indication and physical
-     * tare remain paused during calibration.
+     * While a finite success or error pattern is being
+     * displayed, normal operation remains paused.
      */
+    if (operation_indicator_is_temporary_active())
+    {
+        return;
+    }
+
+    process_serial_commands();
+
+    /*
+     * A serial command may have started a temporary
+     * success or error pattern.
+     */
+    if (operation_indicator_is_temporary_active())
+    {
+        return;
+    }
+
+    /*
+     * During calibration, D4 changes its role:
+     *
+     * normal operation → tare
+     * calibration      → cancel
+     */
+    if (calibration_is_active())
+    {
+        if (button_was_pressed(&tare_button))
+        {
+            cancel_calibration();
+            return;
+        }
+
+        process_calibration_button();
+        return;
+    }
+
+    /*
+     * Outside calibration, a long press of D8 may start
+     * the calibration workflow.
+     */
+    process_calibration_button();
+
     if (calibration_is_active())
     {
         return;
