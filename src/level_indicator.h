@@ -19,6 +19,15 @@ void level_indicator_reset(void);
 void level_indicator_update(float weight_grams);
 
 /*
+ * Updates time-dependent visual effects of the
+ * current level.
+ *
+ * This must be called repeatedly from the application
+ * loop so that VERY_LOW can blink without blocking.
+ */
+void level_indicator_update_visual(void);
+
+/*
  * Returns a textual representation of the current level.
  *
  * Possible results:

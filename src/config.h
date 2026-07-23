@@ -36,6 +36,7 @@ static const unsigned long CALIBRATION_START_HOLD_MS =
     3000UL;
 static const unsigned long PRINT_PERIOD_MS = 500UL;
 
+
 /*
  * Slow blinking used while waiting for the user
  * during the calibration workflow.
@@ -60,6 +61,15 @@ static const uint8_t
 
 static const uint8_t
     CALIBRATION_ERROR_FLASH_COUNT = 3U;
+
+/*
+ * Very-low level warning.
+ *
+ * The LOW LED changes state every 250 ms.
+ * One complete on/off cycle therefore lasts 500 ms.
+ */
+static const unsigned long
+    VERY_LOW_BLINK_PERIOD_MS = 250UL;
 
 /*
  * Provisional fallback calibration factor.

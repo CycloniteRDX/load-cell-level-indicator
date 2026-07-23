@@ -768,11 +768,11 @@ void app_init(void)
     Serial.println(F("Provisional levels:"));
 
     Serial.println(F(
-        " VERY_LOW: below 100 g"
+        " VERY_LOW: below 100 g, LOW LED blinking"
     ));
 
     Serial.println(F(
-        " LOW: 100 to 500 g"
+        " LOW: 100 to 500 g, LOW LED steady"
     ));
 
     Serial.println(F(
@@ -847,5 +847,14 @@ void app_update(void)
     }
 
     update_weight_measurement();
+
+    /*
+    * Update normal level visual effects.
+    *
+    * This point is only reached when no calibration or
+    * temporary operation pattern owns the LEDs.
+    */
+    level_indicator_update_visual();
+
     print_weight_periodically();
 }

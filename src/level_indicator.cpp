@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include "config.h"
 #include "indicator_leds.h"
 #include "level_indicator.h"
@@ -23,13 +25,25 @@ typedef enum
 static level_state_t current_level =
     LEVEL_UNKNOWN;
 
+/*
+ * Current phase of the VERY_LOW blinking pattern.
+ *
+ * true  = LOW LED illuminated
+ * false = LOW LED off
+ */
+static bool very_low_led_on = false;
+
+
+/*
+ * Time at which the VERY_LOW LED last changed state.
+ */
+static unsigned long
+    last_very_low_blink_change_ms = 0UL;
+
 
 /*
  * Applies the physical LED output associated with
- * the current logical level.
- *
- * VERY_LOW temporarily uses the same steady LOW LED
- * as LEVEL_LOW. Blinking will be added separately.
+ * the current logical level and visual phase.
  */
 static void set_level_leds(
     level_state_t level
@@ -38,6 +52,13 @@ static void set_level_leds(
     switch (level)
     {
         case LEVEL_VERY_LOW:
+            indicator_leds_set(
+                very_low_led_on,
+                false,
+                false
+            );
+            break;
+
         case LEVEL_LOW:
             indicator_leds_set(
                 true,
@@ -67,6 +88,38 @@ static void set_level_leds(
             indicator_leds_off();
             break;
     }
+}
+
+
+/*
+ * Initializes the visual representation when the
+ * logical level changes.
+ */
+static void start_level_visual(
+    level_state_t level
+)
+{
+    if (level == LEVEL_VERY_LOW)
+    {
+        /*
+         * Begin the warning with the LED illuminated,
+         * giving immediate feedback when VERY_LOW
+         * becomes active.
+         */
+        very_low_led_on = true;
+
+        last_very_low_blink_change_ms =
+            millis();
+    }
+    else
+    {
+        /*
+         * Other levels do not use the blinking phase.
+         */
+        very_low_led_on = false;
+    }
+
+    set_level_leds(level);
 }
 
 
@@ -113,6 +166,11 @@ void level_indicator_reset(void)
     current_level =
         LEVEL_UNKNOWN;
 
+    very_low_led_on = false;
+
+    last_very_low_blink_change_ms =
+        millis();
+
     set_level_leds(current_level);
 }
 
@@ -130,9 +188,12 @@ void level_indicator_update(
         current_level =
             select_initial_level(weight_grams);
 
-        set_level_leds(current_level);
+        start_level_visual(current_level);
         return;
     }
+
+    const level_state_t previous_level =
+        current_level;
 
     switch (current_level)
     {
@@ -265,9 +326,45 @@ void level_indicator_update(
             return;
     }
 
-    set_level_leds(current_level);
+    /*
+    * Restart the visual representation only when the
+    * logical state actually changes.
+    */
+    if (current_level != previous_level)
+    {
+        start_level_visual(current_level);
+    }
 }
 
+void level_indicator_update_visual(void)
+{
+    /*
+     * Only VERY_LOW has a time-dependent pattern.
+     */
+    if (current_level != LEVEL_VERY_LOW)
+    {
+        return;
+    }
+
+    const unsigned long now = millis();
+
+    /*
+     * Unsigned subtraction remains correct when
+     * millis() eventually overflows.
+     */
+    if ((now - last_very_low_blink_change_ms) <
+        VERY_LOW_BLINK_PERIOD_MS)
+    {
+        return;
+    }
+
+    last_very_low_blink_change_ms = now;
+
+    very_low_led_on =
+        !very_low_led_on;
+
+    set_level_leds(current_level);
+}
 
 const char *level_indicator_get_state_name(void)
 {
