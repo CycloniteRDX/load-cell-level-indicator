@@ -223,3 +223,61 @@ hx711_status_t hx711_set_gain(
 
     return HX711_STATUS_OK;
 }
+
+hx711_status_t hx711_power_down(hx711_t *device)
+{
+    if (device == NULL)
+    {
+        return HX711_STATUS_INVALID_ARGUMENT;
+    }
+
+    if (!device->initialized)
+    {
+        return HX711_STATUS_NOT_INITIALIZED;
+    }
+
+    /*
+     * PD_SCK must remain HIGH for at least 60 microseconds
+     * to put the HX711 into power-down mode.
+     */
+    hx711_platform_write_pin(device->clock_pin, false);
+    hx711_platform_write_pin(device->clock_pin, true);
+
+    hx711_platform_delay_us(70U);
+
+    return HX711_STATUS_OK;
+}
+
+hx711_status_t hx711_power_up(hx711_t *device)
+{
+    if (device == NULL)
+    {
+        return HX711_STATUS_INVALID_ARGUMENT;
+    }
+
+    if (!device->initialized)
+    {
+        return HX711_STATUS_NOT_INITIALIZED;
+    }
+
+    /*
+     * Pulling PD_SCK LOW wakes the HX711.
+     */
+    hx711_platform_write_pin(device->clock_pin, false);
+
+    /*
+     * After power-up, the HX711 returns to channel A with gain 128.
+     *
+     * If another configuration was selected, discard one conversion
+     * so that the additional clock pulses configure the following
+     * conversion with the desired gain.
+     */
+    if (device->gain != HX711_GAIN_A_128)
+    {
+        int32_t discarded_reading = 0;
+
+        return hx711_read_raw(device, &discarded_reading);
+    }
+
+    return HX711_STATUS_OK;
+}
