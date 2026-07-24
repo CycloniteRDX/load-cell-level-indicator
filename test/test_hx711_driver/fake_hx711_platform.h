@@ -56,5 +56,10 @@ fake_hx711_platform_get_critical_exit_count(void);
 uintptr_t
 fake_hx711_platform_get_restored_critical_state(void);
 
+uint32_t
+fake_hx711_platform_get_delay_call_count(void);
+
+uint16_t
+fake_hx711_platform_get_last_delay_us(void);
 
 #endif

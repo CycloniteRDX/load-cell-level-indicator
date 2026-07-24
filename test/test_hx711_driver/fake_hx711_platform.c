@@ -38,6 +38,9 @@ static uintptr_t restored_critical_state = 0U;
 static uint32_t critical_enter_count = 0U;
 static uint32_t critical_exit_count = 0U;
 
+static uint32_t delay_call_count = 0U;
+static uint16_t last_delay_us = 0U;
+
 
 static bool fake_hx711_pin_is_valid(
     uint8_t pin
@@ -49,6 +52,9 @@ static bool fake_hx711_pin_is_valid(
 
 void fake_hx711_platform_reset(void)
 {
+    delay_call_count = 0U;
+    last_delay_us = 0U;
+
     for (uint8_t pin = 0U;
          pin < FAKE_HX711_PIN_COUNT;
          ++pin)
@@ -181,6 +187,20 @@ fake_hx711_platform_get_restored_critical_state(void)
 }
 
 
+uint32_t
+fake_hx711_platform_get_delay_call_count(void)
+{
+    return delay_call_count;
+}
+
+
+uint16_t
+fake_hx711_platform_get_last_delay_us(void)
+{
+    return last_delay_us;
+}
+
+
 /*
  * Fake implementation of hx711_platform.h
  */
@@ -308,8 +328,10 @@ void hx711_platform_delay_us(
 {
     /*
      * Native tests do not wait in real time.
+     * The requested delay is only recorded.
      */
-    (void)microseconds;
+    last_delay_us = microseconds;
+    ++delay_call_count;
 }
 
 
