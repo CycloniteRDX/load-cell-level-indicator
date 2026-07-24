@@ -31,17 +31,17 @@ static const uint8_t WEIGHT_SAMPLES = 1U;
 /*
  * Timing configuration.
  */
-static const unsigned long BUTTON_DEBOUNCE_MS = 40UL;
-static const unsigned long CALIBRATION_START_HOLD_MS =
+static const uint32_t BUTTON_DEBOUNCE_MS = 40UL;
+static const uint32_t CALIBRATION_START_HOLD_MS =
     3000UL;
-static const unsigned long PRINT_PERIOD_MS = 500UL;
+static const uint32_t PRINT_PERIOD_MS = 500UL;
 
 
 /*
  * Slow blinking used while waiting for the user
  * during the calibration workflow.
  */
-static const unsigned long
+static const uint32_t
     OPERATION_INDICATOR_BLINK_PERIOD_MS = 500UL;
 
 
@@ -49,7 +49,7 @@ static const unsigned long
  * Faster blinking used for temporary success and
  * error feedback.
  */
-static const unsigned long
+static const uint32_t
     OPERATION_RESULT_BLINK_PERIOD_MS = 150UL;
 
 
@@ -68,7 +68,7 @@ static const uint8_t
  * The LOW LED changes state every 250 ms.
  * One complete on/off cycle therefore lasts 500 ms.
  */
-static const unsigned long
+static const uint32_t
     VERY_LOW_BLINK_PERIOD_MS = 250UL;
 
 /*

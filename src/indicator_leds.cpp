@@ -1,4 +1,3 @@
-
 #include "hal_gpio.h"
 #include "config.h"
 #include "indicator_leds.h"
@@ -9,15 +8,15 @@ static void write_led(
     bool led_on
 )
 {
-    hal_gpio_write((hal_gpio_pin_t)pin, led_on);
+    hal_gpio_write(pin, led_on);
 }
 
 
 void indicator_leds_init(void)
 {
-    hal_gpio_configure_output((hal_gpio_pin_t)LOW_LEVEL_LED_PIN);
-    hal_gpio_configure_output((hal_gpio_pin_t)MEDIUM_LEVEL_LED_PIN);
-    hal_gpio_configure_output((hal_gpio_pin_t)HIGH_LEVEL_LED_PIN);
+    hal_gpio_configure_output(LOW_LEVEL_LED_PIN);
+    hal_gpio_configure_output(MEDIUM_LEVEL_LED_PIN);
+    hal_gpio_configure_output(HIGH_LEVEL_LED_PIN);
 
     indicator_leds_off();
 }
