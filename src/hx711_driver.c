@@ -8,6 +8,13 @@
 #define HX711_CLOCK_DELAY_US  1U
 #define HX711_DATA_BITS       24U
 
+static bool hx711_gain_is_valid(hx711_gain_t gain)
+{
+    return (gain == HX711_GAIN_A_128) ||
+           (gain == HX711_GAIN_B_32)  ||
+           (gain == HX711_GAIN_A_64);
+}
+
 hx711_status_t hx711_init(
     hx711_t *device,
     uint8_t data_pin,
@@ -108,9 +115,7 @@ hx711_status_t hx711_read_raw(
         return HX711_STATUS_NOT_INITIALIZED;
     }
 
-    if ((device->gain != HX711_GAIN_A_128) &&
-        (device->gain != HX711_GAIN_B_32) &&
-        (device->gain != HX711_GAIN_A_64))
+    if (!hx711_gain_is_valid(device->gain))
     {
         return HX711_STATUS_INVALID_ARGUMENT;
     }
@@ -165,6 +170,56 @@ hx711_status_t hx711_read_raw(
     }
 
     *raw_value = (int32_t)raw_data;
+
+    return HX711_STATUS_OK;
+}
+
+hx711_status_t hx711_set_gain(
+    hx711_t *device,
+    hx711_gain_t gain
+)
+{
+    if (device == NULL)
+    {
+        return HX711_STATUS_INVALID_ARGUMENT;
+    }
+
+    if (!device->initialized)
+    {
+        return HX711_STATUS_NOT_INITIALIZED;
+    }
+
+    if (!hx711_gain_is_valid(gain))
+    {
+        return HX711_STATUS_INVALID_ARGUMENT;
+    }
+
+    if (device->gain == gain)
+    {
+        return HX711_STATUS_OK;
+    }
+
+    const hx711_gain_t previous_gain = device->gain;
+
+    device->gain = gain;
+
+    /*
+     * The additional clock pulses at the end of a reading select
+     * the channel and gain for the following conversion.
+     *
+     * Discard one reading so that the next reading uses the newly
+     * selected configuration.
+     */
+    int32_t discarded_reading = 0;
+
+    const hx711_status_t status =
+        hx711_read_raw(device, &discarded_reading);
+
+    if (status != HX711_STATUS_OK)
+    {
+        device->gain = previous_gain;
+        return status;
+    }
 
     return HX711_STATUS_OK;
 }
