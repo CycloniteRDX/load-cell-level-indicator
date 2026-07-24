@@ -57,3 +57,34 @@ bool hx711_is_ready(const hx711_t *device)
      */
     return !hx711_platform_read_pin(device->data_pin);
 }
+
+hx711_status_t hx711_wait_ready(
+    const hx711_t *device,
+    uint32_t timeout_ms
+)
+{
+    if (device == NULL)
+    {
+        return HX711_STATUS_INVALID_ARGUMENT;
+    }
+
+    if (!device->initialized)
+    {
+        return HX711_STATUS_NOT_INITIALIZED;
+    }
+
+    const uint32_t start_time_ms = hx711_platform_millis();
+
+    while (!hx711_is_ready(device))
+    {
+        const uint32_t elapsed_time_ms =
+            hx711_platform_millis() - start_time_ms;
+
+        if (elapsed_time_ms >= timeout_ms)
+        {
+            return HX711_STATUS_TIMEOUT;
+        }
+    }
+
+    return HX711_STATUS_OK;
+}
