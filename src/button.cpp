@@ -1,6 +1,7 @@
-#include <Arduino.h>
-
 #include "button.h"
+
+#include "hal_gpio.h"
+#include "hal_time.h"
 
 
 /*
@@ -16,10 +17,10 @@ static bool button_update_state(button_t *button)
         return false;
     }
 
-    const uint32_t now = millis();
+    const uint32_t now = hal_time_millis();
 
     const bool raw_state =
-        digitalRead(button->pin);
+        hal_gpio_read(button->pin);
 
     /*
      * Every raw transition restarts the debounce timer.
@@ -53,7 +54,13 @@ static bool button_update_state(button_t *button)
      */
     button->stable_state = raw_state;
 
-    if (button->stable_state == LOW)
+    /*
+     * The input uses an internal pull-up:
+     *
+     * false = LOW  = pressed
+     * true  = HIGH = released
+     */
+    if (!button->stable_state)
     {
         /*
          * A new debounced press has started.
@@ -86,12 +93,13 @@ void button_init(
         return;
     }
 
-    pinMode(pin, INPUT_PULLUP);
+    hal_gpio_configure_input_pullup(pin);
 
     const bool initial_state =
-        digitalRead(pin);
+        hal_gpio_read(pin);
 
-    const uint32_t now = millis();
+    const uint32_t now =
+        hal_time_millis();
 
     button->pin = pin;
 
@@ -135,7 +143,7 @@ bool button_was_held(
      * A hold is only possible while the debounced state
      * says that the button remains pressed.
      */
-    if (button->stable_state != LOW)
+    if (button->stable_state)
     {
         return false;
     }
@@ -148,11 +156,12 @@ bool button_was_held(
         return false;
     }
 
-    const uint32_t now = millis();
+    const uint32_t now =
+        hal_time_millis();
 
     /*
      * Unsigned subtraction also works correctly when
-     * millis() eventually overflows.
+     * the millisecond counter eventually overflows.
      */
     if ((now - button->pressed_since_ms) <
         hold_ms)
