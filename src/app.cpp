@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <math.h>
+#include <stdint.h>
 
 #include "app.h"
 #include "button.h"
@@ -9,6 +10,7 @@
 #include "calibration_storage.h"
 #include "indicator_leds.h"
 #include "operation_indicator.h"
+#include "hal_time.h"
 
 
 static float latest_weight_grams = 0.0F;
@@ -17,7 +19,7 @@ static bool measurement_available = false;
 static button_t tare_button;
 static button_t calibration_button;
 
-static unsigned long last_print_ms = 0;
+static uint32_t last_print_ms = 0;
 
 
 typedef enum
@@ -602,7 +604,7 @@ static void update_weight_measurement(void)
 
 static void print_weight_periodically(void)
 {
-    const unsigned long now = millis();
+    const uint32_t now = hal_time_millis();
 
     if ((now - last_print_ms) < PRINT_PERIOD_MS)
     {
