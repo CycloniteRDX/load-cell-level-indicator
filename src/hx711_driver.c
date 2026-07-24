@@ -4,6 +4,10 @@
 
 #include "hx711_platform.h"
 
+#define HX711_READ_TIMEOUT_MS 1000U
+#define HX711_CLOCK_DELAY_US  1U
+#define HX711_DATA_BITS       24U
+
 hx711_status_t hx711_init(
     hx711_t *device,
     uint8_t data_pin,
@@ -85,6 +89,82 @@ hx711_status_t hx711_wait_ready(
             return HX711_STATUS_TIMEOUT;
         }
     }
+
+    return HX711_STATUS_OK;
+}
+
+hx711_status_t hx711_read_raw(
+    hx711_t *device,
+    int32_t *raw_value
+)
+{
+    if ((device == NULL) || (raw_value == NULL))
+    {
+        return HX711_STATUS_INVALID_ARGUMENT;
+    }
+
+    if (!device->initialized)
+    {
+        return HX711_STATUS_NOT_INITIALIZED;
+    }
+
+    if ((device->gain != HX711_GAIN_A_128) &&
+        (device->gain != HX711_GAIN_B_32) &&
+        (device->gain != HX711_GAIN_A_64))
+    {
+        return HX711_STATUS_INVALID_ARGUMENT;
+    }
+
+    const hx711_status_t ready_status =
+        hx711_wait_ready(device, HX711_READ_TIMEOUT_MS);
+
+    if (ready_status != HX711_STATUS_OK)
+    {
+        return ready_status;
+    }
+
+    uint32_t raw_data = 0U;
+
+    const hx711_platform_critical_state_t previous_state =
+        hx711_platform_enter_critical();
+
+    for (uint8_t bit_index = 0U;
+         bit_index < HX711_DATA_BITS;
+         ++bit_index)
+    {
+        hx711_platform_write_pin(device->clock_pin, true);
+        hx711_platform_delay_us(HX711_CLOCK_DELAY_US);
+
+        raw_data <<= 1U;
+
+        if (hx711_platform_read_pin(device->data_pin))
+        {
+            raw_data |= 1U;
+        }
+
+        hx711_platform_write_pin(device->clock_pin, false);
+        hx711_platform_delay_us(HX711_CLOCK_DELAY_US);
+    }
+
+    for (uint8_t pulse_index = 0U;
+         pulse_index < (uint8_t)device->gain;
+         ++pulse_index)
+    {
+        hx711_platform_write_pin(device->clock_pin, true);
+        hx711_platform_delay_us(HX711_CLOCK_DELAY_US);
+
+        hx711_platform_write_pin(device->clock_pin, false);
+        hx711_platform_delay_us(HX711_CLOCK_DELAY_US);
+    }
+
+    hx711_platform_exit_critical(previous_state);
+
+    if ((raw_data & 0x00800000UL) != 0U)
+    {
+        raw_data |= 0xFF000000UL;
+    }
+
+    *raw_value = (int32_t)raw_data;
 
     return HX711_STATUS_OK;
 }

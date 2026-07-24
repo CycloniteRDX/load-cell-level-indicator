@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <avr/interrupt.h>
 
 #include "hx711_platform.h"
 
@@ -25,4 +26,26 @@ extern "C" void hx711_platform_write_pin(uint8_t pin, bool level)
 extern "C" uint32_t hx711_platform_millis(void)
 {
     return millis();
+}
+
+extern "C" void hx711_platform_delay_us(uint16_t microseconds)
+{
+    delayMicroseconds(microseconds);
+}
+
+extern "C" hx711_platform_critical_state_t
+hx711_platform_enter_critical(void)
+{
+    const uint8_t previous_state = SREG;
+
+    cli();
+
+    return (hx711_platform_critical_state_t)previous_state;
+}
+
+extern "C" void hx711_platform_exit_critical(
+    hx711_platform_critical_state_t previous_state
+)
+{
+    SREG = (uint8_t)previous_state;
 }
