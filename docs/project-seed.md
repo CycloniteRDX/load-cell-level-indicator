@@ -858,3 +858,32 @@ The critical-section backend is currently AVR-specific by design.
 A future custom AVR backend should replace the Arduino GPIO and time backends without requiring changes to the HX711 driver or migrated application modules.
 
 The next recommended major milestone is to add automated host-side tests using fake or simulated HAL backends before replacing additional platform infrastructure.
+
+## Native unit tests — v0.7
+
+The project now includes native host-side unit tests using PlatformIO, GCC and Unity.
+
+Four isolated test environments were added:
+
+* `native_button`
+* `native_hx711`
+* `native_level_indicator`
+* `native_operation_indicator`
+
+The native implementations replace hardware dependencies with fake GPIO, time, LED, HX711 platform and critical-section backends.
+
+Current automated coverage:
+
+* Button: 10 tests.
+* HX711 driver: 18 tests.
+* Level indicator: 14 tests.
+* Operation indicator: 14 tests.
+* Total: 56 native tests.
+
+The tests cover debounce, long presses, contact bounce, timer overflow, HX711 bit reconstruction, signed 24-bit conversion, timeouts, gain pulses, critical sections, power control, level thresholds, hysteresis, blinking and operation-status patterns.
+
+All native tests pass and the normal Arduino Nano firmware continues to compile.
+
+The completed milestone will be tagged as `v0.7-native-unit-tests`.
+
+The next planned milestone is to introduce direct AVR HAL backends incrementally while preserving the Arduino implementation as a reference and using the native tests to prevent regressions.

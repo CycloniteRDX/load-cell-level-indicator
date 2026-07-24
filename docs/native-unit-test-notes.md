@@ -391,3 +391,81 @@ This branch will be complete when:
 * [ ] Arduino firmware still builds.
 * [ ] Physical firmware behaviour remains unchanged.
 * [ ] Final test coverage is documented.
+
+
+## 15. Final result
+
+The native unit test infrastructure has been implemented successfully.
+
+The final automated test coverage is:
+
+| Test suite                 |  Tests |
+| -------------------------- | -----: |
+| `test_button`              |     10 |
+| `test_hx711_driver`        |     18 |
+| `test_level_indicator`     |     14 |
+| `test_operation_indicator` |     14 |
+| **Total**                  | **56** |
+
+The tests cover:
+
+* Button initialization.
+* Debounce timing.
+* Contact bounce.
+* Press and release events.
+* Long-press detection.
+* Millisecond-counter overflow.
+* HX711 initialization and readiness.
+* HX711 timeout handling.
+* 24-bit data reconstruction.
+* Signed 24-bit conversion.
+* Gain and channel pulse counts.
+* Critical-section state restoration.
+* HX711 power-down and power-up.
+* Level thresholds.
+* Level hysteresis.
+* Direct level transitions.
+* Very-low warning blinking.
+* Operation-indicator persistent modes.
+* Success and error patterns.
+* Temporary-pattern completion and restoration.
+
+The following commands pass successfully:
+
+```text
+pio test -e native_button
+pio test -e native_hx711
+pio test -e native_level_indicator
+pio test -e native_operation_indicator
+pio run -e nanoatmega328new
+```
+
+The native tests execute on the development computer using GCC and Unity.
+
+The production firmware continues to compile for the Arduino Nano ATmega328P.
+
+Physical hardware testing remains necessary for electrical behaviour, real timing, load-cell accuracy, noise, wiring and mechanical validation.
+
+Continuous integration is not included in this milestone and may be added in a future branch.
+
+## 16. Definition of done
+
+* [x] Native PlatformIO test environments exist.
+* [x] Unity runs successfully on the development computer.
+* [x] Fake GPIO and time support exist.
+* [x] Fake critical-section support exists for the HX711 driver.
+* [x] Button debounce is tested.
+* [x] Button long-hold detection is tested.
+* [x] HX711 raw-data reconstruction is tested.
+* [x] HX711 sign extension is tested.
+* [x] HX711 timeout handling is tested.
+* [x] HX711 gain pulse generation is tested.
+* [x] Level thresholds are tested.
+* [x] Level hysteresis is tested.
+* [x] Very-low blinking is tested.
+* [x] Operation-indicator patterns are tested.
+* [x] Millisecond-counter overflow is tested.
+* [x] All native tests pass.
+* [x] Arduino firmware still builds.
+* [x] Production firmware behaviour remains unchanged.
+* [x] Final test coverage is documented.
