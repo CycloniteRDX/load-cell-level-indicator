@@ -1,4 +1,5 @@
-#include <Arduino.h>
+#include <stdint.h>
+#include "hal_time.h"
 
 #include "config.h"
 #include "indicator_leds.h"
@@ -37,8 +38,8 @@ static bool very_low_led_on = false;
 /*
  * Time at which the VERY_LOW LED last changed state.
  */
-static unsigned long
-    last_very_low_blink_change_ms = 0UL;
+static uint32_t
+    last_very_low_blink_change_ms = 0U;
 
 
 /*
@@ -109,7 +110,7 @@ static void start_level_visual(
         very_low_led_on = true;
 
         last_very_low_blink_change_ms =
-            millis();
+            hal_time_millis();
     }
     else
     {
@@ -169,7 +170,7 @@ void level_indicator_reset(void)
     very_low_led_on = false;
 
     last_very_low_blink_change_ms =
-        millis();
+        hal_time_millis();
 
     set_level_leds(current_level);
 }
@@ -346,11 +347,11 @@ void level_indicator_update_visual(void)
         return;
     }
 
-    const unsigned long now = millis();
+    const uint32_t now = hal_time_millis();
 
     /*
      * Unsigned subtraction remains correct when
-     * millis() eventually overflows.
+     * hal_time_millis() eventually overflows.
      */
     if ((now - last_very_low_blink_change_ms) <
         VERY_LOW_BLINK_PERIOD_MS)

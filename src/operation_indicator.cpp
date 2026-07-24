@@ -1,4 +1,5 @@
-#include <Arduino.h>
+#include <stdint.h>
+#include "hal_time.h"
 
 #include "config.h"
 #include "indicator_leds.h"
@@ -19,7 +20,7 @@ static operation_indicator_mode_t return_mode =
 
 static bool blink_led_on = false;
 
-static unsigned long last_blink_change_ms = 0UL;
+static uint32_t last_blink_change_ms = 0UL;
 
 
 /*
@@ -126,14 +127,14 @@ static void start_temporary_pattern(
      * Begin immediately with the selected LEDs on.
      */
     blink_led_on = true;
-    last_blink_change_ms = millis();
+    last_blink_change_ms = hal_time_millis();
 
     apply_current_output();
 }
 
 
 static void finish_temporary_pattern(
-    unsigned long now
+    uint32_t now
 )
 {
     current_mode = return_mode;
@@ -163,7 +164,7 @@ void operation_indicator_init(void)
 
     blink_led_on = false;
 
-    last_blink_change_ms = millis();
+    last_blink_change_ms = hal_time_millis();
 
     completed_flashes = 0U;
     target_flashes = 0U;
@@ -189,7 +190,7 @@ void operation_indicator_set_mode(
      * state change is immediately visible.
      */
     blink_led_on = true;
-    last_blink_change_ms = millis();
+    last_blink_change_ms = hal_time_millis();
 
     apply_current_output();
 }
@@ -230,9 +231,9 @@ void operation_indicator_update(void)
         return;
     }
 
-    const unsigned long now = millis();
+    const uint32_t now = hal_time_millis();
 
-    unsigned long blink_period_ms =
+    uint32_t blink_period_ms =
         OPERATION_INDICATOR_BLINK_PERIOD_MS;
 
     if (mode_is_temporary(current_mode))
