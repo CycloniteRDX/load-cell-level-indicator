@@ -1,5 +1,5 @@
-#include <Arduino.h>
 
+#include "hal_gpio.h"
 #include "config.h"
 #include "indicator_leds.h"
 
@@ -9,18 +9,15 @@ static void write_led(
     bool led_on
 )
 {
-    digitalWrite(
-        pin,
-        led_on ? HIGH : LOW
-    );
+    hal_gpio_write((hal_gpio_pin_t)pin, led_on);
 }
 
 
 void indicator_leds_init(void)
 {
-    pinMode(LOW_LEVEL_LED_PIN, OUTPUT);
-    pinMode(MEDIUM_LEVEL_LED_PIN, OUTPUT);
-    pinMode(HIGH_LEVEL_LED_PIN, OUTPUT);
+    hal_gpio_configure_output((hal_gpio_pin_t)LOW_LEVEL_LED_PIN);
+    hal_gpio_configure_output((hal_gpio_pin_t)MEDIUM_LEVEL_LED_PIN);
+    hal_gpio_configure_output((hal_gpio_pin_t)HIGH_LEVEL_LED_PIN);
 
     indicator_leds_off();
 }
