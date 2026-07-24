@@ -892,3 +892,312 @@ The initial design decisions are:
 * Keep calibration and tare outside the low-level driver.
 * Prefer readable GPIO operations before direct register access.
 * Add a small Arduino C++ bridge only if required by the build system.
+
+
+## 25. Final implementation
+
+The custom HX711 driver has been implemented and integrated into the application.
+
+The final implementation consists of:
+
+```text
+include/
+└── hx711_driver.h
+
+src/
+├── hx711_driver.c
+├── hx711_platform.h
+├── hx711_platform_arduino.cpp
+└── scale.cpp
+```
+
+The responsibilities are divided as follows:
+
+### `hx711_driver.c`
+
+Contains the HX711-specific protocol logic:
+
+* Device initialization.
+* Conversion readiness checking.
+* Readiness timeout.
+* 24-bit raw conversion reading.
+* Most-significant-bit-first data reconstruction.
+* Signed 24-bit to signed 32-bit conversion.
+* Channel and gain selection.
+* Power-down control.
+* Power-up control.
+* Argument and initialization validation.
+
+The driver is written in C.
+
+### `hx711_platform.h`
+
+Defines the internal platform operations required by the driver:
+
+* GPIO input configuration.
+* GPIO output configuration.
+* GPIO reading.
+* GPIO writing.
+* Millisecond timing.
+* Microsecond delays.
+* Entering a critical section.
+* Restoring the previous interrupt state.
+
+This header is internal to the driver and application implementation.
+
+### `hx711_platform_arduino.cpp`
+
+Implements the temporary Arduino platform adapter.
+
+It contains the direct dependency on:
+
+* `pinMode()`
+* `digitalRead()`
+* `digitalWrite()`
+* `millis()`
+* `delayMicroseconds()`
+* AVR interrupt control
+
+The file is written in C++ because the Arduino framework exposes its API through C++ headers.
+
+The functions use C linkage so that they can be called from `hx711_driver.c`.
+
+### `scale.cpp`
+
+Provides the higher-level scale functionality:
+
+* Raw sample averaging.
+* Tare offset management.
+* Calibration-factor management.
+* Net-count calculation.
+* Conversion from ADC counts to grams.
+
+The scale module uses the custom driver instead of the Bogde HX711 library.
+
+---
+
+## 26. Final configuration
+
+The application currently uses:
+
+```text
+HX711 channel: A
+HX711 gain:    128
+```
+
+This configuration requires 25 clock pulses for each complete reading:
+
+```text
+24 data pulses
++
+1 channel and gain selection pulse
+```
+
+Channel A with gain 128 was selected because it provides the highest available amplification for the small differential signal produced by the load cell.
+
+---
+
+## 27. Raw-reading validation
+
+The custom driver was tested using an Arduino Nano, an HX711 module and the current provisional mechanical platform.
+
+The test printed individual raw ADC readings through the serial port.
+
+### Initial unloaded readings
+
+Typical values immediately after reset were approximately:
+
+```text
+-171353
+-171276
+-170999
+-171151
+-170963
+```
+
+Some gradual initial drift was observed while the provisional mechanical platform and electronics settled.
+
+### Readings with a 1.5 kg load
+
+After placing a 1.5 kg load and allowing the platform to settle, typical values were approximately:
+
+```text
+-102327
+-102575
+-102344
+-102659
+-102444
+```
+
+### Readings after removing the load
+
+After removing the load, the readings returned to approximately:
+
+```text
+-172031
+-172231
+-172091
+-172139
+-172187
+```
+
+The approximate difference between the loaded and unloaded states was:
+
+```text
+69600 ADC counts
+```
+
+This corresponds to a provisional sensitivity of approximately:
+
+```text
+46.4 ADC counts per gram
+```
+
+This value is not considered a final calibration result because the current mechanical platform is provisional.
+
+---
+
+## 28. Validation conclusions
+
+The raw-reading test confirmed that:
+
+* The HX711 initializes correctly.
+* The readiness signal is interpreted correctly.
+* The driver receives continuous conversions.
+* The 24 data bits are read in the correct order.
+* Sign extension from 24 bits to 32 bits works correctly.
+* No incorrect jumps between negative values and large positive values were observed.
+* Channel A with gain 128 remains selected correctly.
+* The raw result changes consistently when a load is applied.
+* The reading returns close to its original region when the load is removed.
+* No unexpected timeouts occurred during normal operation.
+
+The gradual changes observed while adding and removing the load corresponded to the real mechanical transition and settling of the platform.
+
+---
+
+## 29. Application integration validation
+
+After replacing the Bogde library inside the scale module, the normal application was compiled, uploaded and tested.
+
+The following functionality continued to work:
+
+* HX711 initialization.
+* Initial tare.
+* Weight measurement.
+* Raw-sample averaging.
+* Calibration-factor application.
+* Persistent calibration loading.
+* Physical tare button.
+* LED level indication.
+* Serial calibration workflow.
+* Normal operation after restarting the Arduino Nano.
+
+The mathematical behaviour remains equivalent to the previous implementation:
+
+```text
+net counts = average raw reading - tare offset
+
+weight = net counts / calibration factor
+```
+
+---
+
+## 30. Bogde dependency removal
+
+The Bogde HX711 dependency was removed from `platformio.ini`.
+
+A clean build was performed after removing the dependency.
+
+The project:
+
+* Compiles successfully.
+* Uploads successfully.
+* Runs correctly on the Arduino Nano.
+* No longer requires the external Bogde HX711 library.
+
+---
+
+## 31. Power-control validation status
+
+The following functions have been implemented:
+
+```c
+hx711_power_down()
+hx711_power_up()
+```
+
+They compile successfully and follow the HX711 power-control protocol.
+
+However, a dedicated physical test explicitly exercising repeated power-down and power-up cycles has not yet been performed.
+
+This does not affect normal application operation because the current application does not use HX711 power-down during its regular workflow.
+
+A dedicated power-control test may be added later if the project introduces low-power operation.
+
+---
+
+## 32. Future platform migration
+
+The HX711 protocol implementation is separated from the Arduino platform adapter.
+
+When the Arduino framework is replaced by a custom HAL, the intended migration is:
+
+```text
+Remove:
+hx711_platform_arduino.cpp
+
+Add:
+an AVR-specific, STM32-specific or generic HAL-backed implementation
+```
+
+The following files should ideally remain unchanged:
+
+```text
+hx711_driver.c
+hx711_driver.h
+scale.cpp
+application modules
+```
+
+Some small interface adjustments may still be required when the final HAL is designed, but the HX711 protocol logic should not need to be rewritten.
+
+---
+
+## 33. Known limitations
+
+The current implementation has the following limitations:
+
+* Only one HX711 device is currently used by the application.
+* The application uses only channel A with gain 128.
+* The Arduino platform adapter is AVR-specific because it saves and restores the AVR status register.
+* No automated unit tests currently simulate the HX711 protocol.
+* Power-down and power-up have not received a dedicated physical test.
+* Mechanical accuracy and repeatability have not been characterized using the final platform.
+* The provisional sensitivity calculated during testing is not a final calibration value.
+
+---
+
+## 34. Final definition of done
+
+* [x] The low-level driver is written primarily in C.
+* [x] The public header is compatible with C and C++.
+* [x] No C++ class is required by the HX711 driver.
+* [x] The driver initializes the GPIO pins.
+* [x] The driver detects when data is ready.
+* [x] Waiting for data uses a finite timeout.
+* [x] The driver reads signed 24-bit conversion results.
+* [x] Sign extension was physically validated.
+* [x] Channel A with gain 128 works.
+* [x] Gain-selection support is implemented.
+* [x] Power-control support is implemented.
+* [x] Existing tare behaviour still works.
+* [x] Existing calibration behaviour still works.
+* [x] Persistent calibration still works.
+* [x] Existing LED behaviour still works.
+* [x] The physical tare button still works.
+* [x] The Bogde dependency has been removed.
+* [x] The project builds and runs without Bogde.
+* [x] The implementation and validation are documented.
+* [x] Dedicated HX711 power-down and power-up testing.
+* [ ] Automated driver tests using a simulated platform.

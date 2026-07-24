@@ -784,3 +784,18 @@ feature/custom-hx711-driver
 ```
 
 No se cambiarán simultáneamente la lógica de aplicación y el driver de comunicación.
+
+
+## Custom HX711 driver milestone
+
+The project now uses a custom HX711 driver instead of the Bogde HX711 library.
+
+The HX711 protocol logic is implemented primarily in C and is separated from the temporary Arduino platform adapter. The driver supports initialization, readiness checking, finite timeouts, signed 24-bit raw readings, channel and gain selection, and power control.
+
+The scale module preserves the previous tare, averaging and calibration behaviour. Persistent calibration, the physical tare button, the serial calibration workflow and LED level indication continue to operate correctly.
+
+The Bogde dependency has been removed from `platformio.ini`, and the project has been successfully compiled, uploaded and physically tested on the Arduino Nano.
+
+The current platform backend is `hx711_platform_arduino.cpp`. A future custom HAL should replace this backend without rewriting the HX711 protocol implementation.
+
+Dedicated physical testing of the power-down and power-up functions and automated driver tests remain future improvements.
