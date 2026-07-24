@@ -1001,3 +1001,468 @@ This branch will be complete when:
 * [ ] The project builds and uploads successfully.
 * [ ] Remaining direct Arduino dependencies are documented.
 * [ ] Final physical validation is documented.
+
+## 30. Final implementation
+
+The project HAL has been implemented and integrated into the modules included in the scope of this branch.
+
+The final HAL files are:
+
+```text
+include/
+├── hal_gpio.h
+├── hal_time.h
+└── hal_critical.h
+
+src/
+├── hal_gpio_arduino.cpp
+├── hal_time_arduino.cpp
+└── hal_critical_avr.c
+```
+
+The project also contains the HX711-specific adapter:
+
+```text
+src/
+├── hx711_platform.h
+└── hx711_platform.c
+```
+
+The HX711 adapter now uses the project HAL and no longer calls Arduino or AVR functions directly.
+
+---
+
+## 31. Implemented HAL interfaces
+
+### GPIO HAL
+
+The GPIO HAL provides:
+
+```c
+void hal_gpio_configure_input(
+    hal_gpio_pin_t pin
+);
+
+void hal_gpio_configure_input_pullup(
+    hal_gpio_pin_t pin
+);
+
+void hal_gpio_configure_output(
+    hal_gpio_pin_t pin
+);
+
+bool hal_gpio_read(
+    hal_gpio_pin_t pin
+);
+
+void hal_gpio_write(
+    hal_gpio_pin_t pin,
+    bool level
+);
+```
+
+The current backend translates these operations into Arduino GPIO functions.
+
+### Time HAL
+
+The time HAL provides:
+
+```c
+uint32_t hal_time_millis(void);
+
+void hal_time_delay_us(
+    uint16_t microseconds
+);
+```
+
+The current backend translates these operations into Arduino timing functions.
+
+### Critical-section HAL
+
+The critical-section HAL provides:
+
+```c
+hal_critical_state_t hal_critical_enter(void);
+
+void hal_critical_exit(
+    hal_critical_state_t previous_state
+);
+```
+
+The current AVR backend saves the complete AVR status register, disables interrupts and later restores the exact previous state.
+
+It does not enable interrupts unconditionally.
+
+---
+
+## 32. Migrated modules
+
+### HX711 platform adapter
+
+The previous Arduino-specific adapter:
+
+```text
+hx711_platform_arduino.cpp
+```
+
+was replaced by:
+
+```text
+hx711_platform.c
+```
+
+The new dependency chain is:
+
+```text
+hx711_driver.c
+        |
+        v
+hx711_platform.c
+        |
+        v
+hal_gpio
+hal_time
+hal_critical
+        |
+        v
+Arduino and AVR backends
+```
+
+The HX711 protocol implementation itself did not need to be rewritten.
+
+### Indicator LEDs
+
+The physical LED module now uses:
+
+```text
+hal_gpio_configure_output()
+hal_gpio_write()
+```
+
+It no longer calls:
+
+```text
+pinMode()
+digitalWrite()
+```
+
+directly.
+
+LED polarity and visible behaviour remain unchanged.
+
+### Button
+
+The button module now uses:
+
+```text
+hal_gpio_configure_input_pullup()
+hal_gpio_read()
+hal_time_millis()
+```
+
+It no longer directly uses Arduino GPIO or timing functions.
+
+The existing debounce, short-press and long-hold behaviour remains unchanged.
+
+### Level indicator
+
+The level indicator now uses:
+
+```text
+hal_time_millis()
+```
+
+for the very-low-level warning blink.
+
+The level thresholds, hysteresis and state transitions remain unchanged.
+
+### Operation indicator
+
+The operation indicator now uses:
+
+```text
+hal_time_millis()
+```
+
+for normal, success and error patterns.
+
+The pattern timing and LED sequences remain unchanged.
+
+### Application timing
+
+The application now uses:
+
+```text
+hal_time_millis()
+```
+
+for periodic weight output.
+
+The application still includes Arduino because serial communication and flash-string support have not yet been abstracted.
+
+---
+
+## 33. Type alignment
+
+The project timing values now consistently use:
+
+```c
+uint32_t
+```
+
+This includes:
+
+* HAL millisecond values.
+* Button debounce timing.
+* Button hold timing.
+* Periodic output timing.
+* Level-indicator timing.
+* Operation-indicator timing.
+* Configuration constants expressed in milliseconds.
+
+Unsigned subtraction continues to be used for elapsed-time calculations:
+
+```c
+elapsed = current_time - start_time;
+```
+
+This preserves correct behaviour across the normal overflow of the 32-bit millisecond counter.
+
+GPIO configuration constants remain represented with standard integer types in the project configuration.
+
+The HAL currently defines:
+
+```c
+typedef uint8_t hal_gpio_pin_t;
+```
+
+No explicit conversion is required when the source value is already represented as a `uint8_t`.
+
+---
+
+## 34. Remaining direct Arduino dependencies
+
+The Arduino framework has not been removed.
+
+The remaining direct Arduino dependencies are intentional and outside the scope of this branch.
+
+### `main.cpp`
+
+Still depends on the Arduino runtime for:
+
+```text
+setup()
+loop()
+```
+
+### `app.cpp`
+
+Still depends on Arduino for:
+
+```text
+Serial
+F()
+```
+
+Its timing operations now use the project HAL.
+
+### `calibration_storage.cpp`
+
+Still depends on the Arduino EEPROM implementation.
+
+### `hal_gpio_arduino.cpp`
+
+Provides the temporary GPIO backend using:
+
+```text
+pinMode()
+digitalRead()
+digitalWrite()
+```
+
+### `hal_time_arduino.cpp`
+
+Provides the temporary time backend using:
+
+```text
+millis()
+delayMicroseconds()
+```
+
+These remaining dependencies will be addressed by future branches.
+
+---
+
+## 35. AVR-specific dependency
+
+The current critical-section backend is:
+
+```text
+hal_critical_avr.c
+```
+
+It directly uses AVR facilities such as:
+
+```text
+SREG
+cli()
+```
+
+This dependency is intentional.
+
+The public interface remains platform-independent, while the implementation is explicitly identified as AVR-specific.
+
+A future STM32 or other microcontroller backend would implement the same public interface using the interrupt-control mechanism of that architecture.
+
+---
+
+## 36. Final validation
+
+A clean build was performed after completing the migration.
+
+The firmware was compiled, uploaded and tested on the Arduino Nano.
+
+The following functionality was verified:
+
+* Normal application startup.
+* HX711 initialization.
+* Initial tare.
+* Weight measurement.
+* Weight response when applying a known load.
+* Return near zero after removing the load.
+* Physical tare-button operation.
+* Button debounce.
+* Long-hold calibration entry.
+* Very-low-level blinking indication.
+* Low, medium and high level indication.
+* Operation-indicator patterns.
+* Periodic serial weight output.
+* Persistent calibration loading after restart.
+* Normal HX711 operation through the new HAL dependency chain.
+
+No functional regression was observed during the migration.
+
+---
+
+## 37. Final architecture
+
+The resulting architecture is:
+
+```text
+Application
+    |
+    v
+Application modules
+    |
+    +-------------------------+
+    |                         |
+    v                         v
+HX711 driver            Project modules
+    |                         |
+    v                         |
+HX711 platform adapter       |
+    |                         |
+    +------------+------------+
+                 |
+                 v
+          Project HAL
+                 |
+       +---------+----------+
+       |         |          |
+       v         v          v
+ Arduino GPIO  Arduino time  AVR critical
+    backend      backend       backend
+       |         |          |
+       +---------+----------+
+                 |
+                 v
+            ATmega328P
+```
+
+The project still uses Arduino, but migrated modules no longer depend directly on Arduino GPIO or time functions.
+
+---
+
+## 38. Future backend replacement
+
+A future custom AVR implementation should replace:
+
+```text
+hal_gpio_arduino.cpp
+hal_time_arduino.cpp
+```
+
+with files such as:
+
+```text
+hal_gpio_avr.c
+hal_time_avr.c
+```
+
+Ideally, the following files should remain unchanged:
+
+```text
+hal_gpio.h
+hal_time.h
+hal_critical.h
+hx711_driver.c
+hx711_platform.c
+button.cpp
+indicator_leds.cpp
+level_indicator.cpp
+operation_indicator.cpp
+scale.cpp
+```
+
+Later branches will also need to address:
+
+```text
+Serial communication
+persistent storage
+Arduino startup and runtime
+```
+
+Only after those dependencies have been replaced can:
+
+```ini
+framework = arduino
+```
+
+be removed safely.
+
+---
+
+## 39. Definition of done
+
+* [x] The HAL architecture is documented.
+* [x] GPIO HAL interfaces exist.
+* [x] The Arduino GPIO backend exists.
+* [x] Time HAL interfaces exist.
+* [x] The Arduino time backend exists.
+* [x] Critical-section HAL interfaces exist.
+* [x] The AVR critical-section backend exists.
+* [x] Public HAL headers are compatible with C and C++.
+* [x] Public HAL headers contain no Arduino dependencies.
+* [x] The HX711 platform adapter uses the project HAL.
+* [x] The HX711 protocol implementation remains independent of Arduino.
+* [x] The physical LED module uses the GPIO HAL.
+* [x] The button module uses the GPIO and time HAL.
+* [x] The level indicator uses the time HAL.
+* [x] The operation indicator uses the time HAL.
+* [x] Application periodic timing uses the time HAL.
+* [x] Weight measurement still works.
+* [x] Initial and physical tare still work.
+* [x] Persistent calibration still works.
+* [x] LED level indication still works.
+* [x] Very-low-level blinking still works.
+* [x] Button debounce still works.
+* [x] Long-hold detection still works.
+* [x] The serial calibration workflow still works.
+* [x] The project builds and uploads successfully.
+* [x] Remaining direct Arduino dependencies are documented.
+* [x] Final physical validation is documented.
+* [ ] Custom AVR GPIO backend.
+* [ ] Custom AVR time backend.
+* [ ] Serial HAL.
+* [ ] Persistent-storage HAL.
+* [ ] Removal of the Arduino runtime.

@@ -799,3 +799,62 @@ The Bogde dependency has been removed from `platformio.ini`, and the project has
 The current platform backend is `hx711_platform_arduino.cpp`. A future custom HAL should replace this backend without rewriting the HX711 protocol implementation.
 
 Dedicated physical testing of the power-down and power-up functions and automated driver tests remain future improvements.
+
+## Project HAL milestone
+
+The `feature/project-hal` milestone introduced a project-specific hardware abstraction layer while retaining the Arduino framework as the temporary platform backend.
+
+The project now provides C-compatible HAL interfaces for:
+
+* Digital GPIO.
+* Millisecond timing.
+* Microsecond delays.
+* Critical sections.
+
+The implemented backend files are:
+
+```text
+hal_gpio_arduino.cpp
+hal_time_arduino.cpp
+hal_critical_avr.c
+```
+
+The HX711 platform adapter now uses the project HAL and no longer depends directly on Arduino or AVR functions.
+
+The following modules were migrated:
+
+* HX711 platform adapter.
+* Physical indicator LED module.
+* Button module.
+* Level-indicator timing.
+* Operation-indicator timing.
+* Periodic application timing.
+
+The HX711 protocol driver itself remained unchanged.
+
+The existing behaviour was preserved:
+
+* Weight measurement.
+* Initial and physical tare.
+* Persistent calibration.
+* Button debounce.
+* Long-hold calibration entry.
+* Very-low-level blinking.
+* Low, medium and high level indication.
+* Operation-indicator patterns.
+* Periodic serial output.
+
+The project still uses the Arduino framework.
+
+The remaining direct Arduino dependencies are primarily:
+
+* Arduino startup through `setup()` and `loop()`.
+* Serial communication and flash-string support.
+* EEPROM storage.
+* Temporary Arduino GPIO and time backends.
+
+The critical-section backend is currently AVR-specific by design.
+
+A future custom AVR backend should replace the Arduino GPIO and time backends without requiring changes to the HX711 driver or migrated application modules.
+
+The next recommended major milestone is to add automated host-side tests using fake or simulated HAL backends before replacing additional platform infrastructure.
