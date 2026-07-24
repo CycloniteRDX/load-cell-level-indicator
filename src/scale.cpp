@@ -1,45 +1,81 @@
-#include <Arduino.h>
-#include <HX711.h>
 #include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "config.h"
+#include "hx711_driver.h"
 #include "scale.h"
 
-static HX711 hx711;
+#define SCALE_INITIAL_READY_TIMEOUT_MS 2000U
+
+static hx711_t hx711_device;
+
+static int32_t tare_offset = 0;
 
 static float current_calibration_factor = 1.0F;
 
-/*
- * Private HX711 object.
- *
- * static makes it accessible only inside this source file.
- */
-
-
-bool scale_init(void)
+static bool scale_read_average_raw(
+    int32_t *average_raw,
+    uint8_t samples
+)
 {
-    hx711.begin(
-        LOADCELL_DOUT_PIN,
-        LOADCELL_SCK_PIN
-    );
-
-    if (!hx711.wait_ready_timeout(2000))
+    if ((average_raw == NULL) || (samples == 0U))
     {
         return false;
     }
 
-    /*
-     * Start with a neutral factor.
-     *
-     * The application will provide the actual
-     * factor after initialization.
-     */
-    hx711.set_scale(1.0F);
-    current_calibration_factor = 1.0F;
+    int32_t raw_sum = 0;
+
+    for (uint8_t sample_index = 0U;
+         sample_index < samples;
+         ++sample_index)
+    {
+        int32_t raw_value = 0;
+
+        const hx711_status_t status =
+            hx711_read_raw(&hx711_device, &raw_value);
+
+        if (status != HX711_STATUS_OK)
+        {
+            return false;
+        }
+
+        raw_sum += raw_value;
+    }
+
+    *average_raw = raw_sum / (int32_t)samples;
 
     return true;
 }
 
+bool scale_init(void)
+{
+    const hx711_status_t init_status = hx711_init(
+        &hx711_device,
+        LOADCELL_DOUT_PIN,
+        LOADCELL_SCK_PIN
+    );
+
+    if (init_status != HX711_STATUS_OK)
+    {
+        return false;
+    }
+
+    const hx711_status_t ready_status = hx711_wait_ready(
+        &hx711_device,
+        SCALE_INITIAL_READY_TIMEOUT_MS
+    );
+
+    if (ready_status != HX711_STATUS_OK)
+    {
+        return false;
+    }
+
+    tare_offset = 0;
+    current_calibration_factor = 1.0F;
+
+    return true;
+}
 
 bool scale_set_calibration_factor(
     float calibration_factor
@@ -47,8 +83,7 @@ bool scale_set_calibration_factor(
 {
     /*
      * A negative calibration factor is valid.
-     * Its sign depends on the polarity of the
-     * load-cell signal.
+     * Its sign depends on the load-cell wiring direction.
      *
      * Zero, NaN and infinity are not valid.
      */
@@ -59,82 +94,90 @@ bool scale_set_calibration_factor(
         return false;
     }
 
-    hx711.set_scale(calibration_factor);
-
-    current_calibration_factor =
-        calibration_factor;
+    current_calibration_factor = calibration_factor;
 
     return true;
 }
 
-
 void scale_tare(void)
 {
-    hx711.tare(TARE_SAMPLES);
-}
+    int32_t new_tare_offset = 0;
 
+    if (scale_read_average_raw(
+            &new_tare_offset,
+            TARE_SAMPLES))
+    {
+        tare_offset = new_tare_offset;
+    }
+}
 
 bool scale_read_weight(float *weight_grams)
 {
-    if (weight_grams == nullptr)
+    if (weight_grams == NULL)
     {
         return false;
     }
 
     /*
-     * Do not block waiting for a conversion.
+     * Preserve the previous non-blocking behaviour:
+     * do not start a measurement unless a conversion
+     * is already available.
      */
-    if (!hx711.is_ready())
+    if (!hx711_is_ready(&hx711_device))
     {
         return false;
     }
 
+    int32_t average_raw = 0;
+
+    if (!scale_read_average_raw(
+            &average_raw,
+            WEIGHT_SAMPLES))
+    {
+        return false;
+    }
+
+    const int32_t net_counts =
+        average_raw - tare_offset;
+
     *weight_grams =
-        hx711.get_units(WEIGHT_SAMPLES);
+        (float)net_counts /
+        current_calibration_factor;
 
     return true;
 }
-
-
-long scale_get_offset(void)
-{
-    return hx711.get_offset();
-}
-
-
-float scale_get_calibration_factor(void)
-{
-    return current_calibration_factor;
-}
-
 
 bool scale_read_net_counts(
     float *net_counts,
     uint8_t samples
 )
 {
-    if (net_counts == nullptr)
+    if ((net_counts == NULL) || (samples == 0U))
     {
         return false;
     }
 
-    if (samples == 0U)
+    int32_t average_raw = 0;
+
+    if (!scale_read_average_raw(
+            &average_raw,
+            samples))
     {
         return false;
     }
 
-    if (!hx711.wait_ready_timeout(1000UL))
-    {
-        return false;
-    }
-
-    /*
-     * get_value() returns:
-     *
-     * average raw reading - tare offset
-     */
     *net_counts =
-        (float)hx711.get_value(samples);
+        (float)(average_raw - tare_offset);
 
     return true;
+}
+
+long scale_get_offset(void)
+{
+    return (long)tare_offset;
+}
+
+float scale_get_calibration_factor(void)
+{
+    return current_calibration_factor;
 }
