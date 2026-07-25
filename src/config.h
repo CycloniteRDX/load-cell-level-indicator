@@ -29,6 +29,12 @@ static const uint8_t TARE_SAMPLES = 20U;
 static const uint8_t WEIGHT_SAMPLES = 1U;
 
 /*
+ * Console configuration.
+ */
+static const uint32_t CONSOLE_BAUD_RATE =
+    115200UL;
+
+/*
  * Timing configuration.
  */
 static const uint32_t BUTTON_DEBOUNCE_MS = 40UL;
