@@ -979,3 +979,638 @@ This milestone will be complete when:
 * [ ] Static SRAM remains within limits.
 * [ ] Flash and SRAM usage are recorded.
 * [ ] Final validation is documented.
+
+## 25. Final architecture
+
+The console abstraction has been implemented and selected successfully.
+
+The final application input/output architecture is:
+
+```text
+Application
+    |
+    v
+console.h
+    |
+    v
+console.c
+    |
+    v
+hal_serial.h
+    |
+    v
+hal_serial_arduino.cpp
+    |
+    v
+Arduino HardwareSerial
+```
+
+The application no longer calls the Arduino Serial API directly.
+
+The physical serial transport remains temporarily provided by Arduino, but all application text formatting and command handling now pass through project-owned abstractions.
+
+---
+
+## 26. Serial HAL
+
+The public serial HAL is:
+
+```text
+include/hal_serial.h
+```
+
+It exposes:
+
+```c
+void hal_serial_init(
+    uint32_t baud_rate
+);
+
+bool hal_serial_rx_available(void);
+
+bool hal_serial_read_byte(
+    uint8_t *received_byte
+);
+
+void hal_serial_write_byte(
+    uint8_t transmitted_byte
+);
+```
+
+The HAL operates exclusively on individual bytes.
+
+It does not understand:
+
+* Strings.
+* Lines.
+* Decimal formatting.
+* Floating-point values.
+* Calibration messages.
+* Application commands.
+
+The active production backend is:
+
+```text
+src/hal_serial_arduino.cpp
+```
+
+It wraps:
+
+```text
+Serial.begin()
+Serial.available()
+Serial.read()
+Serial.write()
+```
+
+The next direct AVR UART backend can implement the same interface without changing the console or application.
+
+---
+
+## 27. Console module
+
+The platform-independent console implementation is:
+
+```text
+src/console.h
+src/console.c
+```
+
+It owns:
+
+* Console initialization.
+* Character input.
+* Pending-input discard.
+* RAM-string output.
+* Program-memory string output.
+* CRLF line endings.
+* Signed 32-bit integer formatting.
+* Fixed-precision floating-point formatting.
+
+All transmitted bytes pass through:
+
+```text
+hal_serial_write_byte()
+```
+
+All received bytes pass through:
+
+```text
+hal_serial_rx_available()
+hal_serial_read_byte()
+```
+
+The console contains no Arduino dependency.
+
+---
+
+## 28. Program-memory literals
+
+Fixed application messages now use:
+
+```c
+CONSOLE_PRINT(
+    "Fixed text"
+);
+
+CONSOLE_PRINTLN(
+    "Fixed text with newline"
+);
+```
+
+On AVR, these macros use program-memory literals.
+
+This preserves the SRAM optimization previously provided by:
+
+```cpp
+F("...")
+```
+
+During native tests, the same macros behave as ordinary C strings.
+
+Runtime-selected strings, such as level-state names, are printed through:
+
+```c
+console_print();
+console_println();
+```
+
+The application no longer uses the Arduino `F()` macro.
+
+---
+
+## 29. Line endings
+
+Console line endings remain compatible with Arduino `Serial.println()`.
+
+```c
+console_newline();
+```
+
+transmits:
+
+```text
+carriage return: 0x0D
+line feed:       0x0A
+```
+
+or:
+
+```text
+\r\n
+```
+
+Blank lines, ordinary lines and consecutive output operations are tested byte by byte.
+
+---
+
+## 30. Integer formatting
+
+The console provides:
+
+```c
+console_print_int32(
+    int32_t value
+);
+```
+
+It supports the complete signed 32-bit range:
+
+```text
+0
+positive values
+negative values
+INT32_MAX
+INT32_MIN
+```
+
+The implementation does not use:
+
+* `sprintf()`.
+* Dynamic memory.
+* Recursion.
+* Variadic formatting.
+
+The application uses this function for the scale tare offset.
+
+---
+
+## 31. Floating-point formatting
+
+The console provides:
+
+```c
+console_print_float(
+    float value,
+    uint8_t decimal_places
+);
+```
+
+The implementation supports up to six decimal places.
+
+Application precision remains:
+
+```text
+Weight:                  2 decimal places
+Reference mass:          2 decimal places
+Net counts:              2 decimal places
+Calibration factor:      6 decimal places
+```
+
+The formatter supports:
+
+* Positive values.
+* Negative values.
+* Zero.
+* Negative zero.
+* Required trailing zeros.
+* Decimal rounding.
+* Carry into the integer part.
+* NaN.
+* Positive infinity.
+* Negative infinity.
+* Values outside the supported integer range.
+
+Special output is defined as:
+
+```text
+NaN:                nan
+Positive infinity:  inf
+Negative infinity: -inf
+Unsupported range:  ovf
+```
+
+Requested precision greater than six is limited to six decimal places.
+
+The implementation does not use floating-point `printf()`.
+
+---
+
+## 32. Input behaviour
+
+The application retains its single-character command interface:
+
+```text
+t = tare
+c = start or confirm calibration
+q = cancel calibration
+s = save active calibration
+x = clear stored calibration
+```
+
+No newline is required.
+
+The application now uses:
+
+```c
+console_input_available();
+console_read_char();
+console_discard_input();
+```
+
+The first pending character is processed and any additional waiting input is discarded, preserving the previous command behaviour.
+
+Uppercase and lowercase variants remain supported by the application command logic.
+
+---
+
+## 33. Application migration
+
+The application initialization now uses:
+
+```c
+console_init(
+    CONSOLE_BAUD_RATE
+);
+```
+
+The baud rate is defined in:
+
+```text
+src/config.h
+```
+
+as:
+
+```c
+static const uint32_t
+    CONSOLE_BAUD_RATE = 115200UL;
+```
+
+The application no longer calls:
+
+```text
+Serial.begin()
+Serial.available()
+Serial.read()
+Serial.print()
+Serial.println()
+F()
+```
+
+The function previously named:
+
+```text
+process_serial_commands()
+```
+
+is now named:
+
+```text
+process_console_commands()
+```
+
+This reflects that command processing no longer depends directly on Arduino HardwareSerial.
+
+---
+
+## 34. Remaining Arduino dependency
+
+`app.cpp` still includes Arduino support for the remaining blocking calls:
+
+```cpp
+delay(1000);
+delay(3000);
+```
+
+Therefore, this milestone does not yet make the application fully independent from the Arduino Core.
+
+The remaining direct Arduino responsibilities include:
+
+```text
+startup
+setup() and loop()
+blocking millisecond delay()
+HardwareSerial backend
+```
+
+The serial dependency is now isolated behind:
+
+```text
+hal_serial_arduino.cpp
+```
+
+---
+
+## 35. Native console tests
+
+The native environment is:
+
+```text
+native_console
+```
+
+It compiles:
+
+```text
+src/console.c
+test/test_console/fake_hal_serial.c
+test/test_console/test_main.cpp
+```
+
+It excludes:
+
+```text
+hal_serial_arduino.cpp
+Arduino HardwareSerial
+app.cpp
+AVR-specific backends
+```
+
+The fake serial backend provides controlled RX and TX buffers and records:
+
+* Requested baud rate.
+* Initialization calls.
+* Availability checks.
+* Read calls.
+* Written bytes.
+* Output-buffer overflow.
+* Input consumption order.
+
+---
+
+## 36. Console test coverage
+
+The 43 native console tests cover:
+
+### Initialization
+
+* Baud-rate forwarding.
+* Initialization call count.
+
+### Input
+
+* Empty input.
+* Available input.
+* Null output pointer.
+* Output preservation after failure.
+* Single-character reads.
+* Multiple-character ordering.
+* Input discard.
+* Empty-buffer discard.
+* HAL read failures.
+
+### Text
+
+* Null strings.
+* Empty strings.
+* RAM strings.
+* Program-memory strings.
+* Program-memory literal macros.
+* Multiple consecutive writes.
+* Blank lines.
+* Exact CRLF output.
+
+### Integers
+
+* Zero.
+* Positive values.
+* Negative values.
+* `INT32_MAX`.
+* `INT32_MIN`.
+
+### Floating point
+
+* Zero with two decimals.
+* Zero with six decimals.
+* Positive and negative values.
+* Trailing zeros.
+* Zero decimal places.
+* Rounding down.
+* Rounding up.
+* Carry into the integer part.
+* Negative zero.
+* NaN.
+* Positive infinity.
+* Negative infinity.
+* Unsupported range.
+* Precision limited to six decimal places.
+
+---
+
+## 37. Automated validation
+
+The native console suite passes:
+
+```text
+Console tests: 43
+Failures:       0
+Ignored:        0
+```
+
+The complete native regression is:
+
+```text
+native_button:                       10 tests
+native_hx711:                        18 tests
+native_level_indicator:              14 tests
+native_operation_indicator:          14 tests
+native_scale:                        32 tests
+native_calibration_storage:          40 tests
+native_console:                      43 tests
+
+Total:                              171 tests
+Failures:                             0
+```
+
+The Arduino Nano production firmware also compiles successfully.
+
+---
+
+## 38. Physical validation
+
+The console abstraction was validated successfully on the physical Arduino Nano.
+
+The following behaviour was confirmed:
+
+* [x] Firmware starts normally.
+* [x] Startup output is complete.
+* [x] No corrupted characters appear.
+* [x] CRLF line endings remain correct.
+* [x] Blank lines and spacing remain readable.
+* [x] Stored-calibration messages appear correctly.
+* [x] Calibration factors display six decimal places.
+* [x] Weights display two decimal places.
+* [x] Level-state names display correctly.
+* [x] Long messages are not truncated.
+* [x] Command `t` works.
+* [x] Command `c` works.
+* [x] Command `q` works.
+* [x] Command `s` works.
+* [x] Command `x` works.
+* [x] Uppercase and lowercase commands work.
+* [x] Complete calibration remains functional.
+* [x] Calibration remains persistent after restart.
+* [x] HX711 readings remain functional.
+* [x] Buttons remain functional.
+* [x] Indicators remain functional.
+* [x] Timer1 timing remains functional.
+* [x] Direct AVR EEPROM storage remains functional.
+
+No application-level regression was detected.
+
+---
+
+## 39. Memory usage
+
+Previous direct AVR EEPROM milestone:
+
+```text
+RAM:   748 bytes
+Flash: 12630 bytes
+```
+
+Console abstraction milestone:
+
+```text
+RAM:   312 bytes
+Flash: 12564 bytes
+```
+
+The final values must be copied from the successful production build.
+
+Fixed application literals remain in Flash and do not cause the previous SRAM overflow.
+
+---
+
+## 40. Architectural result
+
+The project now owns these abstraction layers:
+
+```text
+GPIO:
+hal_gpio.h
+    -> hal_gpio_avr.c
+
+Critical sections:
+hal_critical.h
+    -> hal_critical_avr.c
+
+Time:
+hal_time.h
+    -> hal_time_avr.c
+
+Non-volatile storage:
+hal_storage.h
+    -> hal_storage_avr.c
+
+Console transport:
+hal_serial.h
+    -> hal_serial_arduino.cpp
+
+Console formatting:
+console.c
+    -> text, numbers, CRLF and input
+```
+
+Application output and command logic no longer depend directly on Arduino Serial.
+
+The future UART backend can be introduced by replacing only:
+
+```text
+hal_serial_arduino.cpp
+```
+
+with:
+
+```text
+hal_serial_avr.c
+```
+
+---
+
+## 41. Definition of done
+
+This milestone is complete because:
+
+* [x] The console architecture is documented.
+* [x] A C-compatible serial HAL exists.
+* [x] An Arduino serial backend exists.
+* [x] A platform-independent console module exists.
+* [x] Fixed application literals remain in program memory.
+* [x] Arduino `F()` is no longer used by `app.cpp`.
+* [x] `Serial.begin()` is no longer called by `app.cpp`.
+* [x] `Serial.available()` is no longer called by `app.cpp`.
+* [x] `Serial.read()` is no longer called by `app.cpp`.
+* [x] `Serial.print()` is no longer called by `app.cpp`.
+* [x] `Serial.println()` is no longer called by `app.cpp`.
+* [x] CRLF output is preserved.
+* [x] RAM strings can be printed.
+* [x] Flash-resident literals can be printed.
+* [x] Signed 32-bit integers can be printed.
+* [x] Two-decimal floats can be printed.
+* [x] Six-decimal floats can be printed.
+* [x] Floating-point rounding is tested.
+* [x] NaN and infinity handling is defined.
+* [x] Single-character commands remain supported.
+* [x] Pending input can be discarded.
+* [x] A fake serial backend exists.
+* [x] All 43 console tests pass.
+* [x] All previous 128 native tests pass.
+* [x] The complete native total is 171 tests.
+* [x] The Nano firmware compiles.
+* [x] Serial commands work on physical hardware.
+* [x] Startup and calibration output remain readable.
+* [x] Static SRAM remains within limits.
+* [x] Flash and SRAM usage are recorded.
+* [x] Final validation is documented.

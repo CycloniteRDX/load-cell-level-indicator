@@ -1610,3 +1610,143 @@ v0.13  Console abstraction and native formatting tests
 v0.14  Direct AVR UART backend
 v1.0   Project-owned main() without the Arduino Core
 ```
+
+## Console abstraction — v0.13
+
+The application no longer uses Arduino Serial directly.
+
+The console architecture is:
+
+```text
+app.cpp
+    |
+    v
+console.c
+    |
+    v
+hal_serial.h
+    |
+    v
+hal_serial_arduino.cpp
+    |
+    v
+Arduino HardwareSerial
+```
+
+The byte-oriented serial HAL exposes:
+
+```text
+hal_serial_init()
+hal_serial_rx_available()
+hal_serial_read_byte()
+hal_serial_write_byte()
+```
+
+The platform-independent console module provides:
+
+```text
+console_init()
+console_input_available()
+console_read_char()
+console_discard_input()
+console_newline()
+console_print()
+console_println()
+console_print_progmem()
+console_println_progmem()
+console_print_int32()
+console_print_float()
+```
+
+Fixed application messages now use program-memory literal macros:
+
+```text
+CONSOLE_PRINT()
+CONSOLE_PRINTLN()
+```
+
+This replaces Arduino `F()` while preserving the SRAM optimization.
+
+The application no longer calls:
+
+```text
+Serial.begin()
+Serial.available()
+Serial.read()
+Serial.print()
+Serial.println()
+F()
+```
+
+The existing command interface remains:
+
+```text
+t = tare
+c = start or confirm calibration
+q = cancel calibration
+s = save active calibration
+x = clear stored calibration
+```
+
+The console prints:
+
+```text
+CRLF line endings
+signed 32-bit integers
+floats with up to six decimal places
+NaN as nan
+positive infinity as inf
+negative infinity as -inf
+unsupported large values as ovf
+```
+
+The native console suite contains:
+
+```text
+43 tests
+0 failures
+```
+
+The complete native regression now contains:
+
+```text
+native_button:                       10
+native_hx711:                        18
+native_level_indicator:              14
+native_operation_indicator:          14
+native_scale:                        32
+native_calibration_storage:          40
+native_console:                      43
+
+Total:                              171
+Failures:                             0
+```
+
+Physical validation confirms that startup output, calibration messages, numerical formatting and commands remain functional.
+
+Production memory usage:
+
+```text
+RAM:   <RAM_BYTES> bytes
+Flash: <FLASH_BYTES> bytes
+```
+
+The active serial backend remains:
+
+```text
+src/hal_serial_arduino.cpp
+```
+
+The completed milestone is tagged:
+
+```text
+v0.13-console-abstraction
+```
+
+The next recommended milestone is:
+
+```text
+v0.14-direct-avr-uart
+```
+
+It will replace the Arduino HardwareSerial backend with a direct AVR USART0 implementation without changing `app.cpp`, `console.c` or `hal_serial.h`.
