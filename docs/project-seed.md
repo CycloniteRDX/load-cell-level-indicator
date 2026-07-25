@@ -1277,3 +1277,175 @@ v0.13  Console abstraction
 v0.14  Direct AVR UART backend
 v1.0   Project-owned main() without the Arduino Core
 ```
+
+## Calibration storage HAL — v0.11
+
+The project now separates calibration-record logic from physical non-volatile storage.
+
+The architecture is:
+
+```text
+calibration_storage.cpp
+        |
+        +--> calibration_record.cpp
+        |
+        +--> hal_storage.h
+                 |
+                 v
+        hal_storage_arduino.cpp
+                 |
+                 v
+        Arduino EEPROM library
+```
+
+The public calibration-storage API remains unchanged:
+
+```text
+calibration_storage_load()
+calibration_storage_save()
+calibration_storage_clear()
+```
+
+The storage HAL provides:
+
+```text
+hal_storage_capacity()
+hal_storage_read()
+hal_storage_write()
+```
+
+It operates on byte ranges and does not understand calibration records.
+
+The active production backend is:
+
+```text
+src/hal_storage_arduino.cpp
+```
+
+It uses:
+
+```text
+EEPROM.length()
+EEPROM.read()
+EEPROM.update()
+```
+
+The calibration record is now an explicit fixed-size binary format:
+
+```text
+Size: 12 bytes
+
+Offset  Size  Field
+0       4     Magic
+4       2     Version
+6       4     Calibration-factor bits
+10      2     CRC-16/CCITT
+```
+
+Multibyte values use explicit little-endian encoding.
+
+Preserved format values:
+
+```text
+Magic:       0x4C43414C
+Version:     1
+CRC:         CRC-16/CCITT
+Polynomial:  0x1021
+Initial CRC: 0xFFFF
+```
+
+For `45.5F`, the complete record is:
+
+```text
+4C 41 43 4C 01 00 00 00 36 42 90 F3
+```
+
+The explicit format remains compatible with calibration records written by the previous implementation on the ATmega328P.
+
+The native environment:
+
+```text
+native_calibration_storage
+```
+
+tests the real:
+
+```text
+src/calibration_record.cpp
+src/calibration_storage.cpp
+```
+
+against:
+
+```text
+test/test_calibration_storage/fake_hal_storage.cpp
+```
+
+The suite covers:
+
+* Record encoding and decoding.
+* Byte ordering.
+* CRC generation and validation.
+* Magic and version validation.
+* Calibration-factor validation.
+* Output preservation after failures.
+* Successful load, save and clear operations.
+* Insufficient storage capacity.
+* Simulated read and write failures.
+* Verification failures.
+* Corrupted read-back data.
+* Mismatched saved factors.
+* Exact access addresses and lengths.
+* Magic-only record invalidation.
+
+Test totals:
+
+```text
+native_button:                       10
+native_hx711:                        18
+native_level_indicator:              14
+native_operation_indicator:          14
+native_scale:                        32
+native_calibration_storage:          40
+
+Total:                              128
+Failures:                             0
+```
+
+Physical validation confirms:
+
+* An existing calibration remains readable.
+* The old and new record formats are compatible.
+* A new calibration can be saved.
+* Calibration persists across restart.
+* Persistent calibration can be cleared.
+* The default factor is restored after clearing.
+* Existing scale, button, indicator and Serial behaviour remains functional.
+
+Production memory usage:
+
+```text
+RAM:   <RAM_BYTES> bytes
+Flash: <FLASH_BYTES> bytes
+```
+
+The completed milestone is tagged:
+
+```text
+v0.11-calibration-storage-hal
+```
+
+The next recommended milestone is:
+
+```text
+v0.12-direct-avr-eeprom
+```
+
+It will replace `hal_storage_arduino.cpp` with a direct AVR EEPROM backend while preserving:
+
+```text
+calibration_storage.cpp
+calibration_record.cpp
+hal_storage.h
+native calibration-storage tests
+```

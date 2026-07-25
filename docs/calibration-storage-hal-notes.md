@@ -915,3 +915,761 @@ This milestone will be complete when:
 * [ ] Existing EEPROM calibration remains compatible.
 * [ ] Save, restart and clear work on physical hardware.
 * [ ] Final validation is documented.
+
+## 25. Final architecture
+
+The calibration-storage HAL milestone has been implemented and validated successfully.
+
+The final architecture is:
+
+```text
+Application
+    |
+    v
+calibration_storage.h
+    |
+    v
+calibration_storage.cpp
+    |
+    +----------------------------+
+    |                            |
+    v                            v
+calibration_record.cpp       hal_storage.h
+                                 |
+                                 v
+                         hal_storage_arduino.cpp
+                                 |
+                                 v
+                         Arduino EEPROM library
+                                 |
+                                 v
+                         ATmega328P EEPROM
+```
+
+The calibration-storage module no longer depends directly on:
+
+```text
+Arduino.h
+EEPROM.h
+EEPROM.get()
+EEPROM.put()
+EEPROM.length()
+```
+
+Instead, it delegates:
+
+* Binary record formatting and validation to `calibration_record`.
+* Physical byte storage to `hal_storage`.
+
+The public application API remains unchanged:
+
+```c
+bool calibration_storage_load(
+    float *calibration_factor
+);
+
+bool calibration_storage_save(
+    float calibration_factor
+);
+
+bool calibration_storage_clear(void);
+```
+
+No application module required an API migration.
+
+---
+
+## 26. Storage HAL
+
+The new public storage abstraction is:
+
+```text
+include/hal_storage.h
+```
+
+It exposes:
+
+```c
+size_t hal_storage_capacity(void);
+
+bool hal_storage_read(
+    size_t address,
+    uint8_t *destination,
+    size_t length
+);
+
+bool hal_storage_write(
+    size_t address,
+    const uint8_t *source,
+    size_t length
+);
+```
+
+The HAL operates exclusively on byte ranges.
+
+It does not know about:
+
+* Calibration factors.
+* Magic values.
+* Record versions.
+* CRC values.
+* C or C++ structure layouts.
+
+This keeps the physical storage backend independent from the data format.
+
+The range checks use subtraction rather than unchecked addition:
+
+```c
+address <= capacity
+length <= capacity - address
+```
+
+This avoids overflow in expressions such as:
+
+```c
+address + length
+```
+
+Zero-length operations are accepted without accessing the backend.
+
+Null data pointers are rejected when the requested length is non-zero.
+
+---
+
+## 27. Arduino EEPROM backend
+
+The active production backend is:
+
+```text
+src/hal_storage_arduino.cpp
+```
+
+It wraps:
+
+```text
+EEPROM.length()
+EEPROM.read()
+EEPROM.update()
+```
+
+`EEPROM.update()` is used instead of an unconditional byte write.
+
+This prevents unnecessary physical EEPROM write cycles when the stored byte already has the requested value.
+
+The backend performs no calibration-record interpretation.
+
+It only validates ranges and transfers bytes.
+
+The future direct AVR EEPROM implementation will provide the same public HAL interface.
+
+---
+
+## 28. Explicit record format
+
+Calibration data is now represented by an explicit fixed-size record:
+
+```text
+Record size: 12 bytes
+```
+
+The layout is:
+
+```text
+Offset  Size  Field
+------  ----  --------------------------
+0       4     Magic
+4       2     Format version
+6       4     Calibration-factor bits
+10      2     CRC-16/CCITT
+```
+
+All multibyte fields use explicit little-endian encoding.
+
+The format no longer depends on:
+
+```text
+sizeof(struct)
+compiler padding
+structure alignment
+host endianness
+target ABI
+```
+
+The preserved constants are:
+
+```text
+Magic:   0x4C43414C
+Version: 1
+```
+
+The physical magic bytes are:
+
+```text
+4C 41 43 4C
+```
+
+The CRC configuration remains:
+
+```text
+Algorithm:     CRC-16/CCITT
+Polynomial:    0x1021
+Initial value: 0xFFFF
+Covered bytes: 0 through 9
+```
+
+The checksum itself occupies bytes 10 and 11 and is not included in its own calculation.
+
+---
+
+## 29. Floating-point representation
+
+The record stores the binary representation of a 32-bit IEEE-754 `float`.
+
+Conversion between:
+
+```text
+float
+uint32_t
+```
+
+uses `memcpy()`.
+
+No pointer reinterpretation or strict-aliasing violation is used.
+
+Compile-time assertions verify that the platform has the required floating-point representation.
+
+Unsupported targets fail during compilation instead of silently generating an incompatible record.
+
+For the calibration factor:
+
+```text
+45.5F
+```
+
+the complete record is:
+
+```text
+4C 41 43 4C 01 00 00 00 36 42 90 F3
+```
+
+---
+
+## 30. Record codec
+
+The internal codec is implemented by:
+
+```text
+src/calibration_record.h
+src/calibration_record.cpp
+```
+
+Its interface is:
+
+```c
+#define CALIBRATION_RECORD_SIZE 12U
+
+bool calibration_record_factor_is_valid(
+    float calibration_factor
+);
+
+bool calibration_record_encode(
+    float calibration_factor,
+    uint8_t *record_bytes,
+    size_t record_size
+);
+
+bool calibration_record_decode(
+    const uint8_t *record_bytes,
+    size_t record_size,
+    float *calibration_factor
+);
+```
+
+The codec owns:
+
+* Calibration-factor validation.
+* Little-endian integer encoding.
+* Little-endian integer decoding.
+* Floating-point bit conversion.
+* Magic validation.
+* Version validation.
+* CRC generation.
+* CRC validation.
+
+A failed decode does not modify the caller's output variable.
+
+---
+
+## 31. Calibration-factor validation
+
+The codec accepts finite positive and negative factors whose absolute magnitude is at least:
+
+```text
+0.000001F
+```
+
+Accepted examples:
+
+```text
+45.5
+-45.5
+1.0
+-1.0
+0.000001
+-0.000001
+```
+
+Rejected values include:
+
+```text
++0.0
+-0.0
+NaN
+positive infinity
+negative infinity
+magnitudes below 0.000001
+```
+
+The exact positive and negative boundary values are accepted because the implementation rejects magnitudes strictly below the limit.
+
+---
+
+## 32. Load operation
+
+The final load sequence is:
+
+```text
+Validate output pointer
+        |
+        v
+Check storage capacity
+        |
+        v
+Read 12 bytes through hal_storage_read()
+        |
+        v
+Decode and validate the record
+        |
+        v
+Publish the calibration factor
+```
+
+The caller's output is modified only after all operations succeed.
+
+A load failure therefore preserves the previous output value.
+
+Failure conditions include:
+
+* Null output pointer.
+* Insufficient storage capacity.
+* HAL read failure.
+* Invalid magic.
+* Unsupported format version.
+* Invalid calibration factor.
+* Incorrect CRC.
+* Empty or erased EEPROM.
+
+---
+
+## 33. Save operation
+
+The final save sequence is:
+
+```text
+Check storage capacity
+        |
+        v
+Validate and encode factor
+        |
+        v
+Write 12 bytes through hal_storage_write()
+        |
+        v
+Read 12 bytes back
+        |
+        v
+Decode and validate read-back record
+        |
+        v
+Compare verified factor with requested factor
+```
+
+A save is considered successful only when the complete record can be read back and validated.
+
+The operation detects:
+
+* Invalid factors.
+* Insufficient capacity.
+* HAL write failures.
+* Verification-read failures.
+* Corrupted read-back records.
+* Valid records containing a different factor.
+
+The storage address remains:
+
+```text
+0
+```
+
+The write length is:
+
+```text
+12 bytes
+```
+
+---
+
+## 34. Clear operation
+
+Clearing persistent calibration invalidates only the four magic bytes.
+
+The clear operation writes:
+
+```text
+00 00 00 00
+```
+
+at address zero.
+
+It then reads those four bytes back and verifies the invalidation.
+
+The other eight record bytes are not rewritten unnecessarily.
+
+Example:
+
+```text
+Before:
+4C 41 43 4C 01 00 00 00 36 42 90 F3
+
+After:
+00 00 00 00 01 00 00 00 36 42 90 F3
+```
+
+A subsequent load fails because the record no longer has a valid magic value.
+
+Clearing persistent storage does not directly change the current runtime calibration factor.
+
+---
+
+## 35. Native test architecture
+
+The native environment is:
+
+```text
+native_calibration_storage
+```
+
+It compiles:
+
+```text
+src/calibration_record.cpp
+src/calibration_storage.cpp
+test/test_calibration_storage/fake_hal_storage.cpp
+test/test_calibration_storage/test_main.cpp
+```
+
+It excludes:
+
+```text
+src/hal_storage_arduino.cpp
+Arduino EEPROM
+AVR-specific source files
+```
+
+The test architecture is:
+
+```text
+calibration_storage.cpp
+        |
+        +--> calibration_record.cpp
+        |
+        +--> hal_storage.h
+                 |
+                 v
+        fake_hal_storage.cpp
+                 |
+                 v
+        Controlled byte array and failures
+```
+
+The real production calibration-storage and record-codec implementations are tested.
+
+Only the physical storage backend is replaced.
+
+---
+
+## 36. Fake storage backend
+
+The fake storage backend supports:
+
+* Configurable storage capacity.
+* Preloading arbitrary bytes.
+* Inspecting stored bytes.
+* Forced read failures.
+* Forced write failures.
+* Failure on a selected call.
+* Writes that report success without modifying memory.
+* Replacement data on a selected read.
+* Read-call counting.
+* Write-call counting.
+* Address and length recording.
+* Out-of-range access detection.
+* Complete reset before every test.
+
+It contains no Arduino dependency and performs no physical waits.
+
+This allows storage failures and corruption scenarios to be reproduced deterministically.
+
+---
+
+## 37. Record-codec test coverage
+
+The native suite verifies:
+
+* Positive factor encoding.
+* Negative factor encoding.
+* Boundary factors.
+* Rejection of zero.
+* Rejection of NaN.
+* Rejection of infinity.
+* Rejection of factors below the minimum magnitude.
+* Null encode pointers.
+* Short encode buffers.
+* Buffer preservation after encode failure.
+* Exact 12-byte output.
+* Stable little-endian byte ordering.
+* Correct magic.
+* Correct version.
+* Correct floating-point bytes.
+* Correct CRC bytes.
+* Valid record decoding.
+* Positive and negative round trips.
+* Null decode pointers.
+* Short decode buffers.
+* Incorrect magic rejection.
+* Unsupported-version rejection.
+* Corrupted data rejection.
+* Incorrect CRC rejection.
+* Invalid factor rejection even with a valid recalculated CRC.
+* Output preservation after decode failure.
+
+The known `45.5F` byte vector is checked byte by byte.
+
+---
+
+## 38. Storage-operation test coverage
+
+### Load tests
+
+The suite verifies:
+
+* Successful loading.
+* Correct address and length.
+* Null output rejection.
+* Insufficient-capacity rejection.
+* HAL read failures.
+* Erased-storage rejection.
+* Corrupted-record rejection.
+* Output preservation after failure.
+
+### Save tests
+
+The suite verifies:
+
+* Successful positive-factor saving.
+* Successful negative-factor saving.
+* Exact 12-byte write.
+* Correct address.
+* Known binary output.
+* Read-back verification.
+* Invalid-factor rejection.
+* Insufficient-capacity rejection.
+* HAL write failures.
+* Verification-read failures.
+* Corrupted read-back detection.
+* Mismatched verified-factor detection.
+
+### Clear tests
+
+The suite verifies:
+
+* Successful invalidation.
+* Exact four-byte write.
+* Correct address.
+* Preservation of the remaining eight bytes.
+* Insufficient-capacity rejection.
+* HAL write failures.
+* Verification-read failures.
+* Detection of writes that do not modify storage.
+* Load failure after successful clearing.
+
+---
+
+## 39. Automated validation
+
+The calibration record and storage suite passes:
+
+```text
+Calibration record/storage tests: 40
+Failures:                           0
+Ignored:                            0
+```
+
+The complete native regression is:
+
+```text
+Button tests:                       10
+HX711 driver tests:                 18
+Level-indicator tests:              14
+Operation-indicator tests:          14
+Scale tests:                        32
+Calibration record/storage tests:   40
+
+Total:                             128
+Failures:                            0
+```
+
+Validation commands:
+
+```text
+pio test -e native_button
+pio test -e native_hx711
+pio test -e native_level_indicator
+pio test -e native_operation_indicator
+pio test -e native_scale
+pio test -e native_calibration_storage
+```
+
+The Arduino Nano production firmware also compiles successfully:
+
+```text
+pio run -e nanoatmega328new
+```
+
+---
+
+## 40. Physical validation
+
+The refactored calibration-storage implementation was validated on the physical Arduino Nano.
+
+The following behaviour was confirmed:
+
+* [x] Firmware starts normally.
+* [x] A calibration written by the previous implementation remains readable.
+* [x] The previously stored calibration factor is unchanged.
+* [x] The existing record format remains compatible.
+* [x] A new calibration can be completed.
+* [x] The new factor is written successfully.
+* [x] The new factor survives a restart.
+* [x] The new factor loads correctly after restart.
+* [x] Persistent calibration can be cleared.
+* [x] A cleared record is rejected after restart.
+* [x] The configured default factor is used after clearing.
+* [x] HX711 operation remains functional.
+* [x] Tare remains functional.
+* [x] Button and indicator behaviour remains functional.
+* [x] Serial output remains functional.
+
+No functional regression was detected.
+
+---
+
+## 41. Memory usage
+
+Previous milestone:
+
+```text
+RAM:   <PREVIOUS_RAM_BYTES> bytes
+Flash: <PREVIOUS_FLASH_BYTES> bytes
+```
+
+Calibration-storage HAL milestone:
+
+```text
+RAM:   <RAM_BYTES> bytes
+Flash: <FLASH_BYTES> bytes
+```
+
+The final values must be copied from the successful production build.
+
+---
+
+## 42. Architectural result
+
+The project now separates calibration persistence into three layers:
+
+```text
+Calibration-storage policy:
+calibration_storage.cpp
+
+Binary record format:
+calibration_record.cpp
+
+Physical byte storage:
+hal_storage_arduino.cpp
+```
+
+The resulting dependency direction is:
+
+```text
+Application
+    |
+    v
+Calibration storage
+    |
+    +--> Record codec
+    |
+    +--> Storage HAL
+             |
+             v
+       Physical backend
+```
+
+Higher-level modules no longer depend on the Arduino EEPROM library.
+
+The record format can be tested independently from physical storage.
+
+Storage failures can be tested independently from the Nano.
+
+The next direct AVR EEPROM backend can replace the Arduino backend without modifying the codec or calibration-storage policy.
+
+---
+
+## 43. Definition of done
+
+This milestone is complete because:
+
+* [x] The storage-HAL architecture is documented.
+* [x] A C-compatible storage HAL exists.
+* [x] An Arduino EEPROM backend exists.
+* [x] Calibration storage no longer includes `EEPROM.h`.
+* [x] A fixed 12-byte record format exists.
+* [x] Record byte order is explicit.
+* [x] Record layout is independent from structure padding.
+* [x] Existing magic and version values are preserved.
+* [x] The CRC algorithm is preserved.
+* [x] Positive calibration factors are supported.
+* [x] Negative calibration factors are supported.
+* [x] Invalid factors are rejected.
+* [x] Record encoding is tested.
+* [x] Record decoding is tested.
+* [x] Corrupted records are rejected.
+* [x] Unsupported versions are rejected.
+* [x] Failed decodes preserve caller outputs.
+* [x] A fake native storage backend exists.
+* [x] Successful loading is tested.
+* [x] Failed loading is tested.
+* [x] Successful saving is tested.
+* [x] Write verification is tested.
+* [x] Failed saving is tested.
+* [x] Successful clearing is tested.
+* [x] Failed clearing is tested.
+* [x] HAL access ranges are verified.
+* [x] All 40 calibration-storage tests pass.
+* [x] All previous 88 native tests still pass.
+* [x] The complete native total is 128 tests.
+* [x] The Nano firmware compiles.
+* [x] Existing EEPROM calibration remains compatible.
+* [x] Save, restart and clear work on physical hardware.
+* [x] Final memory usage is recorded.
+* [x] Final validation is documented.
