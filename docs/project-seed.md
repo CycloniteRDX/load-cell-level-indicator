@@ -1449,3 +1449,164 @@ calibration_record.cpp
 hal_storage.h
 native calibration-storage tests
 ```
+
+## Direct AVR EEPROM backend — v0.12
+
+The project now uses a direct ATmega328P EEPROM backend for non-volatile calibration storage.
+
+The active production storage backend is:
+
+```text
+src/hal_storage_avr.c
+```
+
+The previous Arduino backend remains available as a reference:
+
+```text
+src/hal_storage_arduino.cpp
+```
+
+but is excluded from the Nano production build.
+
+The storage architecture is:
+
+```text
+calibration_storage.cpp
+        |
+        +--> calibration_record.cpp
+        |
+        +--> hal_storage.h
+                 |
+                 v
+          hal_storage_avr.c
+                 |
+                 v
+         ATmega328P EEPROM
+```
+
+The storage HAL remains unchanged:
+
+```text
+hal_storage_capacity()
+hal_storage_read()
+hal_storage_write()
+```
+
+The direct backend accesses:
+
+```text
+EEAR
+EEDR
+EECR
+SPMCSR
+```
+
+EEPROM capacity is derived from:
+
+```text
+E2END + 1
+```
+
+For the ATmega328P:
+
+```text
+Capacity: 1024 bytes
+```
+
+Reads wait for any previous EEPROM write, load `EEAR`, activate `EERE` and retrieve the byte from `EEDR`.
+
+Writes:
+
+```text
+wait for EEPE
+wait for SPMEN
+load EEAR and EEDR
+select erase-and-write mode
+protect the timed EEMPE -> EEPE sequence
+restore interrupts
+wait for physical completion
+```
+
+The `EEMPE` and `EEPE` sequence is implemented with consecutive inline-assembly instructions.
+
+The backend preserves update-style behaviour:
+
+```text
+existing byte equals requested byte
+    -> skip physical write
+
+existing byte differs
+    -> perform erase-and-write
+```
+
+The storage HAL remains synchronous.
+
+When `hal_storage_write()` returns, all changed bytes have completed programming.
+
+The calibration record remains unchanged:
+
+```text
+Address:       0
+Size:          12 bytes
+Magic:         0x4C43414C
+Version:       1
+Byte order:    little endian
+Checksum:      CRC-16/CCITT
+```
+
+Physical validation confirms:
+
+* A calibration written by the Arduino backend remains readable.
+* A new calibration can be saved by the AVR backend.
+* The saved factor survives reset.
+* The saved factor survives a complete power cycle.
+* Persistent calibration can be cleared.
+* The default factor is selected after clearing.
+* A new calibration can be saved again after clearing.
+* HX711, buttons, indicators, Timer1 and Serial remain functional.
+
+The complete native regression remains:
+
+```text
+native_button:                       10
+native_hx711:                        18
+native_level_indicator:              14
+native_operation_indicator:          14
+native_scale:                        32
+native_calibration_storage:          40
+
+Total:                              128
+Failures:                             0
+```
+
+Production memory usage:
+
+```text
+RAM:   748 bytes
+Flash: 12630 bytes
+```
+
+The active direct AVR low-level backends are now:
+
+```text
+hal_gpio_avr.c
+hal_critical_avr.c
+hal_time_avr.c
+hal_storage_avr.c
+```
+
+The completed milestone is tagged:
+
+```text
+v0.12-direct-avr-eeprom
+```
+
+The next recommended milestone is to introduce a console or serial HAL.
+
+A suitable progression is:
+
+```text
+v0.13  Console abstraction and native formatting tests
+v0.14  Direct AVR UART backend
+v1.0   Project-owned main() without the Arduino Core
+```
