@@ -1000,3 +1000,141 @@ v0.8-avr-gpio-backend
 ```
 
 The next planned milestone is a direct AVR time backend. It should replace `hal_time_arduino.cpp` incrementally while retaining the Arduino Core for startup, Serial and EEPROM during the transition.
+
+## Direct AVR time backend — v0.9
+
+The project now uses a direct ATmega328P time backend for project timing.
+
+The public time HAL provides:
+
+```text
+hal_time_init()
+hal_time_millis()
+hal_time_delay_us()
+```
+
+The active production backend is:
+
+```text
+src/hal_time_avr.c
+```
+
+The previous Arduino implementation remains available as a reference:
+
+```text
+src/hal_time_arduino.cpp
+```
+
+but is excluded from the Arduino Nano production build.
+
+The project time architecture is:
+
+```text
+Application timing
+        |
+        v
+Project time HAL
+        |
+        +--> Timer1 CTC interrupt every 1 ms
+        |        |
+        |        v
+        |   volatile uint32_t counter
+        |
+        +--> calibrated AVR busy loop
+                 |
+                 v
+          microsecond delays
+```
+
+Timer1 configuration:
+
+```text
+CPU frequency:    16 MHz
+Prescaler:        64
+Timer frequency:  250 kHz
+OCR1A:            249
+Interrupt period: 1 ms
+Interrupt vector: TIMER1_COMPA_vect
+```
+
+The 32-bit millisecond counter is incremented by a short Timer1 Compare Match A ISR.
+
+`hal_time_millis()` reads the counter inside a critical section because the ATmega328P cannot read a 32-bit value atomically.
+
+Natural `uint32_t` overflow is preserved, and application modules continue using unsigned subtraction for overflow-safe timing.
+
+`hal_time_delay_us()` no longer calls Arduino `delayMicroseconds()`.
+
+It uses AVR libc `_delay_loop_2()` with a calculation specific to the Nano's 16 MHz CPU frequency.
+
+Large delays are divided into safe chunks, and a zero-microsecond request is handled explicitly.
+
+The project now reserves Timer1.
+
+PWM on D9 and D10, Timer1-based Servo implementations and other Timer1-dependent libraries must not be introduced without redesigning the timebase.
+
+Timer0 remains controlled by Arduino during the transition and continues supporting remaining direct calls to:
+
+```text
+millis()
+micros()
+delay()
+```
+
+The active direct AVR low-level backends are now:
+
+```text
+hal_gpio_avr.c
+hal_time_avr.c
+hal_critical_avr.c
+```
+
+The Arduino Core remains temporarily for:
+
+```text
+startup
+setup() and loop()
+Serial
+EEPROM
+remaining direct delay() calls
+```
+
+Validation completed successfully:
+
+* 56 native tests pass.
+* Arduino Nano firmware compiles.
+* Firmware starts normally.
+* Serial remains functional.
+* HX711 communication works.
+* Weight readings remain functional.
+* Tare works.
+* Short and long button presses work.
+* Button debounce remains correct.
+* Level and operation-indicator timing remains correct.
+* Complete calibration works.
+* Persistent calibration continues loading after restart.
+
+Memory usage with the direct AVR GPIO and time backends:
+
+```text
+RAM:   <RAM_BYTES> bytes
+Flash: <FLASH_BYTES> bytes
+```
+
+The completed milestone will be tagged:
+
+```text
+v0.9-avr-timebase
+```
+
+The next recommended milestone is to add native tests for the `scale` module before replacing persistent storage or Serial communication.
+
+The likely following architectural stages are:
+
+```text
+v0.10: native tests for scale
+v0.11: storage HAL and testable calibration records
+v0.12: direct AVR EEPROM backend
+v0.13: console/UART abstraction
+v1.0: remove the Arduino Core and provide a project-owned main()
+```
