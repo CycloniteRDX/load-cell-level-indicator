@@ -1,2 +1,14 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Keep text files consistent across Windows and Linux.
+* text=auto eol=lf
+
+# Windows command scripts require or conventionally use CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Treat binary files as binary.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
