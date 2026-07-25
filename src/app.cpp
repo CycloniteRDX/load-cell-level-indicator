@@ -632,6 +632,13 @@ static void print_weight_periodically(void)
 
 void app_init(void)
 {
+
+    /*
+     * Initialize the active time backend before any
+     * module reads the project millisecond counter.
+     */
+    hal_time_init();
+
     Serial.begin(115200);
 
     button_init(
