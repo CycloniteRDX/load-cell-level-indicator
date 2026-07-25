@@ -1425,8 +1425,8 @@ Physical validation confirms:
 Production memory usage:
 
 ```text
-RAM:   <RAM_BYTES> bytes
-Flash: <FLASH_BYTES> bytes
+RAM:   748 bytes
+Flash: 12606 bytes
 ```
 
 The completed milestone is tagged:

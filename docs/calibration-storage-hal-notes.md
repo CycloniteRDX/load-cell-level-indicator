@@ -1586,8 +1586,8 @@ Flash: <PREVIOUS_FLASH_BYTES> bytes
 Calibration-storage HAL milestone:
 
 ```text
-RAM:   <RAM_BYTES> bytes
-Flash: <FLASH_BYTES> bytes
+RAM:   748 bytes
+Flash: 12606 bytes
 ```
 
 The final values must be copied from the successful production build.
