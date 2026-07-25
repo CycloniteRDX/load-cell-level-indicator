@@ -1278,6 +1278,13 @@ v0.14  Direct AVR UART backend
 v1.0   Project-owned main() without the Arduino Core
 ```
 
+Production memory usage:
+
+```text
+RAM:   748 bytes
+Flash: 12620 bytes
+```
+
 ## Calibration storage HAL — v0.11
 
 The project now separates calibration-record logic from physical non-volatile storage.
@@ -1727,8 +1734,8 @@ Physical validation confirms that startup output, calibration messages, numerica
 Production memory usage:
 
 ```text
-RAM:   <RAM_BYTES> bytes
-Flash: <FLASH_BYTES> bytes
+RAM:   312 bytes
+Flash: 12564 bytes
 ```
 
 The active serial backend remains:
