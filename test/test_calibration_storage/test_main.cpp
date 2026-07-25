@@ -6,6 +6,8 @@
 #include <unity.h>
 
 #include "calibration_record.h"
+#include "calibration_storage.h"
+#include "fake_hal_storage.h"
 
 
 static const float
@@ -34,6 +36,7 @@ static const uint8_t EXPECTED_45_5_RECORD[
 
 void setUp(void)
 {
+    fake_hal_storage_reset();
 }
 
 
@@ -664,6 +667,592 @@ static void test_decode_rejects_invalid_factor_with_valid_checksum(
 }
 
 
+static void test_storage_load_reads_valid_record(
+    void
+)
+{
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_preload(
+            0U,
+            EXPECTED_45_5_RECORD,
+            CALIBRATION_RECORD_SIZE
+        )
+    );
+
+    float loaded_factor = 0.0F;
+
+    TEST_ASSERT_TRUE(
+        calibration_storage_load(
+            &loaded_factor
+        )
+    );
+
+    assert_float_bits_equal(
+        45.5F,
+        loaded_factor
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_read_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_address(1U)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        CALIBRATION_RECORD_SIZE,
+        fake_hal_storage_read_length(1U)
+    );
+
+    TEST_ASSERT_FALSE(
+        fake_hal_storage_had_invalid_access()
+    );
+}
+
+
+static void test_storage_load_rejects_null_output_without_reading(
+    void
+)
+{
+    TEST_ASSERT_FALSE(
+        calibration_storage_load(nullptr)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_load_rejects_insufficient_capacity_without_reading(
+    void
+)
+{
+    fake_hal_storage_set_capacity(
+        CALIBRATION_RECORD_SIZE - 1U
+    );
+
+    float loaded_factor = 123.0F;
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_load(
+            &loaded_factor
+        )
+    );
+
+    assert_float_bits_equal(
+        123.0F,
+        loaded_factor
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_load_preserves_output_after_read_failure(
+    void
+)
+{
+    fake_hal_storage_fail_read_call(1U);
+
+    float loaded_factor = 123.0F;
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_load(
+            &loaded_factor
+        )
+    );
+
+    assert_float_bits_equal(
+        123.0F,
+        loaded_factor
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_load_rejects_erased_storage_and_preserves_output(
+    void
+)
+{
+    fake_hal_storage_fill(0xFFU);
+
+    float loaded_factor = 123.0F;
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_load(
+            &loaded_factor
+        )
+    );
+
+    assert_float_bits_equal(
+        123.0F,
+        loaded_factor
+    );
+}
+
+
+static void test_storage_load_rejects_corrupted_record_and_preserves_output(
+    void
+)
+{
+    uint8_t corrupted_record[CALIBRATION_RECORD_SIZE];
+
+    memcpy(
+        corrupted_record,
+        EXPECTED_45_5_RECORD,
+        sizeof(corrupted_record)
+    );
+
+    corrupted_record[8] ^= 0x01U;
+
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_preload(
+            0U,
+            corrupted_record,
+            sizeof(corrupted_record)
+        )
+    );
+
+    float loaded_factor = 123.0F;
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_load(
+            &loaded_factor
+        )
+    );
+
+    assert_float_bits_equal(
+        123.0F,
+        loaded_factor
+    );
+}
+
+
+static void test_storage_save_writes_known_record_and_verifies_it(
+    void
+)
+{
+    TEST_ASSERT_TRUE(
+        calibration_storage_save(45.5F)
+    );
+
+    uint8_t stored_record[CALIBRATION_RECORD_SIZE] = {};
+
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_copy(
+            0U,
+            stored_record,
+            sizeof(stored_record)
+        )
+    );
+
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(
+        EXPECTED_45_5_RECORD,
+        stored_record,
+        CALIBRATION_RECORD_SIZE
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_write_address(1U)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        CALIBRATION_RECORD_SIZE,
+        fake_hal_storage_write_length(1U)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_read_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_address(1U)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        CALIBRATION_RECORD_SIZE,
+        fake_hal_storage_read_length(1U)
+    );
+}
+
+
+static void test_storage_save_and_load_preserve_negative_factor(
+    void
+)
+{
+    TEST_ASSERT_TRUE(
+        calibration_storage_save(-45.5F)
+    );
+
+    float loaded_factor = 0.0F;
+
+    TEST_ASSERT_TRUE(
+        calibration_storage_load(
+            &loaded_factor
+        )
+    );
+
+    assert_float_bits_equal(
+        -45.5F,
+        loaded_factor
+    );
+}
+
+
+static void test_storage_save_rejects_invalid_factor_without_io(
+    void
+)
+{
+    TEST_ASSERT_FALSE(
+        calibration_storage_save(0.0F)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_save_rejects_insufficient_capacity_without_io(
+    void
+)
+{
+    fake_hal_storage_set_capacity(
+        CALIBRATION_RECORD_SIZE - 1U
+    );
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_save(45.5F)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_save_stops_after_write_failure(
+    void
+)
+{
+    fake_hal_storage_fail_write_call(1U);
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_save(45.5F)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_save_rejects_verification_read_failure(
+    void
+)
+{
+    fake_hal_storage_fail_read_call(1U);
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_save(45.5F)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_save_rejects_corrupted_verification_record(
+    void
+)
+{
+    uint8_t corrupted_record[CALIBRATION_RECORD_SIZE];
+
+    memcpy(
+        corrupted_record,
+        EXPECTED_45_5_RECORD,
+        sizeof(corrupted_record)
+    );
+
+    corrupted_record[8] ^= 0x01U;
+
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_set_read_override(
+            1U,
+            corrupted_record,
+            sizeof(corrupted_record)
+        )
+    );
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_save(45.5F)
+    );
+}
+
+
+static void test_storage_save_rejects_mismatched_valid_factor(
+    void
+)
+{
+    uint8_t different_record[CALIBRATION_RECORD_SIZE] = {};
+
+    encode_valid_record(
+        46.5F,
+        different_record
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_set_read_override(
+            1U,
+            different_record,
+            sizeof(different_record)
+        )
+    );
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_save(45.5F)
+    );
+}
+
+
+static void test_storage_clear_invalidates_only_magic_bytes(
+    void
+)
+{
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_preload(
+            0U,
+            EXPECTED_45_5_RECORD,
+            CALIBRATION_RECORD_SIZE
+        )
+    );
+
+    TEST_ASSERT_TRUE(
+        calibration_storage_clear()
+    );
+
+    uint8_t stored_record[CALIBRATION_RECORD_SIZE] = {};
+
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_copy(
+            0U,
+            stored_record,
+            sizeof(stored_record)
+        )
+    );
+
+    for (size_t index = 0U;
+         index < 4U;
+         ++index)
+    {
+        TEST_ASSERT_EQUAL_HEX8(
+            0x00U,
+            stored_record[index]
+        );
+    }
+
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(
+        &EXPECTED_45_5_RECORD[4],
+        &stored_record[4],
+        CALIBRATION_RECORD_SIZE - 4U
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_write_address(1U)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        4U,
+        fake_hal_storage_write_length(1U)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_read_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_address(1U)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        4U,
+        fake_hal_storage_read_length(1U)
+    );
+}
+
+
+static void test_storage_clear_rejects_insufficient_capacity_without_io(
+    void
+)
+{
+    fake_hal_storage_set_capacity(
+        CALIBRATION_RECORD_SIZE - 1U
+    );
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_clear()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_clear_stops_after_write_failure(
+    void
+)
+{
+    fake_hal_storage_fail_write_call(1U);
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_clear()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_clear_rejects_verification_read_failure(
+    void
+)
+{
+    fake_hal_storage_fail_read_call(1U);
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_clear()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_write_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hal_storage_read_call_count()
+    );
+}
+
+
+static void test_storage_clear_rejects_unmodified_magic(
+    void
+)
+{
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_preload(
+            0U,
+            EXPECTED_45_5_RECORD,
+            CALIBRATION_RECORD_SIZE
+        )
+    );
+
+    fake_hal_storage_discard_writes(true);
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_clear()
+    );
+}
+
+
+static void test_storage_load_fails_after_successful_clear(
+    void
+)
+{
+    TEST_ASSERT_TRUE(
+        fake_hal_storage_preload(
+            0U,
+            EXPECTED_45_5_RECORD,
+            CALIBRATION_RECORD_SIZE
+        )
+    );
+
+    TEST_ASSERT_TRUE(
+        calibration_storage_clear()
+    );
+
+    float loaded_factor = 123.0F;
+
+    TEST_ASSERT_FALSE(
+        calibration_storage_load(
+            &loaded_factor
+        )
+    );
+
+    assert_float_bits_equal(
+        123.0F,
+        loaded_factor
+    );
+}
+
+
 int main(
     int argc,
     char **argv
@@ -752,6 +1341,87 @@ int main(
 
     RUN_TEST(
         test_decode_rejects_invalid_factor_with_valid_checksum
+    );
+
+
+    RUN_TEST(
+        test_storage_load_reads_valid_record
+    );
+
+    RUN_TEST(
+        test_storage_load_rejects_null_output_without_reading
+    );
+
+    RUN_TEST(
+        test_storage_load_rejects_insufficient_capacity_without_reading
+    );
+
+    RUN_TEST(
+        test_storage_load_preserves_output_after_read_failure
+    );
+
+    RUN_TEST(
+        test_storage_load_rejects_erased_storage_and_preserves_output
+    );
+
+    RUN_TEST(
+        test_storage_load_rejects_corrupted_record_and_preserves_output
+    );
+
+    RUN_TEST(
+        test_storage_save_writes_known_record_and_verifies_it
+    );
+
+    RUN_TEST(
+        test_storage_save_and_load_preserve_negative_factor
+    );
+
+    RUN_TEST(
+        test_storage_save_rejects_invalid_factor_without_io
+    );
+
+    RUN_TEST(
+        test_storage_save_rejects_insufficient_capacity_without_io
+    );
+
+    RUN_TEST(
+        test_storage_save_stops_after_write_failure
+    );
+
+    RUN_TEST(
+        test_storage_save_rejects_verification_read_failure
+    );
+
+    RUN_TEST(
+        test_storage_save_rejects_corrupted_verification_record
+    );
+
+    RUN_TEST(
+        test_storage_save_rejects_mismatched_valid_factor
+    );
+
+    RUN_TEST(
+        test_storage_clear_invalidates_only_magic_bytes
+    );
+
+    RUN_TEST(
+        test_storage_clear_rejects_insufficient_capacity_without_io
+    );
+
+    RUN_TEST(
+        test_storage_clear_stops_after_write_failure
+    );
+
+    RUN_TEST(
+        test_storage_clear_rejects_verification_read_failure
+    );
+
+    RUN_TEST(
+        test_storage_clear_rejects_unmodified_magic
+    );
+
+    RUN_TEST(
+        test_storage_load_fails_after_successful_clear
     );
 
     return UNITY_END();
