@@ -1,251 +1,38 @@
-#include <Arduino.h>
-#include <EEPROM.h>
-
-#include <math.h>
+#include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
+#include "calibration_record.h"
 #include "calibration_storage.h"
+#include "hal_storage.h"
 
 
 /*
- * First EEPROM address used by this module.
+ * First non-volatile storage address used by this
+ * module.
  */
-static const int CALIBRATION_EEPROM_ADDRESS = 0;
+static const size_t CALIBRATION_STORAGE_ADDRESS = 0U;
 
 
 /*
- * Identifies data written by this application.
- *
- * 0x4C43414C represents the characters "LCAL":
- *
- * L = Load
- * CAL = Calibration
+ * Only the four magic bytes need to be invalidated
+ * when clearing a stored calibration record.
  */
-static const uint32_t CALIBRATION_MAGIC =
-    0x4C43414CUL;
-
-
-/*
- * Version of the stored data format.
- *
- * If the record structure changes in the future,
- * this version must also change.
- */
-static const uint16_t CALIBRATION_FORMAT_VERSION =
-    1U;
-
-
-/*
- * Factors whose absolute value is practically zero
- * are rejected because they would cause an invalid
- * weight conversion.
- */
-static const float MINIMUM_ABSOLUTE_FACTOR =
-    0.000001F;
-
-
-typedef struct
-{
-    uint32_t magic;
-    uint16_t version;
-    float calibration_factor;
-    uint16_t checksum;
-} calibration_record_t;
+static const size_t CALIBRATION_MAGIC_SIZE = 4U;
 
 
 static bool storage_has_enough_space(void)
 {
-    const int final_address =
-        CALIBRATION_EEPROM_ADDRESS +
-        (int)sizeof(calibration_record_t);
+    const size_t capacity =
+        hal_storage_capacity();
 
-    return final_address <= (int)EEPROM.length();
-}
-
-
-static bool calibration_factor_is_valid(
-    float calibration_factor
-)
-{
-    if (isnan(calibration_factor))
+    if (CALIBRATION_STORAGE_ADDRESS > capacity)
     {
         return false;
     }
 
-    if (isinf(calibration_factor))
-    {
-        return false;
-    }
-
-    if (fabsf(calibration_factor) <
-        MINIMUM_ABSOLUTE_FACTOR)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-
-/*
- * Updates a CRC-16/CCITT checksum with one byte.
- */
-static uint16_t crc16_update(
-    uint16_t crc,
-    uint8_t data
-)
-{
-    crc ^= (uint16_t)data << 8U;
-
-    for (uint8_t bit = 0U; bit < 8U; ++bit)
-    {
-        if ((crc & 0x8000U) != 0U)
-        {
-            crc =
-                (uint16_t)((crc << 1U) ^ 0x1021U);
-        }
-        else
-        {
-            crc = (uint16_t)(crc << 1U);
-        }
-    }
-
-    return crc;
-}
-
-
-static uint16_t crc16_add_uint16(
-    uint16_t crc,
-    uint16_t value
-)
-{
-    crc = crc16_update(
-        crc,
-        (uint8_t)(value & 0x00FFU)
-    );
-
-    crc = crc16_update(
-        crc,
-        (uint8_t)((value >> 8U) & 0x00FFU)
-    );
-
-    return crc;
-}
-
-
-static uint16_t crc16_add_uint32(
-    uint16_t crc,
-    uint32_t value
-)
-{
-    crc = crc16_update(
-        crc,
-        (uint8_t)(value & 0x000000FFUL)
-    );
-
-    crc = crc16_update(
-        crc,
-        (uint8_t)((value >> 8U) & 0x000000FFUL)
-    );
-
-    crc = crc16_update(
-        crc,
-        (uint8_t)((value >> 16U) & 0x000000FFUL)
-    );
-
-    crc = crc16_update(
-        crc,
-        (uint8_t)((value >> 24U) & 0x000000FFUL)
-    );
-
-    return crc;
-}
-
-
-static uint16_t calculate_record_checksum(
-    const calibration_record_t *record
-)
-{
-    if (record == nullptr)
-    {
-        return 0U;
-    }
-
-    /*
-     * On the ATmega328P, float and uint32_t are both
-     * four bytes. memcpy avoids violating aliasing rules
-     * when inspecting the binary representation.
-     */
-    static_assert(
-        sizeof(float) == sizeof(uint32_t),
-        "This storage format requires a 32-bit float."
-    );
-
-    uint32_t calibration_factor_bits = 0UL;
-
-    memcpy(
-        &calibration_factor_bits,
-        &record->calibration_factor,
-        sizeof(calibration_factor_bits)
-    );
-
-    uint16_t crc = 0xFFFFU;
-
-    crc = crc16_add_uint32(
-        crc,
-        record->magic
-    );
-
-    crc = crc16_add_uint16(
-        crc,
-        record->version
-    );
-
-    crc = crc16_add_uint32(
-        crc,
-        calibration_factor_bits
-    );
-
-    return crc;
-}
-
-
-static bool record_is_valid(
-    const calibration_record_t *record
-)
-{
-    if (record == nullptr)
-    {
-        return false;
-    }
-
-    if (record->magic != CALIBRATION_MAGIC)
-    {
-        return false;
-    }
-
-    if (record->version !=
-        CALIBRATION_FORMAT_VERSION)
-    {
-        return false;
-    }
-
-    if (!calibration_factor_is_valid(
-            record->calibration_factor))
-    {
-        return false;
-    }
-
-    const uint16_t expected_checksum =
-        calculate_record_checksum(record);
-
-    if (record->checksum != expected_checksum)
-    {
-        return false;
-    }
-
-    return true;
+    return
+        CALIBRATION_RECORD_SIZE <=
+        (capacity - CALIBRATION_STORAGE_ADDRESS);
 }
 
 
@@ -263,20 +50,27 @@ bool calibration_storage_load(
         return false;
     }
 
-    calibration_record_t record = {};
+    uint8_t record_bytes[CALIBRATION_RECORD_SIZE] = {};
 
-    EEPROM.get(
-        CALIBRATION_EEPROM_ADDRESS,
-        record
-    );
-
-    if (!record_is_valid(&record))
+    if (!hal_storage_read(
+            CALIBRATION_STORAGE_ADDRESS,
+            record_bytes,
+            CALIBRATION_RECORD_SIZE))
     {
         return false;
     }
 
-    *calibration_factor =
-        record.calibration_factor;
+    float decoded_factor = 0.0F;
+
+    if (!calibration_record_decode(
+            record_bytes,
+            CALIBRATION_RECORD_SIZE,
+            &decoded_factor))
+    {
+        return false;
+    }
+
+    *calibration_factor = decoded_factor;
 
     return true;
 }
@@ -291,51 +85,45 @@ bool calibration_storage_save(
         return false;
     }
 
-    if (!calibration_factor_is_valid(
-            calibration_factor))
+    uint8_t record_bytes[CALIBRATION_RECORD_SIZE] = {};
+
+    if (!calibration_record_encode(
+            calibration_factor,
+            record_bytes,
+            CALIBRATION_RECORD_SIZE))
     {
         return false;
     }
 
-    calibration_record_t record = {};
-
-    record.magic = CALIBRATION_MAGIC;
-    record.version =
-        CALIBRATION_FORMAT_VERSION;
-
-    record.calibration_factor =
-        calibration_factor;
-
-    record.checksum =
-        calculate_record_checksum(&record);
-
-    /*
-     * EEPROM.put() writes the complete structure,
-     * but only physically rewrites bytes that changed.
-     */
-    EEPROM.put(
-        CALIBRATION_EEPROM_ADDRESS,
-        record
-    );
-
-    /*
-     * Read the record back to verify that it was
-     * stored correctly.
-     */
-    calibration_record_t verification_record = {};
-
-    EEPROM.get(
-        CALIBRATION_EEPROM_ADDRESS,
-        verification_record
-    );
-
-    if (!record_is_valid(&verification_record))
+    if (!hal_storage_write(
+            CALIBRATION_STORAGE_ADDRESS,
+            record_bytes,
+            CALIBRATION_RECORD_SIZE))
     {
         return false;
     }
 
-    if (verification_record.calibration_factor !=
-        calibration_factor)
+    uint8_t verification_bytes[CALIBRATION_RECORD_SIZE] = {};
+
+    if (!hal_storage_read(
+            CALIBRATION_STORAGE_ADDRESS,
+            verification_bytes,
+            CALIBRATION_RECORD_SIZE))
+    {
+        return false;
+    }
+
+    float verified_factor = 0.0F;
+
+    if (!calibration_record_decode(
+            verification_bytes,
+            CALIBRATION_RECORD_SIZE,
+            &verified_factor))
+    {
+        return false;
+    }
+
+    if (verified_factor != calibration_factor)
     {
         return false;
     }
@@ -351,25 +139,35 @@ bool calibration_storage_clear(void)
         return false;
     }
 
-    /*
-     * Invalidating the magic number is enough to make
-     * the complete record unusable.
-     *
-     * We do not need to erase all EEPROM bytes.
-     */
-    const uint32_t invalid_magic = 0UL;
+    const uint8_t invalid_magic[CALIBRATION_MAGIC_SIZE] = {};
 
-    EEPROM.put(
-        CALIBRATION_EEPROM_ADDRESS,
-        invalid_magic
-    );
+    if (!hal_storage_write(
+            CALIBRATION_STORAGE_ADDRESS,
+            invalid_magic,
+            CALIBRATION_MAGIC_SIZE))
+    {
+        return false;
+    }
 
-    uint32_t stored_magic = CALIBRATION_MAGIC;
+    uint8_t verification_magic[CALIBRATION_MAGIC_SIZE] = {};
 
-    EEPROM.get(
-        CALIBRATION_EEPROM_ADDRESS,
-        stored_magic
-    );
+    if (!hal_storage_read(
+            CALIBRATION_STORAGE_ADDRESS,
+            verification_magic,
+            CALIBRATION_MAGIC_SIZE))
+    {
+        return false;
+    }
 
-    return stored_magic != CALIBRATION_MAGIC;
+    for (size_t index = 0U;
+         index < CALIBRATION_MAGIC_SIZE;
+         ++index)
+    {
+        if (verification_magic[index] != 0U)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
