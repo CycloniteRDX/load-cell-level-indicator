@@ -1,5 +1,6 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <util/delay_basic.h>
 
 #include <stdint.h>
 
@@ -24,6 +25,36 @@
 #define HAL_TIME_TIMER1_COMPARE_VALUE \
     (HAL_TIME_TIMER1_TICKS_PER_MS - 1UL)
 
+/*
+ * _delay_loop_2() consumes four CPU cycles
+ * per loop iteration.
+ *
+ * At 16 MHz:
+ *
+ *     16 cycles/us / 4 cycles/iteration
+ *     = 4 iterations/us
+ */
+#define HAL_TIME_DELAY_LOOP_CYCLES 4UL
+
+#define HAL_TIME_CPU_CYCLES_PER_US \
+    (F_CPU / 1000000UL)
+
+#define HAL_TIME_DELAY_ITERATIONS_PER_US \
+    (HAL_TIME_CPU_CYCLES_PER_US / \
+     HAL_TIME_DELAY_LOOP_CYCLES)
+
+/*
+ * _delay_loop_2() accepts a 16-bit iteration count.
+ *
+ * At four iterations per microsecond:
+ *
+ *     65535 / 4 = 16383 us
+ *
+ * Larger requested delays are divided into chunks.
+ */
+#define HAL_TIME_DELAY_MAX_CHUNK_US \
+    (UINT16_MAX / \
+     HAL_TIME_DELAY_ITERATIONS_PER_US)
 
 #if \
     (F_CPU % \
@@ -37,6 +68,19 @@
 
 #if HAL_TIME_TIMER1_TICKS_PER_MS > 65536UL
 #error "Timer1 compare value does not fit in 16 bits"
+#endif
+
+#if (F_CPU % 1000000UL) != 0UL
+#error "F_CPU must contain a whole number of cycles per microsecond"
+#endif
+
+#if \
+    (HAL_TIME_CPU_CYCLES_PER_US % \
+     HAL_TIME_DELAY_LOOP_CYCLES) != 0UL
+
+#error \
+    "_delay_loop_2 cannot represent an exact microsecond at this F_CPU"
+
 #endif
 
 
@@ -158,4 +202,43 @@ uint32_t hal_time_millis(void)
     hal_critical_exit(previous_state);
 
     return current_time;
+}
+
+void hal_time_delay_us(
+    uint16_t microseconds
+)
+{
+    /*
+     * Passing zero directly to _delay_loop_2()
+     * would not mean zero iterations.
+     *
+     * Its 16-bit counter would wrap and execute
+     * 65536 iterations, so zero must be handled
+     * explicitly.
+     */
+    while (microseconds > 0U)
+    {
+        uint16_t chunk_us = microseconds;
+
+        if (chunk_us >
+            HAL_TIME_DELAY_MAX_CHUNK_US)
+        {
+            chunk_us =
+                (uint16_t)
+                HAL_TIME_DELAY_MAX_CHUNK_US;
+        }
+
+        const uint16_t loop_iterations =
+            (uint16_t)(
+                (uint32_t)chunk_us *
+                HAL_TIME_DELAY_ITERATIONS_PER_US
+            );
+
+        _delay_loop_2(loop_iterations);
+
+        microseconds =
+            (uint16_t)(
+                microseconds - chunk_us
+            );
+    }
 }
