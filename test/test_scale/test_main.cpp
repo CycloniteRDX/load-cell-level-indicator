@@ -996,6 +996,229 @@ test_negative_hx711_limit_averages_without_overflow(
 }
 
 
+static void
+assert_weight_is(
+    float expected_weight,
+    float tolerance
+)
+{
+    float weight_grams = 0.0F;
+
+    TEST_ASSERT_TRUE(
+        scale_read_weight(&weight_grams)
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        tolerance,
+        expected_weight,
+        weight_grams
+    );
+}
+
+
+static void
+test_weight_rejects_null_output_without_checking_ready(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_FALSE(
+        scale_read_weight(NULL)
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hx711_driver_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hx711_driver_get_read_raw_call_count()
+    );
+}
+
+
+static void
+test_weight_not_ready_preserves_output_without_reading(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    fake_hx711_driver_reset();
+    fake_hx711_driver_set_ready(false);
+
+    const float sentinel = 321.75F;
+    float weight_grams = sentinel;
+
+    TEST_ASSERT_FALSE(
+        scale_read_weight(&weight_grams)
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        FLOAT_COMPARISON_TOLERANCE,
+        sentinel,
+        weight_grams
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hx711_driver_get_read_raw_call_count()
+    );
+}
+
+
+static void
+test_weight_converts_positive_net_counts_to_grams(
+    void
+)
+{
+    establish_tare_offset(-170000);
+
+    TEST_ASSERT_TRUE(
+        scale_set_calibration_factor(46.5F)
+    );
+
+    fake_hx711_driver_reset();
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            -100000
+        )
+    );
+
+    const float expected_weight =
+        70000.0F / 46.5F;
+
+    assert_weight_is(
+        expected_weight,
+        0.001F
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        WEIGHT_SAMPLES,
+        fake_hx711_driver_get_read_raw_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT16(
+        WEIGHT_SAMPLES,
+        fake_hx711_driver_get_consumed_reading_count()
+    );
+}
+
+
+static void
+test_negative_calibration_factor_reverses_weight_sign(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_TRUE(
+        scale_set_calibration_factor(-45.5F)
+    );
+
+    fake_hx711_driver_reset();
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            455
+        )
+    );
+
+    assert_weight_is(
+        -10.0F,
+        FLOAT_COMPARISON_TOLERANCE
+    );
+}
+
+
+static void
+test_negative_net_counts_produce_negative_weight(
+    void
+)
+{
+    establish_tare_offset(1000);
+
+    TEST_ASSERT_TRUE(
+        scale_set_calibration_factor(45.5F)
+    );
+
+    fake_hx711_driver_reset();
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            545
+        )
+    );
+
+    assert_weight_is(
+        -10.0F,
+        FLOAT_COMPARISON_TOLERANCE
+    );
+}
+
+
+static void
+test_weight_read_error_after_ready_preserves_output(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    fake_hx711_driver_reset();
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_TIMEOUT,
+            0
+        )
+    );
+
+    const float sentinel = -987.25F;
+    float weight_grams = sentinel;
+
+    TEST_ASSERT_FALSE(
+        scale_read_weight(&weight_grams)
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        FLOAT_COMPARISON_TOLERANCE,
+        sentinel,
+        weight_grams
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_read_raw_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT16(
+        1U,
+        fake_hx711_driver_get_consumed_reading_count()
+    );
+}
+
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -1103,6 +1326,31 @@ int main(void)
 
     RUN_TEST(
         test_negative_hx711_limit_averages_without_overflow
+    );
+
+
+    RUN_TEST(
+        test_weight_rejects_null_output_without_checking_ready
+    );
+
+    RUN_TEST(
+        test_weight_not_ready_preserves_output_without_reading
+    );
+
+    RUN_TEST(
+        test_weight_converts_positive_net_counts_to_grams
+    );
+
+    RUN_TEST(
+        test_negative_calibration_factor_reverses_weight_sign
+    );
+
+    RUN_TEST(
+        test_negative_net_counts_produce_negative_weight
+    );
+
+    RUN_TEST(
+        test_weight_read_error_after_ready_preserves_output
     );
 
     return UNITY_END();
