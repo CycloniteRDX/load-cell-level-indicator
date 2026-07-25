@@ -1120,8 +1120,8 @@ Flash: 12450 bytes
 Direct AVR GPIO and time backends:
 
 ```text
-RAM:   <RAM_BYTES> bytes
-Flash: <FLASH_BYTES> bytes
+RAM:   748 bytes
+Flash: 12620 bytes
 ```
 
 The final values must be taken from the successful PlatformIO production build.

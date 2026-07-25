@@ -1117,8 +1117,8 @@ Validation completed successfully:
 Memory usage with the direct AVR GPIO and time backends:
 
 ```text
-RAM:   <RAM_BYTES> bytes
-Flash: <FLASH_BYTES> bytes
+RAM:   748 bytes
+Flash: 12620 bytes
 ```
 
 The completed milestone will be tagged:
