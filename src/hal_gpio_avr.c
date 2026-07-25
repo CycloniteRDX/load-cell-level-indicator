@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "hal_critical.h"
 #include "hal_gpio.h"
 
 
@@ -105,4 +106,76 @@ avr_gpio_get_pin_mapping(
     }
 
     return avr_gpio_make_invalid_mapping();
+}
+
+
+void hal_gpio_configure_input(
+    hal_gpio_pin_t pin
+)
+{
+    const avr_gpio_pin_mapping_t mapping =
+        avr_gpio_get_pin_mapping(pin);
+
+    if (!mapping.valid)
+    {
+        return;
+    }
+
+    const hal_critical_state_t previous_state =
+        hal_critical_enter();
+
+    *mapping.direction_register &=
+        (uint8_t)~mapping.bit_mask;
+
+    *mapping.output_register &=
+        (uint8_t)~mapping.bit_mask;
+
+    hal_critical_exit(previous_state);
+}
+
+
+void hal_gpio_configure_input_pullup(
+    hal_gpio_pin_t pin
+)
+{
+    const avr_gpio_pin_mapping_t mapping =
+        avr_gpio_get_pin_mapping(pin);
+
+    if (!mapping.valid)
+    {
+        return;
+    }
+
+    const hal_critical_state_t previous_state =
+        hal_critical_enter();
+
+    *mapping.direction_register &=
+        (uint8_t)~mapping.bit_mask;
+
+    *mapping.output_register |=
+        mapping.bit_mask;
+
+    hal_critical_exit(previous_state);
+}
+
+
+void hal_gpio_configure_output(
+    hal_gpio_pin_t pin
+)
+{
+    const avr_gpio_pin_mapping_t mapping =
+        avr_gpio_get_pin_mapping(pin);
+
+    if (!mapping.valid)
+    {
+        return;
+    }
+
+    const hal_critical_state_t previous_state =
+        hal_critical_enter();
+
+    *mapping.direction_register |=
+        mapping.bit_mask;
+
+    hal_critical_exit(previous_state);
 }
