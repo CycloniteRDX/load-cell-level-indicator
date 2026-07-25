@@ -1138,3 +1138,142 @@ v0.12: direct AVR EEPROM backend
 v0.13: console/UART abstraction
 v1.0: remove the Arduino Core and provide a project-owned main()
 ```
+
+## Native scale tests — v0.10
+
+The project now contains a native host-side unit-test suite for the scale module.
+
+The environment is:
+
+```text
+native_scale
+```
+
+It compiles the real production implementation:
+
+```text
+src/scale.cpp
+```
+
+against a fake implementation of the public HX711 driver API:
+
+```text
+test/test_scale/fake_hx711_driver.c
+```
+
+The test architecture is:
+
+```text
+scale.cpp
+    |
+    v
+hx711_driver.h
+    |
+    v
+fake_hx711_driver.c
+    |
+    v
+controlled readings, errors and call records
+```
+
+The fake HX711 driver can:
+
+* Control initialization results.
+* Control startup readiness results.
+* Control current readiness.
+* Supply sequences of raw readings.
+* Inject read failures at selected positions.
+* Record initialization pins.
+* Record timeout values.
+* Count driver calls.
+* Count consumed readings.
+* Detect unexpected extra reads.
+
+The scale suite covers:
+
+* Successful initialization.
+* HX711 initialization failure.
+* HX711 startup timeout.
+* State reset after successful initialization.
+* State preservation after failed initialization.
+* Positive calibration factors.
+* Negative calibration factors.
+* Rejection of zero, NaN and infinity.
+* Rejection of factors below the minimum magnitude.
+* Acceptance of exact boundary factors.
+* Preservation of the previous valid factor.
+* Successful tare using 20 samples.
+* Positive, negative and mixed tare readings.
+* Failed tare at the first, intermediate and final sample.
+* Preservation of the previous offset after failed tare.
+* Repeated tare.
+* Single-sample net-count calculations.
+* Multi-sample net-count calculations.
+* Signed integer truncation.
+* Null output pointers.
+* Zero sample counts.
+* Read failures at multiple positions.
+* Preservation of caller output values after failures.
+* Positive weight conversions.
+* Negative weight conversions.
+* Positive and negative calibration-factor signs.
+* HX711-not-ready behaviour.
+* Weight-read failures.
+* Arithmetic limits using 255 maximum or minimum HX711 readings.
+
+The scale suite contains:
+
+```text
+32 tests
+0 failures
+```
+
+The complete native regression now contains:
+
+```text
+native_button:              10 tests
+native_hx711:               18 tests
+native_level_indicator:     14 tests
+native_operation_indicator: 14 tests
+native_scale:               32 tests
+
+Total:                      88 tests
+Failures:                    0
+```
+
+The production Arduino Nano firmware continues compiling successfully.
+
+This branch does not modify the public scale API or production behaviour.
+
+The current test-layer architecture is:
+
+```text
+Application logic
+    |
+    +--> native_button
+    +--> native_level_indicator
+    +--> native_operation_indicator
+    +--> native_scale
+
+Hardware protocol logic
+    |
+    +--> native_hx711
+```
+
+The completed milestone is tagged:
+
+```text
+v0.10-native-scale-tests
+```
+
+The next recommended milestone is to separate calibration-record validation from physical EEPROM access.
+
+A suitable progression is:
+
+```text
+v0.11  Testable calibration-record format and storage HAL
+v0.12  Direct AVR EEPROM backend
+v0.13  Console abstraction
+v0.14  Direct AVR UART backend
+v1.0   Project-owned main() without the Arduino Core
+```

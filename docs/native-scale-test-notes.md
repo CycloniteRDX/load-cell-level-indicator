@@ -692,3 +692,548 @@ This branch will be complete when:
 * [ ] The previous 56 native tests still pass.
 * [ ] The Arduino Nano firmware still compiles.
 * [ ] Final coverage is documented.
+
+## 22. Final test architecture
+
+The native scale-test suite has been implemented successfully.
+
+The final architecture is:
+
+```text
+Real scale module
+src/scale.cpp
+        |
+        v
+Public HX711 interface
+include/hx711_driver.h
+        |
+        v
+Fake HX711 driver
+test/test_scale/fake_hx711_driver.c
+        |
+        v
+Controlled statuses, readings and call records
+```
+
+The tests compile the real production implementation of:
+
+```text
+src/scale.cpp
+```
+
+while replacing the physical HX711 driver with a host-side fake.
+
+The suite does not simulate GPIO registers, interrupts, Timer1 or HX711 pulse timing.
+
+Those lower-level responsibilities remain covered by the dedicated HX711 and HAL tests.
+
+---
+
+## 23. Native environment
+
+The final PlatformIO environment is:
+
+```ini
+[env:native_scale]
+platform = native
+test_framework = unity
+
+test_filter = test_scale
+test_build_src = yes
+
+build_src_filter =
+    -<*>
+    +<scale.cpp>
+
+build_flags =
+    -Isrc
+```
+
+The environment compiles:
+
+```text
+src/scale.cpp
+test/test_scale/fake_hx711_driver.c
+test/test_scale/test_main.cpp
+```
+
+It deliberately excludes:
+
+```text
+src/hx711_driver.c
+src/hx711_platform.c
+AVR-specific HAL backends
+Arduino application modules
+```
+
+---
+
+## 24. Fake HX711 driver
+
+The fake HX711 driver implements the public API declared in:
+
+```text
+include/hx711_driver.h
+```
+
+It supports:
+
+* Configuring the result of `hx711_init()`.
+* Configuring the result of `hx711_wait_ready()`.
+* Configuring the value returned by `hx711_is_ready()`.
+* Preparing controlled raw-reading sequences.
+* Preparing successful and failed read statuses.
+* Recording the pins supplied during initialization.
+* Recording the startup timeout.
+* Counting calls to individual driver functions.
+* Counting consumed raw readings.
+* Detecting attempts to consume more readings than prepared.
+* Resetting all fake state before each test.
+
+The fake contains no physical waits and performs no hardware access.
+
+This makes every test deterministic and independent from connected equipment.
+
+---
+
+## 25. Initialization coverage
+
+The suite verifies successful scale initialization.
+
+A successful call to:
+
+```c
+scale_init();
+```
+
+must:
+
+* Call `hx711_init()` exactly once.
+* Use the configured DOUT pin.
+* Use the configured PD_SCK pin.
+* Call `hx711_wait_ready()` exactly once.
+* Use the configured 2000 ms startup timeout.
+* Reset the tare offset to zero.
+* Reset the runtime calibration factor to `1.0F`.
+
+The suite also verifies failure behaviour.
+
+When `hx711_init()` fails:
+
+* `scale_init()` returns false.
+* `hx711_wait_ready()` is not called.
+* The previous tare offset is preserved.
+* The previous calibration factor is preserved.
+
+When `hx711_wait_ready()` fails:
+
+* `scale_init()` returns false.
+* The correct startup timeout is used.
+* The previous tare offset is preserved.
+* The previous calibration factor is preserved.
+
+The module therefore resets its state only after complete HX711 initialization succeeds.
+
+---
+
+## 26. Calibration-factor coverage
+
+The tests verify that valid positive and negative calibration factors are accepted.
+
+Examples include:
+
+```text
+45.5
+-45.5
+1.0
+-1.0
+0.000001
+-0.000001
+```
+
+Negative factors remain valid because the measurement sign depends on load-cell wiring and mechanical orientation.
+
+The suite verifies rejection of:
+
+```text
++0.0
+-0.0
+NaN
+positive infinity
+negative infinity
+positive magnitudes below 0.000001
+negative magnitudes below 0.000001
+```
+
+A rejected factor must not overwrite the last valid factor.
+
+The boundary values:
+
+```text
+0.000001
+-0.000001
+```
+
+are accepted because the implementation rejects values whose magnitude is strictly less than the limit.
+
+---
+
+## 27. Tare coverage
+
+The production tare operation uses:
+
+```text
+20 raw samples
+```
+
+The native tests verify that a successful tare:
+
+* Consumes exactly 20 raw readings.
+* Computes the integer average.
+* Supports positive raw values.
+* Supports negative raw values.
+* Supports mixed positive and negative values.
+* Stores the resulting average as the new tare offset.
+* Replaces a previous successful tare offset.
+
+The tests also verify failed tare operations.
+
+A failure on the first, intermediate or final sample must:
+
+* Stop sampling at the failed reading.
+* Leave the previous tare offset unchanged.
+* Avoid consuming any later prepared readings.
+
+Because the current public API is:
+
+```c
+void scale_tare(void);
+```
+
+failure is validated through preserved state and fake-driver call counts rather than through a returned status.
+
+---
+
+## 28. Net-count coverage
+
+The suite verifies:
+
+```c
+scale_read_net_counts();
+```
+
+with:
+
+* One sample.
+* Multiple samples.
+* Positive raw values.
+* Negative raw values.
+* Positive tare offsets.
+* Negative tare offsets.
+* Mixed reading sequences.
+* Maximum `uint8_t` sample counts.
+* HX711 values near both signed 24-bit limits.
+
+The calculation under test is:
+
+```text
+net counts =
+integer average of raw samples
+minus tare offset
+```
+
+The tests confirm that signed integer division truncates toward zero.
+
+Example:
+
+```text
+Readings:          -9, -8, -7, -6
+Sum:               -30
+Integer average:   -7
+Tare offset:       -100
+Net counts:        93
+```
+
+Invalid arguments are also covered.
+
+The function must reject:
+
+* A null output pointer.
+* A sample count of zero.
+
+When an argument or HX711 read fails:
+
+* The function returns false.
+* The caller's output variable remains unchanged.
+* Sampling stops at the first error.
+
+Failures are tested at the first, intermediate and final reading.
+
+---
+
+## 29. Arithmetic range validation
+
+HX711 raw values are signed 24-bit values:
+
+```text
+Minimum: -8388608
+Maximum:  8388607
+```
+
+The maximum public sample count is:
+
+```text
+255
+```
+
+The largest possible sums are:
+
+```text
+8388607 × 255  =  2139094785
+-8388608 × 255 = -2139095040
+```
+
+Both fit inside a signed 32-bit accumulator:
+
+```text
+INT32_MIN = -2147483648
+INT32_MAX =  2147483647
+```
+
+The native tests exercise both raw-value limits using 255 samples.
+
+The current production accumulator:
+
+```c
+int32_t raw_sum;
+```
+
+is therefore sufficient for every valid HX711 value and every valid `uint8_t` sample count.
+
+---
+
+## 30. Weight-conversion coverage
+
+The suite verifies:
+
+```c
+scale_read_weight();
+```
+
+under successful and failed conditions.
+
+A successful measurement must:
+
+1. Validate the output pointer.
+2. Check whether the HX711 is ready.
+3. Read the configured raw samples.
+4. Calculate net counts.
+5. Divide by the runtime calibration factor.
+6. Write the result to the caller's output variable.
+
+The following representative conversion is covered:
+
+```text
+Tare offset:        -170000 counts
+Raw reading:        -100000 counts
+Net counts:           70000 counts
+Calibration factor:      46.5 counts/g
+Weight:             approximately 1505.376 g
+```
+
+Additional tests cover:
+
+* Positive calibration factors.
+* Negative calibration factors.
+* Positive net counts.
+* Negative net counts.
+* Sign inversion caused by a negative factor.
+
+---
+
+## 31. Weight-reading error behaviour
+
+A null output pointer must cause immediate failure.
+
+In that case:
+
+* `hx711_is_ready()` is not called.
+* No raw reading is requested.
+
+When the HX711 is not ready:
+
+* The function returns false.
+* No raw reading is requested.
+* The caller's output variable remains unchanged.
+
+When readiness succeeds but the raw read fails:
+
+* The function returns false.
+* The attempted reading is recorded.
+* The caller's output variable remains unchanged.
+
+The suite therefore proves that failed weight measurements do not expose partially calculated or corrupted results.
+
+---
+
+## 32. State preservation
+
+The final suite explicitly proves that transient errors do not corrupt previously valid scale state.
+
+The following guarantees are covered:
+
+* Failed HX711 initialization preserves the tare offset.
+* Failed HX711 initialization preserves the calibration factor.
+* Startup readiness timeout preserves the tare offset.
+* Startup readiness timeout preserves the calibration factor.
+* Rejected calibration factors preserve the previous valid factor.
+* Failed tare operations preserve the previous tare offset.
+* Failed net-count reads preserve the caller's output value.
+* Failed weight reads preserve the caller's output value.
+
+Successful reinitialization intentionally resets:
+
+```text
+Tare offset:        0
+Calibration factor: 1.0
+```
+
+---
+
+## 33. Final test results
+
+The native scale suite passes:
+
+```text
+Scale tests: 32
+Failures:    0
+Ignored:     0
+```
+
+The complete native regression is:
+
+```text
+Button tests:              10
+HX711 driver tests:        18
+Level-indicator tests:     14
+Operation-indicator tests: 14
+Scale tests:               32
+Total:                     88
+Failures:                  0
+```
+
+Validation commands:
+
+```text
+pio test -e native_button
+pio test -e native_hx711
+pio test -e native_level_indicator
+pio test -e native_operation_indicator
+pio test -e native_scale
+```
+
+The Arduino Nano production firmware also continues compiling with:
+
+```text
+pio run -e nanoatmega328new
+```
+
+No production behaviour was changed by this branch.
+
+---
+
+## 34. Responsibilities not covered
+
+The native scale suite does not validate:
+
+* Physical load-cell accuracy.
+* Mechanical mounting.
+* Bridge excitation stability.
+* Electrical noise.
+* Temperature drift.
+* HX711 pulse timing.
+* GPIO register behaviour.
+* Timer1 operation.
+* EEPROM persistence.
+* The interactive calibration state machine.
+* Serial communication.
+* Complete application integration.
+
+These responsibilities remain covered by lower-level tests, physical validation or future integration tests.
+
+---
+
+## 35. Architectural result
+
+The project now has independent test coverage at two measurement layers:
+
+```text
+Scale behaviour
+    |
+    v
+native_scale
+    |
+    +--> tare
+    +--> averaging
+    +--> calibration factor
+    +--> count-to-weight conversion
+    +--> state preservation
+
+HX711 protocol
+    |
+    v
+native_hx711
+    |
+    +--> readiness
+    +--> timeout
+    +--> 24-bit reconstruction
+    +--> sign extension
+    +--> gain pulses
+    +--> critical sections
+```
+
+This separation prevents the scale tests from duplicating HX711 protocol tests.
+
+It also means changes to the physical HX711 backend can be validated independently from changes to weight-calculation logic.
+
+No test-only conditionals or production API changes were added to `scale.cpp`.
+
+---
+
+## 36. Definition of done
+
+This milestone is complete because:
+
+* [x] The scale-test strategy is documented.
+* [x] A native scale environment exists.
+* [x] A controllable fake HX711 driver exists.
+* [x] HX711 initialization success is tested.
+* [x] HX711 initialization failure is tested.
+* [x] HX711 startup timeout is tested.
+* [x] Successful initialization resets scale state.
+* [x] Failed initialization preserves scale state.
+* [x] Positive calibration factors are tested.
+* [x] Negative calibration factors are tested.
+* [x] Zero, NaN and infinity are rejected.
+* [x] Very small calibration factors are rejected.
+* [x] Boundary calibration factors are tested.
+* [x] Rejected factors preserve the previous factor.
+* [x] Successful tare is tested.
+* [x] Failed tare preserves the previous offset.
+* [x] Repeated tare is tested.
+* [x] Single-sample net counts are tested.
+* [x] Multi-sample net counts are tested.
+* [x] Positive and negative raw values are tested.
+* [x] Invalid net-count arguments are tested.
+* [x] Net-count failures preserve the output value.
+* [x] HX711-not-ready weight behaviour is tested.
+* [x] Positive and negative weight conversions are tested.
+* [x] Weight-read errors preserve the output value.
+* [x] Getter behaviour is tested.
+* [x] Arithmetic boundary cases are tested.
+* [x] All 32 native scale tests pass.
+* [x] The previous 56 native tests still pass.
+* [x] The complete native total is 88 tests.
+* [x] The Arduino Nano firmware still compiles.
+* [x] Production behaviour remains unchanged.
+* [x] Final coverage is documented.
