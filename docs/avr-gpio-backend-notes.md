@@ -708,3 +708,90 @@ This branch will be complete when:
 * [ ] Calibration behaviour remains unchanged.
 * [ ] Flash and SRAM usage are recorded.
 * [ ] Final validation is documented.
+
+## 20. Final validation
+
+The direct AVR GPIO backend has been implemented and selected successfully for the Arduino Nano build.
+
+The active GPIO path is now:
+
+```text
+Application modules
+        |
+        v
+Project GPIO HAL
+        |
+        v
+hal_gpio_avr.c
+        |
+        v
+DDRx / PORTx / PINx
+        |
+        v
+ATmega328P hardware
+```
+
+The Arduino GPIO backend remains in the repository as a reference implementation but is excluded from the production build.
+
+### Automated validation
+
+The following commands pass successfully:
+
+```text
+pio test -e native_button
+pio test -e native_hx711
+pio test -e native_level_indicator
+pio test -e native_operation_indicator
+pio run -e nanoatmega328new
+```
+
+Automated result:
+
+```text
+56 native tests passed
+Nano firmware build passed
+```
+
+### Physical validation
+
+The following hardware behaviour was verified:
+
+* [x] HX711 initialization succeeds.
+* [x] HX711 readings update correctly.
+* [x] Load-cell response remains functional.
+* [x] Tare button works.
+* [x] Calibration-button short press works.
+* [x] Calibration-button long press works.
+* [x] Internal pull-up resistors work.
+* [x] Button debounce behaviour is unchanged.
+* [x] Low-level LED works.
+* [x] Medium-level LED works.
+* [x] High-level LED works.
+* [x] Very-low warning blinking works.
+* [x] Tare indication works.
+* [x] Calibration indications work.
+* [x] Success and error patterns work.
+* [x] Complete calibration flow works.
+* [x] Stored calibration continues loading correctly.
+
+### Memory usage
+
+Arduino GPIO backend:
+
+```text
+RAM:   744 bytes
+Flash: 12406 bytes
+```
+
+Direct AVR GPIO backend:
+
+```text
+RAM:   744 bytes
+Flash: 12450 bytes
+```
+
+### Result
+
+The GPIO backend migration is complete.
+
+No changes were required in the button, LED-indicator, HX711, scale or application modules. This confirms that the project GPIO abstraction boundary is working correctly.
