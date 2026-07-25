@@ -887,3 +887,116 @@ All native tests pass and the normal Arduino Nano firmware continues to compile.
 The completed milestone will be tagged as `v0.7-native-unit-tests`.
 
 The next planned milestone is to introduce direct AVR HAL backends incrementally while preserving the Arduino implementation as a reference and using the native tests to prevent regressions.
+
+
+## Direct AVR GPIO backend — v0.8
+
+The project now uses a direct ATmega328P register backend for digital GPIO.
+
+The public project HAL remains unchanged:
+
+```text
+hal_gpio_configure_input()
+hal_gpio_configure_input_pullup()
+hal_gpio_configure_output()
+hal_gpio_read()
+hal_gpio_write()
+```
+
+The production GPIO path is now:
+
+```text
+Application modules
+        |
+        v
+Project GPIO HAL
+        |
+        v
+hal_gpio_avr.c
+        |
+        v
+DDRx / PORTx / PINx
+        |
+        v
+ATmega328P hardware
+```
+
+The direct AVR backend supports Arduino-compatible digital pin identifiers:
+
+```text
+D0-D7   -> PORTD
+D8-D13  -> PORTB
+D14-D19 -> PORTC
+```
+
+Nano pins A6 and A7 are not accepted as digital GPIO because they are analog-input-only pins.
+
+The backend provides:
+
+* Safe translation from Arduino pin identifiers to AVR registers and bit masks.
+* Input configuration through `DDRx`.
+* Internal pull-up control through `PORTx`.
+* Output configuration through `DDRx`.
+* Digital input reads through `PINx`.
+* Digital output writes through `PORTx`.
+* Safe handling of invalid pin identifiers.
+* Critical-section protection for register read-modify-write operations.
+* Preservation of unrelated bits in shared port registers.
+
+The previous Arduino implementation remains available in:
+
+```text
+hal_gpio_arduino.cpp
+```
+
+but is excluded from the production Nano build through `platformio.ini`.
+
+No changes were required in:
+
+* Button logic.
+* Indicator LED logic.
+* Level-indicator logic.
+* Operation-indicator logic.
+* HX711 driver.
+* HX711 platform adapter.
+* Scale module.
+* Application state machine.
+
+This confirms that the project GPIO abstraction boundary works correctly.
+
+Validation completed successfully:
+
+* 56 native tests pass.
+* Arduino Nano firmware compiles.
+* HX711 communication works physically.
+* Weight readings remain functional.
+* Tare and calibration buttons work.
+* Internal pull-ups work.
+* Short-press and long-press detection work.
+* All three LEDs work.
+* Very-low warning blinking works.
+* Tare, calibration, success and error patterns work.
+* Persistent calibration continues loading.
+* Complete calibration flow works.
+
+Memory comparison:
+
+```text
+Arduino GPIO backend:
+RAM:   744 bytes
+Flash: 12406 bytes
+
+Direct AVR GPIO backend:
+RAM:   744 bytes
+Flash: 12450 bytes
+```
+
+The direct backend therefore leaves SRAM usage unchanged and increases flash usage by 44 bytes in the current build.
+
+The completed milestone is tagged:
+
+```text
+v0.8-avr-gpio-backend
+```
+
+The next planned milestone is a direct AVR time backend. It should replace `hal_time_arduino.cpp` incrementally while retaining the Arduino Core for startup, Serial and EEPROM during the transition.

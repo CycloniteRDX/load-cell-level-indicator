@@ -686,28 +686,28 @@ The existing Arduino backend may remain unchanged.
 
 ## 19. Definition of done
 
-This branch will be complete when:
+This branch is complete because:
 
-* [ ] The AVR GPIO design is documented.
-* [ ] Arduino pins 0–19 are mapped safely.
-* [ ] Invalid pins are handled safely.
-* [ ] Inputs can be configured without pull-ups.
-* [ ] Inputs can be configured with internal pull-ups.
-* [ ] Outputs can be configured.
-* [ ] Digital inputs can be read through `PINx`.
-* [ ] Digital outputs can be controlled through `PORTx`.
-* [ ] Unrelated port bits are preserved.
-* [ ] Read-modify-write operations are protected.
-* [ ] The Arduino GPIO backend remains available as a reference.
-* [ ] The AVR GPIO backend is selected for the Nano build.
-* [ ] All 56 native tests pass.
-* [ ] The Arduino Nano firmware compiles.
-* [ ] Physical buttons work correctly.
-* [ ] Physical LEDs work correctly.
-* [ ] Physical HX711 communication works correctly.
-* [ ] Calibration behaviour remains unchanged.
-* [ ] Flash and SRAM usage are recorded.
-* [ ] Final validation is documented.
+* [x] The AVR GPIO design is documented.
+* [x] Arduino pins 0–19 are mapped safely.
+* [x] Invalid pins are handled safely.
+* [x] Inputs can be configured without pull-ups.
+* [x] Inputs can be configured with internal pull-ups.
+* [x] Outputs can be configured.
+* [x] Digital inputs can be read through `PINx`.
+* [x] Digital outputs can be controlled through `PORTx`.
+* [x] Unrelated port bits are preserved.
+* [x] Read-modify-write operations are protected.
+* [x] The Arduino GPIO backend remains available as a reference.
+* [x] The AVR GPIO backend is selected for the Nano build.
+* [x] All 56 native tests pass.
+* [x] The Arduino Nano firmware compiles.
+* [x] Physical buttons work correctly.
+* [x] Physical LEDs work correctly.
+* [x] Physical HX711 communication works correctly.
+* [x] Calibration behaviour remains unchanged.
+* [x] Flash and SRAM usage are recorded.
+* [x] Final validation is documented.
 
 ## 20. Final validation
 
