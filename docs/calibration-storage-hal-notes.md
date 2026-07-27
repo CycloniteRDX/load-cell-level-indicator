@@ -1580,7 +1580,7 @@ Previous milestone:
 
 ```text
 RAM:   748 bytes
-Flash: 12606 bytes
+Flash: 12620 bytes
 ```
 
 Calibration-storage HAL milestone:

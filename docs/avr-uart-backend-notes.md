@@ -1041,12 +1041,11 @@ The Nano production firmware compiles successfully with the direct AVR UART back
 
 ---
 
-## 37. Link-time validation
+37. Link-time validation
 
 Inspection of the project object file confirms that
-`hal_serial_avr.c` defines:
+hal_serial_avr.c defines:
 
-```text
 hal_serial_init
 hal_serial_rx_available
 hal_serial_read_byte
@@ -1114,16 +1113,15 @@ No application-level regression was detected.
 
 ---
 
-## 39. Memory usage
+39. Memory usage
 
-Historical `v0.13-console-abstraction` build:
+Historical v0.13-console-abstraction build:
 
-```text
 RAM:   312 bytes
 Flash: 12564 bytes
 
-Current v0.14 application source with the Arduino serial
-backend temporarily reselected:
+Current v0.14 application source with the Arduino serial backend
+temporarily reselected:
 
 RAM:   312 bytes
 Flash: 12600 bytes

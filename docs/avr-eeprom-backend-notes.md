@@ -1152,8 +1152,8 @@ No application-level regression was detected.
 Previous calibration-storage HAL milestone:
 
 ```text
-RAM:   <PREVIOUS_RAM_BYTES> bytes
-Flash: <PREVIOUS_FLASH_BYTES> bytes
+RAM:   748 bytes
+Flash: 12606 bytes
 ```
 
 Direct AVR EEPROM backend:
@@ -1162,8 +1162,6 @@ Direct AVR EEPROM backend:
 RAM:   748 bytes
 Flash: 12630 bytes
 ```
-
-The values must be copied from the successful production builds.
 
 The memory comparison is informational.
 
