@@ -879,3 +879,455 @@ This milestone will be complete when:
 - [ ] RAM and Flash usage are recorded.
 - [ ] The primary production environment is bare-metal.
 - [ ] Final validation is documented.
+
+## 28. Final architecture
+
+The direct AVR entry point has been implemented and selected successfully.
+
+The production startup architecture is:
+
+```text
+AVR reset
+    |
+    v
+Nano bootloader
+    |
+    v
+AVR-LibC startup
+    |
+    v
+project main()
+    |
+    v
+enable global interrupts
+    |
+    v
+app_init()
+    |
+    v
+app_update() forever
+```
+
+The Arduino Core is no longer part of the production execution path.
+
+---
+
+## 29. Project entry point
+
+The active production entry point is:
+
+```text
+src/main_avr.cpp
+```
+
+It performs:
+
+```cpp
+int main(void)
+{
+    sei();
+
+    app_init();
+
+    while (true)
+    {
+        app_update();
+    }
+}
+```
+
+`app_init()` is executed exactly once.
+
+`app_update()` is executed continuously for the lifetime of the firmware.
+
+The project does not return normally from `main()`.
+
+---
+
+## 30. Global interrupts
+
+The project entry point explicitly enables global interrupts with:
+
+```c
+sei();
+```
+
+This occurs before:
+
+```c
+app_init();
+```
+
+Global interrupts are required during initialization because:
+
+* Timer1 advances the project millisecond timebase.
+* The startup delay depends on the Timer1 compare-match interrupt.
+* USART0 reception depends on the receive-complete interrupt.
+
+Each hardware backend remains responsible for enabling its own peripheral interrupt source only after the peripheral has been configured.
+
+---
+
+## 31. Runtime startup
+
+The project continues using the AVR-GCC and AVR-LibC startup runtime.
+
+Before entering the project `main()` function, the runtime provides:
+
+* Interrupt-vector placement.
+* Stack-pointer initialization.
+* AVR ABI register initialization.
+* Copying initialized `.data` objects from Flash to SRAM.
+* Clearing the `.bss` section.
+* Running required C++ constructors.
+* Calling `main()`.
+
+The project does not use:
+
+```text
+-nostartfiles
+-nostdlib
+```
+
+No custom reset vector, startup assembly or linker script was required.
+
+---
+
+## 32. Production build environment
+
+The primary production environment is:
+
+```text
+nanoatmega328new
+```
+
+It uses:
+
+```ini
+platform = atmelavr
+board = nanoatmega328new
+monitor_speed = 115200
+```
+
+It does not declare:
+
+```ini
+framework = arduino
+```
+
+The production source filter excludes:
+
+```text
+main_arduino.cpp
+hal_gpio_arduino.cpp
+hal_time_arduino.cpp
+hal_storage_arduino.cpp
+hal_serial_arduino.cpp
+```
+
+The active entry point is:
+
+```text
+main_avr.cpp
+```
+
+---
+
+## 33. Arduino reference environment
+
+The Arduino execution model remains available for controlled comparison through:
+
+```text
+nanoatmega328new_arduino
+```
+
+This environment uses:
+
+```text
+Arduino Core main()
+setup()
+loop()
+main_arduino.cpp
+```
+
+It continues using the same project application and direct AVR HAL backends.
+
+It is not the production environment.
+
+The default PlatformIO environment remains:
+
+```ini
+default_envs = nanoatmega328new
+```
+
+---
+
+## 34. Arduino Core removal
+
+The production firmware no longer depends on Arduino Core for:
+
+* `main()`.
+* `init()`.
+* `initVariant()`.
+* `setup()`.
+* `loop()`.
+* `serialEventRun()`.
+* Timer0 Arduino timekeeping.
+* Arduino `millis()`.
+* Arduino `micros()`.
+* Arduino `delay()`.
+* Arduino GPIO.
+* Arduino EEPROM.
+* Arduino HardwareSerial.
+
+The final production application uses only project-owned interfaces and direct AVR backends.
+
+---
+
+## 35. Timer architecture
+
+Arduino Timer0 timekeeping is not initialized by the direct production entry point.
+
+The project timebase remains:
+
+```text
+ATmega328P Timer1
+    |
+    v
+TIMER1_COMPA_vect
+    |
+    v
+hal_time_millis()
+    |
+    v
+hal_time_delay_ms()
+```
+
+No Arduino Timer0 symbols are linked into the final production ELF.
+
+---
+
+## 36. Link-time validation
+
+Inspection of the production ELF confirms:
+
+```text
+one project main()
+one Timer1 compare-match ISR
+one USART0 receive ISR
+```
+
+The relevant project interrupt symbols are:
+
+```text
+__vector_11
+__vector_18
+```
+
+The production ELF does not contain active implementations of:
+
+```text
+setup()
+loop()
+initVariant()
+serialEventRun()
+timer0_millis
+timer0_overflow_count
+HardwareSerial
+Arduino Serial
+```
+
+Link-time optimization may inline project functions, so not every project function is required to remain as a standalone named ELF symbol.
+
+---
+
+## 37. Bootloader validation
+
+The existing Arduino Nano bootloader remains installed and functional.
+
+Removing the Arduino application framework did not replace or modify the bootloader.
+
+The following upload sequence was validated successfully:
+
+```text
+upload direct AVR firmware
+upload Arduino reference firmware
+upload direct AVR firmware again
+```
+
+All uploads completed through the normal USB-to-serial bootloader path.
+
+The direct firmware also starts correctly after:
+
+* PlatformIO upload.
+* Manual reset.
+* Serial-monitor reset.
+* Full power cycle.
+
+---
+
+## 38. Functional validation
+
+The direct-entry production firmware was validated successfully on the physical Arduino Nano.
+
+The following behaviour was confirmed:
+
+* [x] Firmware compiles without Arduino Core.
+* [x] Firmware uploads through the Nano bootloader.
+* [x] Firmware starts normally.
+* [x] The startup banner is readable.
+* [x] No reset loop occurs.
+* [x] The three-second startup delay completes.
+* [x] Automatic tare starts and completes.
+* [x] Timer1 timekeeping works.
+* [x] UART transmission works.
+* [x] Interrupt-driven UART reception works.
+* [x] Commands `t`, `c`, `q`, `s` and `x` work.
+* [x] Uppercase and lowercase commands work.
+* [x] Busy-operation input discard remains functional.
+* [x] Physical buttons work.
+* [x] LED indicators work.
+* [x] The `very low` warning works.
+* [x] HX711 communication works.
+* [x] Weight output works.
+* [x] Calibration works.
+* [x] EEPROM persistence works.
+* [x] Manual reset works.
+* [x] Full power-cycle startup works.
+* [x] Repeated bootloader uploads remain reliable.
+* [x] No application-level regression was detected.
+
+---
+
+## 39. Native regression
+
+The complete native regression remains:
+
+```text
+native_button:                       10 tests
+native_hx711:                        18 tests
+native_level_indicator:              14 tests
+native_operation_indicator:          14 tests
+native_scale:                        32 tests
+native_calibration_storage:          40 tests
+native_console:                      43 tests
+native_time_delay:                    6 tests
+
+Total:                              177 tests
+Failures:                             0
+```
+
+Removing Arduino Core from the production environment did not affect the native test environments.
+
+---
+
+## 40. Memory comparison
+
+Arduino reference environment:
+
+```text
+RAM:   203 bytes
+Flash: 11664 bytes
+```
+
+Direct AVR production environment:
+
+```text
+RAM:   194 bytes
+Flash: 11356 bytes
+```
+
+Controlled difference:
+
+```text
+RAM:   -9 bytes
+Flash: -308 bytes
+```
+
+Both environments use the same application modules and the same direct AVR HAL backends.
+
+The controlled comparison therefore represents the effect of replacing the Arduino execution model and removing Arduino Core from the link.
+
+---
+
+## 41. Remaining platform dependencies
+
+The production firmware still depends on:
+
+```text
+PlatformIO Atmel AVR platform
+AVR-GCC
+AVR-LibC
+Nano board metadata
+Nano bootloader upload configuration
+```
+
+These are toolchain and runtime dependencies, not Arduino application-framework dependencies.
+
+The project is now bare-metal at the application and hardware-access level while retaining the standard AVR-LibC runtime startup.
+
+---
+
+## 42. Architectural result
+
+The complete production architecture is now:
+
+```text
+AVR-LibC startup
+    |
+    v
+main_avr.cpp
+    |
+    v
+app.cpp
+    |
+    +--> console.c
+    |       |
+    |       v
+    |    hal_serial_avr.c
+    |
+    +--> scale.cpp
+    |       |
+    |       v
+    |    hx711_driver.c
+    |
+    +--> hal_gpio_avr.c
+    +--> hal_time_avr.c
+    +--> hal_time_delay.c
+    +--> hal_storage_avr.c
+    +--> hal_critical_avr.c
+```
+
+No active production module includes Arduino headers or calls Arduino APIs.
+
+---
+
+## 43. Definition of done
+
+This milestone is complete because:
+
+* [x] The direct-entry architecture is documented.
+* [x] The Arduino entry point is isolated as a reference.
+* [x] `main_avr.cpp` exists.
+* [x] The project defines its own `main()`.
+* [x] Global interrupts are enabled explicitly.
+* [x] `app_init()` is called exactly once.
+* [x] `app_update()` is called forever.
+* [x] A bare-metal Nano environment exists.
+* [x] The production environment omits `framework = arduino`.
+* [x] Arduino Core is absent from the production link.
+* [x] Arduino Timer0 timekeeping is absent from production.
+* [x] AVR-LibC runtime startup remains active.
+* [x] Static `.data` and `.bss` initialization remains correct.
+* [x] Required interrupt vectors are linked.
+* [x] Exactly one project `main()` is linked.
+* [x] Firmware upload through the Nano bootloader works.
+* [x] Serial monitoring works.
+* [x] Full power-cycle startup works.
+* [x] Startup delay and automatic tare work.
+* [x] UART input and output work.
+* [x] HX711, buttons, indicators and EEPROM work.
+* [x] All 177 native tests pass.
+* [x] RAM and Flash usage are recorded.
+* [x] The primary production environment is bare-metal.
+* [x] Final validation is documented.

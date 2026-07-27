@@ -1936,3 +1936,101 @@ The completed milestone is tagged:
 ```text
 v0.15-remove-arduino-delay
 ```
+
+## Direct AVR entry point — v0.16
+
+The production firmware no longer uses the Arduino application framework.
+
+The production startup architecture is:
+
+```text
+AVR reset
+    |
+    v
+Nano bootloader
+    |
+    v
+AVR-LibC startup
+    |
+    v
+main_avr.cpp
+    |
+    v
+app_init()
+    |
+    v
+app_update() forever
+```
+
+The project entry point explicitly enables global interrupts before application initialization:
+
+```c
+sei();
+```
+
+This allows the Timer1 timebase and interrupt-driven USART reception to operate during `app_init()`.
+
+The primary PlatformIO environment is:
+
+```text
+nanoatmega328new
+```
+
+It does not contain:
+
+```ini
+framework = arduino
+```
+
+The Arduino execution model remains available only as a reference environment:
+
+```text
+nanoatmega328new_arduino
+```
+
+The production ELF contains:
+
+```text
+one main()
+one Timer1 compare-match ISR
+one USART0 receive ISR
+```
+
+It does not contain active Arduino Core symbols for:
+
+```text
+setup()
+loop()
+Arduino Timer0 timekeeping
+HardwareSerial
+global Serial
+```
+
+The existing Nano bootloader remains functional. Direct AVR firmware, Arduino reference firmware and direct AVR firmware were uploaded sequentially without affecting bootloader operation.
+
+The complete native regression remains:
+
+```text
+177 tests
+0 failures
+```
+
+Memory usage:
+
+```text
+Arduino reference:
+RAM:   203 bytes
+Flash: 11664 bytes
+
+Direct AVR production:
+RAM:   194 bytes
+Flash: 11356 bytes
+```
+
+The active production architecture now uses project-owned entry, application, console, GPIO, time, EEPROM, UART and HX711 implementations.
+
+The completed milestone is tagged:
+
+```text
+v0.16-direct-avr-entrypoint
+```
