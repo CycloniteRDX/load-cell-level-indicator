@@ -1757,3 +1757,90 @@ v0.14-direct-avr-uart
 ```
 
 It will replace the Arduino HardwareSerial backend with a direct AVR USART0 implementation without changing `app.cpp`, `console.c` or `hal_serial.h`.
+
+## Direct AVR UART — v0.14
+
+The production firmware now accesses ATmega328P USART0 directly.
+
+The active console architecture is:
+
+```text
+app.cpp
+    |
+    v
+console.c
+    |
+    v
+hal_serial.h
+    |
+    v
+hal_serial_avr.c
+    |
+    v
+ATmega328P USART0
+```
+
+The previous Arduino backend remains available as a reference:
+
+```text
+src/hal_serial_arduino.cpp
+```
+
+but is excluded from the Nano production build.
+
+USART0 is configured for:
+
+```text
+115200 requested baud
+asynchronous double-speed mode
+UBRR0 = 16
+8 data bits
+no parity
+1 stop bit
+interrupt-driven reception
+polling transmission
+```
+
+Reception uses a project-owned 64-byte circular buffer.
+
+The receive-complete ISR stores incoming bytes while application code consumes them through:
+
+```text
+hal_serial_rx_available()
+hal_serial_read_byte()
+```
+
+When the receive buffer is full, the newly received byte is discarded and existing queued data is preserved.
+
+A physical validation identified that UART commands could remain queued during blocking operations even though physical button presses were not processed during those operations.
+
+The application now discards console input received during:
+
+```text
+ordinary taring
+calibration taring
+calibration sample collection
+temporary success or error indication patterns
+```
+
+This prevents stale commands from executing after a busy operation has completed.
+
+The complete native regression remains:
+
+```text
+171 tests
+0 failures
+```
+
+Production memory usage:
+
+```text
+RAM:   203 bytes
+Flash: 11762 bytes
+```
+
+The completed milestone is tagged:
+
+```text
+v0.14-direct-avr-uart
+```
