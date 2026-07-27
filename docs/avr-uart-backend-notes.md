@@ -1043,7 +1043,8 @@ The Nano production firmware compiles successfully with the direct AVR UART back
 
 ## 37. Link-time validation
 
-Inspection of the final ELF confirms that it contains:
+Inspection of the project object file confirms that
+`hal_serial_avr.c` defines:
 
 ```text
 hal_serial_init
@@ -1051,15 +1052,26 @@ hal_serial_rx_available
 hal_serial_read_byte
 hal_serial_write_byte
 __vector_18
-```
 
-The final ELF contains one USART0 receive-complete interrupt implementation.
+Link-time optimization may inline small HAL functions into their
+callers. In the final optimized ELF, not every HAL function is
+therefore required to remain as an independent named symbol.
 
-The project-owned Arduino serial backend is not compiled into the production firmware.
+The final ELF retains:
 
-No active application module references the global Arduino `Serial` object.
+hal_serial_write_byte
+__vector_18
 
----
+as standalone symbols.
+
+Exactly one USART0 receive-complete interrupt implementation is
+linked.
+
+No HardwareSerial implementation or global Arduino Serial
+object is linked into the final firmware.
+
+The project-owned Arduino serial backend is excluded from the
+production build.
 
 ## 38. Physical validation
 
@@ -1104,30 +1116,40 @@ No application-level regression was detected.
 
 ## 39. Memory usage
 
-Previous console-abstraction milestone:
+Historical `v0.13-console-abstraction` build:
 
 ```text
 RAM:   312 bytes
+Flash: 12564 bytes
+
+Current v0.14 application source with the Arduino serial
+backend temporarily reselected:
+
+RAM:   312 bytes
 Flash: 12600 bytes
-```
 
-Direct AVR UART milestone:
+Final direct AVR UART build:
 
-```text
 RAM:   203 bytes
 Flash: 11762 bytes
-```
 
-The final values were obtained from a clean production build with:
+The historical v0.13 build and the temporary Arduino-backend
+comparison are not identical because the busy-operation input fix
+was added after the v0.13 tag.
 
-```text
-hal_serial_avr.c active
-hal_serial_arduino.cpp excluded
-```
+Comparing both serial backends with the same v0.14 application
+source, the direct AVR backend changes memory usage by:
 
-The direct backend adds a project-owned 64-byte RX buffer and does not allocate a software TX buffer.
+RAM:   -109 bytes
+Flash: -838 bytes
 
----
+Comparing the completed milestones directly:
+
+v0.13: 312 bytes RAM, 12564 bytes Flash
+v0.14: 203 bytes RAM, 11762 bytes Flash
+
+The direct backend adds a project-owned 64-byte RX buffer and does
+not allocate a software TX buffer.
 
 ## 40. Remaining Arduino dependencies
 

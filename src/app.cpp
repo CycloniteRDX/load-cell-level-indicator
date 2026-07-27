@@ -201,15 +201,6 @@ static void confirm_calibration_zero(void)
 
     scale_tare();
 
-    /*
-     * Ignore commands accumulated while the blocking
-     * calibration tare was running.
-     *
-     * In particular, a second queued 'c' must not
-     * advance immediately to calibration completion
-     * before the reference mass has been placed.
-     */
-    console_discard_input();
 
     CONSOLE_PRINT("Tare offset: ");
     console_print_int32(
@@ -245,6 +236,16 @@ static void confirm_calibration_zero(void)
     );
 
     console_newline();
+
+    /*
+     * Ignore commands accumulated while the blocking
+     * calibration tare was running.
+     *
+     * In particular, a second queued 'c' must not
+     * advance immediately to calibration completion
+     * before the reference mass has been placed.
+     */
+    console_discard_input();
 }
 
 

@@ -1579,8 +1579,8 @@ No functional regression was detected.
 Previous milestone:
 
 ```text
-RAM:   <PREVIOUS_RAM_BYTES> bytes
-Flash: <PREVIOUS_FLASH_BYTES> bytes
+RAM:   748 bytes
+Flash: 12606 bytes
 ```
 
 Calibration-storage HAL milestone:
@@ -1590,9 +1590,6 @@ RAM:   748 bytes
 Flash: 12606 bytes
 ```
 
-The final values must be copied from the successful production build.
-
----
 
 ## 42. Architectural result
 
