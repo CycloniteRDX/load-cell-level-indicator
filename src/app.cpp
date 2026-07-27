@@ -1,4 +1,4 @@
-#include <Arduino.h>
+
 #include <math.h>
 #include <stdint.h>
 
@@ -709,7 +709,7 @@ void app_init(void)
 
         while (true)
         {
-            delay(1000);
+            hal_time_delay_ms(1000UL);
         }
     }
 
@@ -747,7 +747,7 @@ void app_init(void)
 
         while (true)
         {
-            delay(1000);
+            hal_time_delay_ms(1000UL);
         }
     }
 
@@ -768,7 +768,7 @@ void app_init(void)
         "with the empty container."
     );
 
-    delay(3000);
+    hal_time_delay_ms(3000UL);
 
     perform_tare();
 
