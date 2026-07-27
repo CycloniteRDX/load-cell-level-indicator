@@ -1844,3 +1844,95 @@ The completed milestone is tagged:
 ```text
 v0.14-direct-avr-uart
 ```
+
+## Project-owned millisecond delay — v0.15
+
+The application no longer uses the Arduino `delay()` function.
+
+The active millisecond-delay architecture is:
+
+```text
+app.cpp
+    |
+    v
+hal_time_delay_ms()
+    |
+    v
+hal_time_millis()
+    |
+    v
+hal_time_avr.c
+    |
+    v
+ATmega328P Timer1
+```
+
+The new API is:
+
+```c
+void hal_time_delay_ms(
+    uint32_t milliseconds
+);
+```
+
+Its common implementation is located in:
+
+```text
+src/hal_time_delay.c
+```
+
+The implementation:
+
+* Returns immediately for a zero-duration request.
+* Uses unsigned subtraction for overflow-safe elapsed-time calculation.
+* Does not disable interrupts.
+* Remains a blocking busy wait.
+* Depends only on the public `hal_time_millis()` interface.
+
+The native delay suite contains:
+
+```text
+6 tests
+0 failures
+```
+
+The complete native regression now contains:
+
+```text
+native_button:                       10
+native_hx711:                        18
+native_level_indicator:              14
+native_operation_indicator:          14
+native_scale:                        32
+native_calibration_storage:          40
+native_console:                      43
+native_time_delay:                    6
+
+Total:                              177
+Failures:                             0
+```
+
+The three remaining Arduino delay calls in `app.cpp` were replaced by:
+
+```text
+hal_time_delay_ms(1000UL)
+hal_time_delay_ms(1000UL)
+hal_time_delay_ms(3000UL)
+```
+
+`app.cpp` no longer includes `Arduino.h` and no longer calls any direct Arduino API.
+
+Production memory usage:
+
+```text
+RAM:   203 bytes
+Flash: 11664 bytes
+```
+
+The Arduino Core remains temporarily responsible for startup and the `setup()`/`loop()` entry model through `main.cpp`.
+
+The completed milestone is tagged:
+
+```text
+v0.15-remove-arduino-delay
+```

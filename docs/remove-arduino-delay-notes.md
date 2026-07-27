@@ -544,3 +544,379 @@ This milestone will be complete when:
 - [ ] Physical behaviour is validated.
 - [ ] SRAM and flash usage are recorded.
 - [ ] Final documentation is complete.
+
+## 23. Final implementation
+
+The project-owned millisecond delay has been implemented and selected successfully.
+
+The active delay path is:
+
+```text
+app.cpp
+    |
+    v
+hal_time_delay_ms()
+    |
+    v
+hal_time_millis()
+    |
+    v
+hal_time_avr.c
+    |
+    v
+ATmega328P Timer1
+```
+
+The application no longer calls the Arduino `delay()` function.
+
+---
+
+## 24. Public time API
+
+The public time HAL now exposes:
+
+```c
+void hal_time_init(void);
+
+uint32_t hal_time_millis(void);
+
+void hal_time_delay_ms(
+    uint32_t milliseconds
+);
+
+void hal_time_delay_us(
+    uint16_t microseconds
+);
+```
+
+The new millisecond delay is implemented in:
+
+```text
+src/hal_time_delay.c
+```
+
+It depends only on the public `hal_time_millis()` interface and is independent from the physical timer backend.
+
+---
+
+## 25. Delay implementation
+
+The implementation records the initial millisecond count and waits until the requested elapsed time has passed:
+
+```c
+const uint32_t start_time =
+    hal_time_millis();
+
+while (
+    (uint32_t)(
+        hal_time_millis() -
+        start_time
+    ) < milliseconds
+)
+{
+    /* Busy wait. */
+}
+```
+
+Unsigned subtraction preserves correct elapsed-time calculation when the 32-bit millisecond counter wraps from `UINT32_MAX` to zero.
+
+A zero-duration delay returns immediately without reading the time source.
+
+---
+
+## 26. Blocking behaviour
+
+`hal_time_delay_ms()` remains a blocking busy wait.
+
+It does not:
+
+* Run application updates.
+* Poll physical buttons.
+* Process scale state.
+* Make startup non-blocking.
+* Put the processor into a sleep state.
+
+The function does not disable interrupts.
+
+During a delay:
+
+* Timer1 continues advancing the millisecond counter.
+* USART reception continues through its interrupt.
+* Other enabled interrupt handlers continue operating.
+
+---
+
+## 27. Usage restrictions
+
+A non-zero millisecond delay requires the active time backend to have been initialized and able to advance.
+
+It must not be called:
+
+* Before `hal_time_init()`.
+* From an interrupt service routine.
+* While global interrupts are disabled.
+* From a critical section that prevents Timer1 interrupts.
+
+All current application calls satisfy these restrictions.
+
+---
+
+## 28. Application migration
+
+The three direct Arduino delay calls were replaced.
+
+The two fatal loops now use:
+
+```c
+while (true)
+{
+    hal_time_delay_ms(1000UL);
+}
+```
+
+The automatic startup tare countdown now uses:
+
+```c
+hal_time_delay_ms(3000UL);
+```
+
+The following include was removed from `app.cpp`:
+
+```cpp
+#include <Arduino.h>
+```
+
+`app.cpp` no longer contains direct Arduino API calls.
+
+---
+
+## 29. Startup behaviour
+
+The startup sequence remains:
+
+```text
+initialize hardware
+load calibration
+print startup information
+wait approximately three seconds
+perform automatic tare
+enter normal application loop
+```
+
+USART reception can continue during the three-second wait.
+
+Pending console input is discarded by the subsequent tare operation, preserving the busy-operation input policy introduced previously.
+
+Physical buttons are not polled during the blocking startup wait.
+
+---
+
+## 30. Native delay tests
+
+The native environment is:
+
+```text
+native_time_delay
+```
+
+It compiles:
+
+```text
+src/hal_time_delay.c
+test/test_time_delay/fake_hal_time.c
+test/test_time_delay/test_main.c
+```
+
+The fake time backend provides controlled values through:
+
+```c
+uint32_t hal_time_millis(void);
+```
+
+No AVR registers, interrupts or Arduino components are required.
+
+---
+
+## 31. Delay test coverage
+
+The six native tests cover:
+
+* Zero-duration delay.
+* One-millisecond delay.
+* A clock that remains unchanged across multiple reads.
+* An ordinary multi-millisecond delay.
+* A clock that advances past the exact deadline.
+* Operation across `uint32_t` overflow.
+
+The native delay suite passes:
+
+```text
+Tests:    6
+Failures: 0
+Ignored:  0
+```
+
+---
+
+## 32. Complete automated validation
+
+The complete native regression is:
+
+```text
+native_button:                       10 tests
+native_hx711:                        18 tests
+native_level_indicator:              14 tests
+native_operation_indicator:          14 tests
+native_scale:                        32 tests
+native_calibration_storage:          40 tests
+native_console:                      43 tests
+native_time_delay:                    6 tests
+
+Total:                              177 tests
+Failures:                             0
+```
+
+The Arduino Nano production firmware also compiles successfully.
+
+---
+
+## 33. Physical validation
+
+The project-owned millisecond delay was validated successfully on the physical Arduino Nano.
+
+The following behaviour was confirmed:
+
+* [x] Firmware uploads successfully.
+* [x] Firmware starts normally.
+* [x] The startup wait remains approximately three seconds.
+* [x] Automatic tare starts after the wait.
+* [x] Automatic tare completes normally.
+* [x] Weight readings remain functional.
+* [x] Level indication remains functional.
+* [x] Physical buttons remain functional.
+* [x] Console commands remain functional.
+* [x] Calibration remains functional.
+* [x] EEPROM persistence remains functional.
+* [x] USART reception remains functional during delays.
+* [x] Pending startup input is not executed after the automatic tare.
+* [x] Timer1 remains functional.
+* [x] No application regression was detected.
+
+---
+
+## 34. Memory usage
+
+Previous direct AVR UART milestone:
+
+```text
+RAM:   203 bytes
+Flash: 11762 bytes
+```
+
+Arduino delay removal milestone:
+
+```text
+RAM:   203 bytes
+Flash: 11664 bytes
+```
+
+The final values were obtained from a clean Nano production build.
+
+The Arduino Core may still configure Timer0 during startup, but `app.cpp` no longer depends on Timer0 or the Arduino `delay()` implementation.
+
+---
+
+## 35. Remaining Arduino dependency
+
+`app.cpp` is now independent from the Arduino framework.
+
+The remaining Arduino-facing production entry point is:
+
+```text
+src/main.cpp
+```
+
+It still provides:
+
+```cpp
+#include <Arduino.h>
+
+void setup(void);
+void loop(void);
+```
+
+The Arduino Core remains responsible for:
+
+```text
+reset/startup initialization
+calling setup()
+repeatedly calling loop()
+possible Timer0 initialization
+```
+
+Reference Arduino backends may also remain in the repository, but they are excluded from the active Nano build.
+
+---
+
+## 36. Architectural result
+
+The application now accesses all current hardware and timing services through project-owned interfaces:
+
+```text
+GPIO:
+hal_gpio.h
+    -> hal_gpio_avr.c
+
+Critical sections:
+hal_critical.h
+    -> hal_critical_avr.c
+
+Time source:
+hal_time.h
+    -> hal_time_avr.c
+
+Millisecond delay:
+hal_time_delay.c
+    -> hal_time_millis()
+
+Non-volatile storage:
+hal_storage.h
+    -> hal_storage_avr.c
+
+Serial transport:
+hal_serial.h
+    -> hal_serial_avr.c
+
+Console:
+console.c
+    -> text, numbers, CRLF and input
+```
+
+`app.cpp` no longer includes Arduino headers or calls Arduino APIs.
+
+---
+
+## 37. Definition of done
+
+This milestone is complete because:
+
+* [x] The delay-removal strategy is documented.
+* [x] `hal_time_delay_ms()` is declared publicly.
+* [x] A common platform-independent implementation exists.
+* [x] Zero-duration delay returns immediately.
+* [x] Ordinary millisecond delays work.
+* [x] Counter overflow is handled correctly.
+* [x] The delay does not disable interrupts.
+* [x] Usage restrictions are documented.
+* [x] A native fake time backend exists.
+* [x] All six native delay tests pass.
+* [x] Every direct Arduino `delay()` call was removed from `app.cpp`.
+* [x] `app.cpp` no longer includes `Arduino.h`.
+* [x] The startup three-second wait remains functional.
+* [x] Fatal loops retain their existing behaviour.
+* [x] All previous 171 native tests pass.
+* [x] The complete native total is 177 tests.
+* [x] The Nano firmware compiles.
+* [x] Physical behaviour is validated.
+* [x] SRAM and flash usage are recorded.
+* [x] Final documentation is complete.
