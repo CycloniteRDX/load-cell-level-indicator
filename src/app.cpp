@@ -76,6 +76,19 @@ static void perform_tare(void)
 
     CONSOLE_PRINTLN("Tare completed.");
     console_newline();
+
+    /*
+     * scale_tare() blocks the application loop, but
+     * USART reception continues through its interrupt.
+     *
+     * Discard commands received while the tare was in
+     * progress so they are not executed afterwards.
+     *
+     * This makes serial input consistent with physical
+     * button presses, which are not processed while the
+     * application is blocked.
+     */
+    console_discard_input();
 }
 
 
@@ -188,6 +201,16 @@ static void confirm_calibration_zero(void)
 
     scale_tare();
 
+    /*
+     * Ignore commands accumulated while the blocking
+     * calibration tare was running.
+     *
+     * In particular, a second queued 'c' must not
+     * advance immediately to calibration completion
+     * before the reference mass has been placed.
+     */
+    console_discard_input();
+
     CONSOLE_PRINT("Tare offset: ");
     console_print_int32(
         (int32_t)scale_get_offset()
@@ -234,9 +257,21 @@ static void complete_calibration(void)
 
     float net_counts = 0.0F;
 
-    if (!scale_read_net_counts(
+    const bool samples_read =
+        scale_read_net_counts(
             &net_counts,
-            CALIBRATION_SAMPLES))
+            CALIBRATION_SAMPLES
+        );
+
+    /*
+     * The sample collection is blocking. Ignore any
+     * commands received while it was in progress so
+     * they cannot affect the new calibration state
+     * after the operation finishes.
+     */
+    console_discard_input();
+
+    if (!samples_read)
     {
         CONSOLE_PRINTLN(
             "ERROR: Calibration samples "
@@ -813,6 +848,14 @@ void app_update(void)
      */
     if (operation_indicator_is_temporary_active())
     {
+        /*
+         * Physical buttons are not processed while a
+         * finite success or error pattern is active.
+         *
+         * Discard serial input as well so both input
+         * mechanisms follow the same busy-state policy.
+         */
+        console_discard_input();
         return;
     }
 
