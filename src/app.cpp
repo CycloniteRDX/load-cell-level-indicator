@@ -342,6 +342,12 @@ static void confirm_calibration_zero(void)
     console_newline();
     CONSOLE_PRINTLN("Performing calibration tare...");
 
+    const int32_t previous_tare_offset =
+        scale_get_offset();
+
+    const bool previous_tare_available =
+        tare_available;
+
     operation_indicator_set_mode(
         OPERATION_INDICATOR_TARE
     );
@@ -358,6 +364,49 @@ static void confirm_calibration_zero(void)
         );
 
         CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        CONSOLE_PRINTLN(
+            "Keep the empty container in place "
+            "and confirm again."
+        );
+
+        console_newline();
+        console_discard_input();
+        return;
+    }
+
+    const int32_t new_tare_offset =
+        scale_get_offset();
+
+    if (!tare_storage_save(
+            new_tare_offset))
+    {
+        /*
+         * Do not leave RAM and EEPROM using different
+         * tare offsets after a storage failure.
+         */
+        scale_set_offset(
+            previous_tare_offset
+        );
+
+        tare_available =
+            previous_tare_available;
+
+        operation_indicator_show_error(
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
+
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration tare could not be saved."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset has been restored."
+        );
+
+        CONSOLE_PRINTLN(
             "Keep the empty container in place "
             "and confirm again."
         );
@@ -371,9 +420,13 @@ static void confirm_calibration_zero(void)
 
     CONSOLE_PRINT("Tare offset: ");
     console_print_int32(
-        scale_get_offset()
+        new_tare_offset
     );
     console_newline();
+
+    CONSOLE_PRINTLN(
+        "Calibration tare saved successfully."
+    );
 
     calibration_state =
         CALIBRATION_WAITING_FOR_MASS;
@@ -406,7 +459,8 @@ static void confirm_calibration_zero(void)
 
     /*
      * Ignore commands accumulated while the blocking
-     * calibration tare was running.
+     * calibration tare and EEPROM verification were
+     * running.
      *
      * In particular, a second queued 'c' must not
      * advance immediately to calibration completion
