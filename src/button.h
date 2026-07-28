@@ -64,4 +64,16 @@ bool button_was_held(
 );
 
 
+
+/*
+ * Prevents the current physical press from generating
+ * a hold event until the button is released.
+ *
+ * This is useful when one press changes application
+ * context and must not be reinterpreted afterwards.
+ */
+void button_suppress_hold_until_release(
+    button_t *button
+);
+
 #endif

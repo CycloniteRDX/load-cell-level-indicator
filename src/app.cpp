@@ -282,7 +282,7 @@ static void clear_stored_tare(void)
     );
 
     CONSOLE_PRINTLN(
-        "Press TARE or send 't' to establish zero."
+        "Hold TARE for 3 seconds or send 't' to establish zero."
     );
 
     console_newline();
@@ -1052,14 +1052,14 @@ void app_init(void)
         );
 
         CONSOLE_PRINTLN(
-            "Press TARE or send 't' to establish zero."
+            "Hold TARE for 3 seconds or send 't' to establish zero."
         );
     }
 
     console_newline();
     CONSOLE_PRINTLN("Controls:");
     CONSOLE_PRINTLN(
-        "  Physical button on D4 = tare"
+        "  Hold button on D4 for 3 s = tare"
     );
     CONSOLE_PRINTLN(
         "  Serial command 't'    = tare"
@@ -1173,6 +1173,15 @@ void app_update(void)
     {
         if (button_was_pressed(&tare_button))
         {
+            /*
+             * The press cancels calibration immediately.
+             * It must not later become a three-second
+             * tare event if the user keeps holding D4.
+             */
+            button_suppress_hold_until_release(
+                &tare_button
+            );
+
             cancel_calibration();
             return;
         }
@@ -1192,7 +1201,18 @@ void app_update(void)
         return;
     }
 
-    if (button_was_pressed(&tare_button))
+    /*
+     * Outside calibration, a deliberate long press is
+     * required before the physical TARE button can
+     * redefine the operational zero.
+     *
+     * Short presses are intentionally ignored.
+     * The serial 't' command remains an immediate
+     * service operation.
+     */
+    if (button_was_held(
+            &tare_button,
+            TARE_START_HOLD_MS))
     {
         perform_tare();
 
