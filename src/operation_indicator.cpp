@@ -46,6 +46,9 @@ static bool mode_is_blinking(
 {
     return
         (mode ==
+         OPERATION_INDICATOR_TARE_REQUIRED) ||
+
+        (mode ==
          OPERATION_INDICATOR_CALIBRATION_ZERO) ||
 
         (mode ==
@@ -68,6 +71,14 @@ static void apply_current_output(void)
                 true,
                 true,
                 true
+            );
+            break;
+
+        case OPERATION_INDICATOR_TARE_REQUIRED:
+            indicator_leds_set(
+                blink_led_on,
+                blink_led_on,
+                blink_led_on
             );
             break;
 
@@ -236,7 +247,13 @@ void operation_indicator_update(void)
     uint32_t blink_period_ms =
         OPERATION_INDICATOR_BLINK_PERIOD_MS;
 
-    if (mode_is_temporary(current_mode))
+    if (current_mode ==
+        OPERATION_INDICATOR_TARE_REQUIRED)
+    {
+        blink_period_ms =
+            TARE_REQUIRED_BLINK_PERIOD_MS;
+    }
+    else if (mode_is_temporary(current_mode))
     {
         blink_period_ms =
             OPERATION_RESULT_BLINK_PERIOD_MS;

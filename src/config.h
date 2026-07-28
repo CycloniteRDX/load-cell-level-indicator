@@ -52,6 +52,14 @@ static const uint32_t
 
 
 /*
+ * Slow all-LED blinking used when no valid tare
+ * offset is available.
+ */
+static const uint32_t
+    TARE_REQUIRED_BLINK_PERIOD_MS = 1000UL;
+
+
+/*
  * Faster blinking used for temporary success and
  * error feedback.
  */
