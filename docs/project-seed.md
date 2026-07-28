@@ -1,40 +1,40 @@
-# Seed del proyecto: aprendizaje progresivo de Arduino a bare-metal con HX711
+# Project Seed: Progressive Learning from Arduino to Bare-Metal with HX711
 
-Estoy desarrollando un proyecto educativo de larga duración para aprender programación de microcontroladores de forma progresiva, sin intentar aprender simultáneamente demasiadas capas.
+I am developing a long-term educational project to learn microcontroller programming progressively, without trying to learn too many layers at the same time.
 
-## Objetivo funcional del proyecto
+## Functional objective
 
-Construir un sistema que:
+Build a system that:
 
-* Lea una célula de carga mediante un HX711.
-* Convierta la lectura a peso.
-* Permita realizar la tara.
-* Permita calibrar usando una masa conocida.
-* Encienda tres LED dependiendo del peso o nivel medido.
-* Sirva como preparación para un futuro proyecto de mezclador de leche automatizado.
+* Reads a load cell through an HX711.
+* Converts the reading into weight.
+* Supports tare.
+* Supports calibration using a known mass.
+* Activates three LEDs depending on the measured weight or level.
+* Serves as preparation for a future automated milk-mixer project.
 
-La plataforma inicial será probablemente:
+The initial platform was expected to be:
 
-* Arduino Nano clásico.
-* ATmega328P a 16 MHz.
+* Classic Arduino Nano.
+* ATmega328P at 16 MHz.
 * VS Code.
 * PlatformIO.
 * HX711.
-* Librería `bogde/HX711`.
+* `bogde/HX711` library.
 
-El objetivo educativo final es abandonar progresivamente las abstracciones de Arduino, escribir drivers propios, trabajar con registros y terminar portando el proyecto a otra plataforma, probablemente STM32.
+The final educational objective is to progressively leave Arduino abstractions behind, write project-owned drivers, work directly with registers and eventually port the project to another platform, probably STM32.
 
 ---
 
-# Filosofía del proyecto
+# Project philosophy
 
-El proyecto debe avanzar mediante versiones pequeñas y funcionales.
+The project should progress through small, functional versions.
 
-En cada etapa se cambiará una cantidad limitada de cosas para que sea posible localizar los errores. No se debe saltar directamente desde una librería Arduino completamente funcional hasta un proyecto bare-metal completo.
+Each stage should change a limited number of things so that errors can be located. The project should not jump directly from a fully functional Arduino library to a complete bare-metal implementation.
 
-Cada versión funcional debe guardarse mediante un commit de Git y, cuando sea un hito importante, mediante una etiqueta.
+Each functional version should be saved with a Git commit and, when it represents an important milestone, with a tag.
 
-Ejemplo:
+Example:
 
 ```bash
 git add .
@@ -42,41 +42,41 @@ git commit -m "Implement minimal HX711 reading"
 git tag v0.1-hx711-minimal
 ```
 
-No se busca crear desde el principio una arquitectura industrial enorme. La separación de responsabilidades debe ser suficiente para aprender y permitir cambiar componentes, pero evitando la sobrearquitectura.
+The goal is not to create a large industrial architecture from the beginning. Separation of responsibilities should be sufficient for learning and for replacing components, while avoiding overengineering.
 
 ---
 
-# Ruta de aprendizaje acordada
+# Agreed learning path
 
-## Etapa 1: versión mínima con Arduino y la librería Bogde
+## Stage 1: minimal version with Arduino and the Bogde library
 
-Crear una versión mínima basada en los ejemplos de `bogde/HX711`.
+Create a minimal version based on the `bogde/HX711` examples.
 
-Objetivos:
+Objectives:
 
-* Verificar el cableado.
-* Comprobar que el HX711 responde.
-* Leer valores ADC sin procesar.
-* Comprobar que los valores cambian al aplicar peso.
-* Detectar saturación, ruido o conexiones incorrectas.
-* Probar la tara.
-* Obtener un primer factor de calibración.
-* Mostrar valores mediante `Serial`.
+* Verify the wiring.
+* Confirm that the HX711 responds.
+* Read unprocessed ADC values.
+* Confirm that the values change when weight is applied.
+* Detect saturation, noise or incorrect connections.
+* Test tare.
+* Obtain an initial calibration factor.
+* Display values through `Serial`.
 
-En esta etapa se permite utilizar:
+This stage may use:
 
 * `setup()`.
 * `loop()`.
 * `Serial`.
 * `delay()`.
-* La librería `bogde/HX711`.
-* Código sencillo e incluso parcialmente monolítico.
+* The `bogde/HX711` library.
+* Simple and even partially monolithic code.
 
-La prioridad es conseguir una referencia funcional conocida.
+The priority is to obtain a known functional reference.
 
-Esta versión debe conservarse sin modificar como programa de diagnóstico del hardware.
+This version should be preserved unchanged as a hardware diagnostic program.
 
-Hito sugerido:
+Suggested milestone:
 
 ```text
 v0.1-hx711-minimal
@@ -84,24 +84,24 @@ v0.1-hx711-minimal
 
 ---
 
-## Etapa 2: separación de responsabilidades manteniendo Arduino y Bogde
+## Stage 2: separate responsibilities while retaining Arduino and Bogde
 
-Reescribir la aplicación manteniendo exactamente el mismo comportamiento, pero dividiendo el código en módulos.
+Rewrite the application while preserving exactly the same behaviour, but divide the code into modules.
 
-Como la librería Bogde está escrita en C++, los módulos que interactúen con ella deben compilarse inicialmente como `.cpp`, no como `.c`.
+Because the Bogde library is written in C++, modules that interact with it should initially compile as `.cpp`, not `.c`.
 
-Puede utilizarse C++ con estilo procedural:
+C++ may be used in a procedural style:
 
-* Funciones.
+* Functions.
 * `struct`.
 * `enum`.
-* Variables privadas al módulo.
-* Sin necesidad de herencia.
-* Sin asignación dinámica.
-* Sin clases complejas.
-* Evitar `String`.
+* Module-private variables.
+* No inheritance required.
+* No dynamic allocation.
+* No complex classes.
+* Avoid `String`.
 
-Arquitectura inicial aproximada:
+Approximate initial architecture:
 
 ```text
 src/
@@ -118,11 +118,11 @@ src/
     └── level_indicator.h
 ```
 
-Responsabilidades:
+Responsibilities:
 
 ### `main`
 
-Solo inicializa los módulos y ejecuta periódicamente la aplicación.
+Only initializes the modules and repeatedly executes the application.
 
 ```cpp
 void setup()
@@ -140,52 +140,52 @@ void loop()
 
 ### `app`
 
-Coordina el comportamiento general:
+Coordinates overall behaviour:
 
-* Solicita nuevas medidas.
-* Decide cuándo actualizar la lectura.
-* Entrega el peso al indicador.
-* Gestiona estados generales de la aplicación.
-* No debe conocer los registros ni los detalles internos del HX711.
+* Requests new measurements.
+* Decides when to update the reading.
+* Passes the weight to the indicator.
+* Manages general application states.
+* Must not know registers or HX711 implementation details.
 
 ### `scale`
 
-Representa la báscula completa:
+Represents the complete scale:
 
-* Tara.
-* Factor de calibración.
-* Conversión de cuentas ADC a gramos.
-* Filtrado.
-* Promediado.
-* Validación de medidas.
+* Tare.
+* Calibration factor.
+* Conversion from ADC counts to grams.
+* Filtering.
+* Averaging.
+* Measurement validation.
 
-La aplicación debe pedir algo parecido a:
+The application should request something similar to:
 
 ```c
 bool scale_read_grams(float *weight_grams);
 ```
 
-La aplicación no debe usar directamente objetos de la clase `HX711`.
+The application must not directly use `HX711` class objects.
 
 ### `level_indicator`
 
-Controla los tres LED:
+Controls the three LEDs:
 
-* Inicialización de los pines.
-* Selección del LED correspondiente.
-* Posibles estados de error o espera.
+* Pin initialization.
+* Selection of the corresponding LED.
+* Possible error or waiting states.
 
 ### `config`
 
-Contiene:
+Contains:
 
-* Pines.
-* Umbrales.
-* Periodos de muestreo.
-* Factor inicial de calibración.
-* Constantes configurables.
+* Pins.
+* Thresholds.
+* Sampling periods.
+* Initial calibration factor.
+* Configurable constants.
 
-Hito sugerido:
+Suggested milestone:
 
 ```text
 v0.2-structured-bogde
@@ -193,20 +193,20 @@ v0.2-structured-bogde
 
 ---
 
-## Etapa 3: driver propio del HX711 manteniendo el Arduino Core
+## Stage 3: project-owned HX711 driver while retaining Arduino Core
 
-Eliminar la dependencia de `bogde/HX711`, pero conservar temporalmente:
+Remove the `bogde/HX711` dependency while temporarily retaining:
 
-* `setup()` y `loop()`.
+* `setup()` and `loop()`.
 * `Serial`.
 * `pinMode()`.
 * `digitalRead()`.
 * `digitalWrite()`.
 * `delayMicroseconds()`.
-* El sistema de compilación de Arduino.
-* La inicialización realizada por el Arduino Core.
+* The Arduino build system.
+* Initialization performed by Arduino Core.
 
-Crear un módulo propio:
+Create a project-owned module:
 
 ```text
 hx711/
@@ -214,7 +214,7 @@ hx711/
 └── hx711.h
 ```
 
-Interfaz aproximada:
+Approximate interface:
 
 ```c
 void hx711_init(void);
@@ -222,28 +222,28 @@ bool hx711_is_ready(void);
 bool hx711_read_raw(int32_t *raw_value);
 ```
 
-El driver debe encargarse únicamente de comunicarse con el HX711.
+The driver should only communicate with the HX711.
 
-Debe:
+It must:
 
-1. Esperar a que `DOUT` pase a nivel bajo.
-2. Generar 24 pulsos de reloj.
-3. Leer los 24 bits.
-4. Generar los pulsos adicionales necesarios para seleccionar canal y ganancia.
-5. Realizar correctamente la extensión de signo de 24 a 32 bits.
-6. Devolver cuentas ADC sin procesar.
-7. Evitar bloquear indefinidamente si el HX711 no responde.
-8. Respetar las restricciones temporales indicadas en el datasheet.
+1. Wait until `DOUT` becomes low.
+2. Generate 24 clock pulses.
+3. Read the 24 bits.
+4. Generate the additional pulses required to select channel and gain.
+5. Correctly sign-extend the 24-bit value to 32 bits.
+6. Return unprocessed ADC counts.
+7. Avoid blocking forever if the HX711 does not respond.
+8. Respect the timing restrictions specified in the datasheet.
 
-El driver del HX711 no debe saber:
+The HX711 driver must not know:
 
-* Qué célula de carga está conectada.
-* Cuántos gramos representa cada cuenta.
-* Cuáles son los umbrales de los LED.
-* Cómo funciona la aplicación.
-* Cómo se muestran los datos.
+* Which load cell is connected.
+* How many grams each count represents.
+* The LED thresholds.
+* How the application works.
+* How data is displayed.
 
-La relación correcta debe ser:
+The correct relationship should be:
 
 ```text
 app
@@ -252,15 +252,15 @@ app
  └── level_indicator
 ```
 
-El módulo `hx711` produce cuentas ADC.
+The `hx711` module produces ADC counts.
 
-El módulo `scale` convierte esas cuentas a peso:
+The `scale` module converts those counts into weight:
 
 ```text
-peso = (lectura_cruda - offset_de_tara) / factor_de_calibración
+weight = (raw_reading - tare_offset) / calibration_factor
 ```
 
-Hito sugerido:
+Suggested milestone:
 
 ```text
 v0.3-custom-hx711-arduino
@@ -268,11 +268,11 @@ v0.3-custom-hx711-arduino
 
 ---
 
-## Etapa 4: introducir una HAL propia
+## Stage 4: introduce a project-owned HAL
 
-Crear una pequeña Hardware Abstraction Layer para evitar que el driver del HX711 dependa directamente de Arduino.
+Create a small Hardware Abstraction Layer so that the HX711 driver does not depend directly on Arduino.
 
-Arquitectura aproximada:
+Approximate architecture:
 
 ```text
 hal/
@@ -284,7 +284,7 @@ hal/
 └── hal_uart.cpp
 ```
 
-El driver del HX711 debería utilizar funciones semejantes a:
+The HX711 driver should use functions similar to:
 
 ```c
 void hal_hx711_clock_write(bool level);
@@ -292,7 +292,7 @@ bool hal_hx711_data_read(void);
 void hal_delay_microseconds(uint16_t microseconds);
 ```
 
-Inicialmente, la implementación de la HAL puede usar Arduino:
+Initially, the HAL implementation may use Arduino:
 
 ```cpp
 void hal_hx711_clock_write(bool level)
@@ -301,7 +301,7 @@ void hal_hx711_clock_write(bool level)
 }
 ```
 
-La cadena de dependencias sería:
+The dependency chain would be:
 
 ```text
 app
@@ -311,14 +311,14 @@ app
                 └── Arduino Core
 ```
 
-El objetivo es que `hx711.cpp` deje de conocer:
+The objective is for `hx711.cpp` to stop knowing about:
 
 * `digitalWrite()`.
 * `digitalRead()`.
-* Los números de pin Arduino.
-* Los registros concretos del ATmega328P.
+* Arduino pin numbers.
+* ATmega328P-specific registers.
 
-Hito sugerido:
+Suggested milestone:
 
 ```text
 v0.4-hal-on-arduino
@@ -326,20 +326,20 @@ v0.4-hal-on-arduino
 
 ---
 
-## Etapa 5: implementar la HAL mediante registros directos
+## Stage 5: implement the HAL through direct register access
 
-Mantener todavía el Arduino Core y `Serial` para facilitar la depuración, pero reemplazar internamente las funciones Arduino de la HAL por acceso a registros del ATmega328P.
+Temporarily retain Arduino Core and `Serial` to simplify debugging, but internally replace the Arduino HAL functions with direct ATmega328P register access.
 
-Aprender progresivamente:
+Learn progressively:
 
-* `DDRx`: dirección de los pines.
-* `PORTx`: escritura y resistencias pull-up.
-* `PINx`: lectura de entradas.
-* Máscaras de bits.
-* Operaciones AND, OR, XOR y desplazamientos.
-* Lectura-modificación-escritura de registros.
+* `DDRx`: pin direction.
+* `PORTx`: output writing and pull-up resistors.
+* `PINx`: input reading.
+* Bit masks.
+* AND, OR, XOR and shift operations.
+* Register read-modify-write operations.
 
-Ejemplo conceptual:
+Conceptual example:
 
 ```c
 DDRD |= (1 << DDD2);
@@ -349,16 +349,16 @@ PORTD &= ~(1 << PORTD2);
 bool level = (PIND & (1 << PIND3)) != 0;
 ```
 
-En esta etapa:
+At this stage:
 
-* `hx711` no debería cambiar.
-* `scale` no debería cambiar.
-* `app` no debería cambiar.
-* Solo debería cambiar la implementación de la HAL.
+* `hx711` should not change.
+* `scale` should not change.
+* `app` should not change.
+* Only the HAL implementation should change.
 
-Esto demostrará que la separación de capas está funcionando.
+This will demonstrate that the separation between layers is working.
 
-Hito sugerido:
+Suggested milestone:
 
 ```text
 v0.5-register-hal-arduino-core
@@ -366,9 +366,9 @@ v0.5-register-hal-arduino-core
 
 ---
 
-## Etapa 6: eliminar completamente el framework Arduino
+## Stage 6: completely remove the Arduino framework
 
-Crear un proyecto bare-metal con:
+Create a bare-metal project with:
 
 ```c
 int main(void)
@@ -383,7 +383,7 @@ int main(void)
 }
 ```
 
-Eliminar:
+Remove:
 
 * `setup()`.
 * `loop()`.
@@ -392,27 +392,27 @@ Eliminar:
 * `delay()`.
 * `digitalRead()`.
 * `digitalWrite()`.
-* Dependencia del Arduino Core.
+* The Arduino Core dependency.
 
-Mantener:
+Retain:
 
-* Compilador AVR-GCC.
-* AVR Libc.
-* Headers como `<avr/io.h>`.
-* Macros de interrupciones de AVR Libc.
-* Código de arranque proporcionado por la toolchain, salvo que se decida estudiarlo más adelante.
+* AVR-GCC.
+* AVR-LibC.
+* Headers such as `<avr/io.h>`.
+* AVR-LibC interrupt macros.
+* Startup code supplied by the toolchain, unless it is intentionally studied later.
 
-Implementar progresivamente:
+Implement progressively:
 
 ### GPIO
 
-Configuración directa de entradas y salidas.
+Direct input and output configuration.
 
 ### UART
 
-Para sustituir `Serial` y conservar la capacidad de depuración.
+Replace `Serial` while preserving debugging capability.
 
-Funciones aproximadas:
+Approximate functions:
 
 ```c
 void uart_init(uint32_t baudrate);
@@ -420,47 +420,47 @@ void uart_write_byte(uint8_t byte);
 void uart_write_string(const char *text);
 ```
 
-### Base de tiempos
+### Timebase
 
-Configurar un timer para generar un tick periódico, por ejemplo cada 1 ms.
+Configure a timer to generate a periodic tick, for example every 1 ms.
 
-Funciones aproximadas:
+Approximate functions:
 
 ```c
 void time_init(void);
 uint32_t time_millis(void);
 ```
 
-Debe prestarse atención a:
+Pay attention to:
 
 * Prescaler.
-* Frecuencia del reloj.
-* Modo CTC.
-* Registro de comparación.
-* Interrupción del timer.
-* Acceso atómico a variables de más de 8 bits.
-* Uso correcto de `volatile`.
-* Desbordamiento del contador.
+* Clock frequency.
+* CTC mode.
+* Compare register.
+* Timer interrupt.
+* Atomic access to variables wider than 8 bits.
+* Correct use of `volatile`.
+* Counter overflow.
 
-### Interrupciones
+### Interrupts
 
-Utilizarlas solo cuando aporten una ventaja clara.
+Use them only when they provide a clear advantage.
 
-No es obligatorio usar interrupciones para todo. Se puede utilizar polling cuando sea suficiente.
+It is not necessary to use interrupts for everything. Polling may be used when it is sufficient.
 
-### Reloj
+### Clock
 
-En el Arduino Nano clásico, los fusibles suelen estar ya configurados para trabajar con el reloj de la placa. Definir:
+On the classic Arduino Nano, the fuses are normally already configured to use the board clock. Defining:
 
 ```c
 #define F_CPU 16000000UL
 ```
 
-no configura físicamente el reloj; informa al código y a determinadas librerías sobre la frecuencia esperada.
+does not physically configure the clock; it informs the code and some libraries of the expected frequency.
 
-La configuración de fusibles debe tratarse como un tema separado y con precaución.
+Fuse configuration should be treated as a separate topic and handled carefully.
 
-Hito sugerido:
+Suggested milestone:
 
 ```text
 v1.0-bare-metal-avr
@@ -468,33 +468,33 @@ v1.0-bare-metal-avr
 
 ---
 
-## Etapa 7: portar el proyecto a otra plataforma
+## Stage 7: port the project to another platform
 
-Portar el proyecto a una plataforma como STM32.
+Port the project to a platform such as STM32.
 
-La intención es conservar sin grandes cambios:
+The intention is to preserve, with minimal changes:
 
 * `app`.
 * `scale`.
-* La lógica de calibración.
-* La lógica de los tres LED.
-* Parte o la totalidad del driver HX711.
+* Calibration logic.
+* Three-LED logic.
+* Part or all of the HX711 driver.
 
-Cambiar principalmente:
+Change mainly:
 
-* HAL de GPIO.
-* HAL de tiempo.
-* HAL de UART.
-* Inicialización del microcontrolador.
-* Configuración del reloj.
-* Toolchain y sistema de compilación.
+* GPIO HAL.
+* Time HAL.
+* UART HAL.
+* Microcontroller initialization.
+* Clock configuration.
+* Toolchain and build system.
 
-En STM32 se podrá aprender progresivamente:
+STM32 may be used to learn progressively:
 
 * CMSIS.
 * HAL.
 * LL.
-* Registros.
+* Registers.
 * NVIC.
 * SysTick.
 * Timers.
@@ -502,9 +502,9 @@ En STM32 se podrá aprender progresivamente:
 * UART.
 * DMA.
 
-No es necesario comenzar STM32 haciendo bare-metal absoluto. Puede comenzarse con HAL o LL y bajar progresivamente de nivel.
+It is not necessary to begin STM32 with absolute bare-metal programming. Development may start with HAL or LL and progressively move to lower levels.
 
-Hito sugerido:
+Suggested milestone:
 
 ```text
 v2.0-stm32-port
@@ -512,9 +512,9 @@ v2.0-stm32-port
 
 ---
 
-# Arquitectura objetivo
+# Target architecture
 
-La arquitectura aproximada final será:
+The approximate final architecture would be:
 
 ```text
 src/
@@ -541,94 +541,94 @@ src/
     └── hal_uart.h
 ```
 
-No es obligatorio crear todos estos archivos desde el principio. Deben añadirse únicamente cuando exista una responsabilidad real que separar.
+It is not necessary to create all these files from the beginning. They should only be added when there is a real responsibility to separate.
 
 ---
 
-# Reglas de dependencia
+# Dependency rules
 
-La aplicación no debe conocer el hardware concreto.
+The application must not know the specific hardware.
 
 ```text
-app → scale → hx711 → HAL → microcontrolador
+app → scale → hx711 → HAL → microcontroller
 ```
 
-La dirección de las dependencias debe mantenerse.
+The dependency direction should be preserved.
 
 ## `app`
 
-Sabe que existe una báscula, pero no sabe cómo funciona el HX711.
+Knows that a scale exists, but does not know how the HX711 works.
 
 ## `scale`
 
-Sabe que recibe cuentas ADC de un conversor, pero gestiona gramos, tara, calibración y filtrado.
+Knows that it receives ADC counts from a converter, but manages grams, tare, calibration and filtering.
 
 ## `hx711`
 
-Sabe cómo comunicarse con el chip, pero no conoce gramos ni la lógica del sistema.
+Knows how to communicate with the chip, but does not know grams or system logic.
 
 ## HAL
 
-Sabe cómo controlar GPIO, timers y UART en la plataforma concreta.
+Knows how to control GPIO, timers and UART on the specific platform.
 
-## Plataforma
+## Platform
 
-Contiene los registros específicos del ATmega328P, STM32 u otro microcontrolador.
-
----
-
-# Principios importantes
-
-## No cambiar demasiadas cosas simultáneamente
-
-Cada etapa debe conservar una referencia funcional anterior.
-
-## No reescribir por reescribir
-
-Cada refactor debe tener un objetivo claro:
-
-* Mejor aislamiento.
-* Mayor capacidad de prueba.
-* Sustituir una dependencia.
-* Aprender una capa concreta.
-* Facilitar el futuro portado.
-
-## Evitar la sobrearquitectura
-
-Separación de responsabilidades no significa crear muchos archivos.
-
-Un módulo debe existir porque tiene un motivo propio para cambiar.
-
-## Mantener el programa observable
-
-Conservar durante el mayor tiempo posible:
-
-* Salida serie.
-* Indicadores de error.
-* Valores crudos.
-* Peso calculado.
-* Estado del HX711.
-* Información de calibración.
-
-## Trabajar desde abajo mediante pruebas pequeñas
-
-Antes de integrar un componente:
-
-1. Probar GPIO.
-2. Probar temporización.
-3. Probar UART.
-4. Probar lectura cruda del HX711.
-5. Probar tara.
-6. Probar calibración.
-7. Probar filtrado.
-8. Probar umbrales.
-9. Integrar la aplicación completa.
+Contains registers specific to the ATmega328P, STM32 or another microcontroller.
 
 ---
 
-# Posibles ramas de Git
+# Important principles
 
-Puede utilizarse una rama estable y ramas educativas:
+## Do not change too many things simultaneously
+
+Each stage should preserve a previous functional reference.
+
+## Do not rewrite without a reason
+
+Each refactor should have a clear objective:
+
+* Better isolation.
+* Greater testability.
+* Replace a dependency.
+* Learn a specific layer.
+* Simplify future porting.
+
+## Avoid overengineering
+
+Separation of responsibilities does not mean creating many files.
+
+A module should exist because it has its own reason to change.
+
+## Keep the program observable
+
+Preserve for as long as possible:
+
+* Serial output.
+* Error indicators.
+* Raw values.
+* Calculated weight.
+* HX711 state.
+* Calibration information.
+
+## Work from the bottom up through small tests
+
+Before integrating a component:
+
+1. Test GPIO.
+2. Test timing.
+3. Test UART.
+4. Test raw HX711 reading.
+5. Test tare.
+6. Test calibration.
+7. Test filtering.
+8. Test thresholds.
+9. Integrate the complete application.
+
+---
+
+# Possible Git branches
+
+A stable branch and educational branches may be used:
 
 ```text
 main
@@ -641,40 +641,40 @@ feature/bare-metal-avr
 feature/stm32-port
 ```
 
-No es obligatorio mantener todas las ramas indefinidamente. Lo importante es disponer de commits claros y versiones recuperables.
+It is not necessary to keep all branches forever. What matters is having clear commits and recoverable versions.
 
 ---
 
-# Estado inicial al retomar el proyecto
+# Initial state when resuming the project
 
-Cuando se retome el proyecto, primero hay que identificar en qué etapa se quedó.
+When the project is resumed, first identify the stage at which it stopped.
 
-Preguntas que debe resolver el asistente:
+Questions the assistant should answer:
 
-1. ¿Existe ya una lectura funcional con `bogde/HX711`?
-2. ¿Está calibrada la báscula?
-3. ¿Se conocen los pines utilizados?
-4. ¿Qué placa exacta se está usando?
-5. ¿Qué estructura de archivos existe?
-6. ¿Qué módulos están ya separados?
-7. ¿Se sigue utilizando la librería Bogde?
-8. ¿Existe ya un driver propio?
-9. ¿La HAL usa Arduino o registros?
-10. ¿Se conserva `Serial`?
-11. ¿Cuál es el último commit o tag funcional?
-12. ¿Qué error o siguiente objetivo concreto existe?
+1. Does a functional `bogde/HX711` reading already exist?
+2. Has the scale been calibrated?
+3. Are the pin assignments known?
+4. Which exact board is being used?
+5. What file structure exists?
+6. Which modules have already been separated?
+7. Is the Bogde library still being used?
+8. Does a project-owned driver already exist?
+9. Does the HAL use Arduino or registers?
+10. Is `Serial` still retained?
+11. What is the latest functional commit or tag?
+12. What concrete error or next objective exists?
 
-No se debe reiniciar el proyecto desde cero si ya existe una etapa funcional.
+The project should not be restarted from zero if a functional stage already exists.
 
 ---
 
-# Estado actual del proyecto
+# Current project state
 
-## v0.3: calibración persistente completada
+## v0.3: persistent calibration completed
 
-El proyecto utiliza actualmente Arduino Nano, ATmega328P, Arduino Core y la librería `bogde/HX711`.
+The project currently uses an Arduino Nano, ATmega328P, Arduino Core and the `bogde/HX711` library.
 
-La aplicación está separada en módulos:
+The application is separated into modules:
 
 ```text
 src/
@@ -696,94 +696,98 @@ src/
 └── scale.h
 ```
 
-Funcionalidades completadas:
+Completed functionality:
 
-* Lectura de la célula de carga mediante HX711.
-* Conversión de las cuentas ADC a gramos.
-* Tara automática durante el arranque.
-* Tara manual mediante pulsador físico o puerto serie.
-* Tres niveles de peso con histéresis.
-* Separación entre la lógica de nivel y el control físico de los LED.
-* Factor de calibración modificable durante la ejecución.
-* Almacenamiento persistente del factor en EEPROM.
-* Registro EEPROM con identificador, versión y CRC.
-* Validación de factores inválidos o datos EEPROM corruptos.
-* Recuperación del factor predeterminado cuando no existe una calibración válida.
-* Máquina de estados de calibración.
-* Calibración mediante puerto serie.
-* Pulsador físico de calibración.
-* Pulsación larga para evitar iniciar una calibración accidentalmente.
-* Cancelación de la calibración mediante el pulsador de tara o el comando serie.
-* Señalización LED de tara, estados de calibración, éxito y error.
-* Literales de diagnóstico almacenados en flash mediante `F()` para reducir el consumo de SRAM.
+* Load-cell reading through the HX711.
+* Conversion from ADC counts to grams.
+* Automatic tare during startup.
+* Manual tare through a physical button or serial port.
+* Three weight levels with hysteresis.
+* Separation between level logic and physical LED control.
+* Runtime-modifiable calibration factor.
+* Persistent factor storage in EEPROM.
+* EEPROM record with identifier, version and CRC.
+* Validation of invalid factors or corrupted EEPROM data.
+* Recovery of the default factor when no valid calibration exists.
+* Calibration state machine.
+* Calibration through the serial port.
+* Physical calibration button.
+* Long press to avoid starting calibration accidentally.
+* Calibration cancellation through the tare button or serial command.
+* LED indication for tare, calibration states, success and error.
+* Diagnostic string literals stored in Flash through `F()` to reduce SRAM usage.
 
-Controles actuales:
+Current controls:
 
 ```text
 D4:
-    funcionamiento normal → tara
-    calibración activa    → cancelar
+    normal operation   → tare
+    active calibration → cancel
 
 D8:
-    mantener pulsado      → iniciar calibración
-    pulsación breve       → confirmar paso
+    hold               → start calibration
+    short press        → confirm step
 
-Puerto serie:
-    t → tara
-    c → iniciar o confirmar calibración
-    q → cancelar calibración
-    s → guardar el factor activo
-    x → invalidar la calibración almacenada
+Serial port:
+    t → tare
+    c → start or confirm calibration
+    q → cancel calibration
+    s → save the active factor
+    x → invalidate the stored calibration
 ```
 
-El factor de calibración actual sigue siendo provisional porque la plataforma mecánica definitiva todavía no está construida.
+The current calibration factor remains provisional because the final mechanical platform has not yet been built.
 
-El valor `DEFAULT_CALIBRATION_FACTOR` es un respaldo compilado en el firmware. La calibración específica y más reciente de cada dispositivo se guarda en EEPROM.
+`DEFAULT_CALIBRATION_FACTOR` is a fallback compiled into the firmware. The most recent device-specific calibration is stored in EEPROM.
 
-## v0.4: advertencia de nivel muy bajo completada
+## v0.4: very-low-level warning completed
 
-* Cuatro estados de nivel: VERY_LOW, LOW, MEDIUM y HIGH.
-* Histéresis entre todos los niveles.
-* Aviso de recipiente muy vacío mediante parpadeo no bloqueante del LED LOW.
-* Frecuencias visuales diferenciadas:
-  - VERY_LOW: 250 ms por cambio.
-  - Espera de calibración: 500 ms por cambio.
-  - Éxito y error de calibración: 150 ms por cambio.
-* Prioridad de los patrones de operación sobre la indicación normal de nivel.
+* Four level states: `VERY_LOW`, `LOW`, `MEDIUM` and `HIGH`.
+* Hysteresis between all levels.
+* Very-empty-container warning through non-blocking blinking of the `LOW` LED.
+* Distinct visual frequencies:
+  - `VERY_LOW`: 250 ms per transition.
+  - Calibration wait: 500 ms per transition.
+  - Calibration success and error: 150 ms per transition.
+* Operation patterns take priority over normal level indication.
 
-Niveles provisionales:
+Provisional levels:
 
+```text
 VERY_LOW:
-    menos de 100 g
+    below 100 g
 
 LOW:
-    de 100 a 500 g
+    from 100 g to below 500 g
 
 MEDIUM:
-    de 500 a 1000 g
+    from 500 g to below 1000 g
 
 HIGH:
-    más de 1000 g
+    1000 g and above
+```
 
-Con histéresis de 20g:
+With 20 g hysteresis:
 
+```text
 VERY_LOW → LOW:
-    120 g o más
+    120 g or more
 
 LOW → VERY_LOW:
-    80 g o menos
+    80 g or less
+```
 
-## Siguiente gran etapa educativa
+## Next major educational stage
 
-Después de completar las funcionalidades de aplicación previstas, se eliminará la dependencia de `bogde/HX711` y se escribirá un driver propio del HX711 manteniendo inicialmente el Arduino Core.
+After completing the planned application functionality, the `bogde/HX711` dependency will be removed and a project-owned HX711 driver will be written while initially retaining Arduino Core.
 
-El driver propio se desarrollará en una rama independiente:
+The project-owned driver will be developed in an independent branch:
 
 ```text
 feature/custom-hx711-driver
 ```
 
-No se cambiarán simultáneamente la lógica de aplicación y el driver de comunicación.
+The application logic and communication driver will not be changed simultaneously.
 
 
 ## Custom HX711 driver milestone
