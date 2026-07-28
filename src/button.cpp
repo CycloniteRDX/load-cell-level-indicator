@@ -189,4 +189,3 @@ void button_suppress_hold_until_release(
      */
     button->hold_event_reported = true;
 }
-
