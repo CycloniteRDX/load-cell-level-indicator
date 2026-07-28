@@ -238,6 +238,57 @@ static void clear_stored_calibration(void)
 }
 
 
+static void clear_stored_tare(void)
+{
+    console_newline();
+
+    if (!tare_storage_clear())
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Stored tare offset could not be cleared."
+        );
+
+        console_newline();
+        return;
+    }
+
+    /*
+     * A persisted tare no longer exists, so normal
+     * measurement must stop immediately.
+     *
+     * The offset currently held by scale remains in RAM,
+     * but it is deliberately ignored until a new tare is
+     * measured and saved.
+     */
+    tare_available = false;
+    measurement_available = false;
+
+    level_indicator_reset();
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_TARE_REQUIRED
+    );
+
+    CONSOLE_PRINTLN(
+        "Stored tare offset cleared."
+    );
+
+    CONSOLE_PRINTLN(
+        "Normal level indication is disabled."
+    );
+
+    CONSOLE_PRINTLN(
+        "Place the empty container on the platform."
+    );
+
+    CONSOLE_PRINTLN(
+        "Press TARE or send 't' to establish zero."
+    );
+
+    console_newline();
+}
+
+
 static bool calibration_is_active(void)
 {
     return calibration_state !=
@@ -567,8 +618,8 @@ static void cancel_calibration(void)
 
     measurement_available = false;
 
-    restore_idle_operation_mode();
     level_indicator_reset();
+    restore_idle_operation_mode();
 
     console_newline();
     CONSOLE_PRINTLN("Calibration cancelled.");
@@ -618,8 +669,8 @@ static void process_calibration_confirmation(void)
 
             measurement_available = false;
 
-            restore_idle_operation_mode();
             level_indicator_reset();
+            restore_idle_operation_mode();
 
             CONSOLE_PRINTLN(
                 "ERROR: Invalid calibration state."
@@ -738,6 +789,23 @@ static void process_console_commands(void)
 
             break;
 
+        case 'z':
+        case 'Z':
+
+            if (calibration_is_active())
+            {
+                CONSOLE_PRINTLN(
+                    "Stored tare cannot be cleared "
+                    "during calibration."
+                );
+            }
+            else
+            {
+                clear_stored_tare();
+            }
+
+            break;
+
         default:
             CONSOLE_PRINTLN("Unknown command.");
             CONSOLE_PRINTLN("Available commands:");
@@ -746,6 +814,7 @@ static void process_console_commands(void)
             CONSOLE_PRINTLN("  q = cancel calibration");
             CONSOLE_PRINTLN("  s = save active calibration");
             CONSOLE_PRINTLN("  x = clear stored calibration");
+            CONSOLE_PRINTLN("  z = clear stored tare");
             break;
     }
 }
@@ -948,6 +1017,9 @@ void app_init(void)
         "  Serial command 'x'    = clear calibration"
     );
     CONSOLE_PRINTLN(
+        "  Serial command 'z'    = clear tare"
+    );
+    CONSOLE_PRINTLN(
         "  Serial command 'c'    = calibrate/confirm"
     );
 
@@ -1079,7 +1151,6 @@ void app_update(void)
     if (!tare_available)
     {
         measurement_available = false;
-        level_indicator_reset();
         return;
     }
 
