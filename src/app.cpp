@@ -9,6 +9,7 @@
 #include "level_indicator.h"
 #include "scale.h"
 #include "calibration_storage.h"
+#include "tare_storage.h"
 #include "indicator_leds.h"
 #include "operation_indicator.h"
 #include "hal_time.h"
@@ -16,6 +17,7 @@
 
 static float latest_weight_grams = 0.0F;
 static bool measurement_available = false;
+static bool tare_available = false;
 
 static button_t tare_button;
 static button_t calibration_button;
@@ -46,24 +48,116 @@ static calibration_state_t calibration_state =
     CALIBRATION_IDLE;
 
 
+static operation_indicator_mode_t
+get_idle_operation_mode(void)
+{
+    if (tare_available)
+    {
+        return OPERATION_INDICATOR_NONE;
+    }
 
-static void perform_tare(void)
+    return OPERATION_INDICATOR_TARE_REQUIRED;
+}
+
+
+static void restore_idle_operation_mode(void)
+{
+    const operation_indicator_mode_t idle_mode =
+        get_idle_operation_mode();
+
+    if (idle_mode == OPERATION_INDICATOR_NONE)
+    {
+        operation_indicator_clear();
+        return;
+    }
+
+    operation_indicator_set_mode(idle_mode);
+}
+
+
+static bool perform_tare(void)
 {
     console_newline();
     CONSOLE_PRINTLN("Taring...");
     CONSOLE_PRINTLN("Leave only the empty platform or container.");
 
+    const int32_t previous_tare_offset =
+        scale_get_offset();
+
+    const bool previous_tare_available =
+        tare_available;
+
+    const operation_indicator_mode_t return_mode =
+        get_idle_operation_mode();
+
     operation_indicator_set_mode(
         OPERATION_INDICATOR_TARE
     );
 
-    scale_tare();
+    if (!scale_tare())
+    {
+        measurement_available = false;
+        level_indicator_reset();
+
+        operation_indicator_show_error(
+            return_mode
+        );
+
+        CONSOLE_PRINTLN(
+            "ERROR: Tare samples could not be read."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        console_newline();
+        console_discard_input();
+
+        return false;
+    }
+
+    const int32_t new_tare_offset =
+        scale_get_offset();
+
+    if (!tare_storage_save(
+            new_tare_offset))
+    {
+        scale_set_offset(
+            previous_tare_offset
+        );
+
+        tare_available =
+            previous_tare_available;
+
+        measurement_available = false;
+        level_indicator_reset();
+
+        operation_indicator_show_error(
+            return_mode
+        );
+
+        CONSOLE_PRINTLN(
+            "ERROR: New tare offset could not be saved."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset has been restored."
+        );
+
+        console_newline();
+        console_discard_input();
+
+        return false;
+    }
+
+    tare_available = true;
 
     operation_indicator_clear();
 
     CONSOLE_PRINT("New tare offset: ");
     console_print_int32(
-        (int32_t)scale_get_offset()
+        scale_get_offset()
     );
     console_newline();
 
@@ -74,7 +168,7 @@ static void perform_tare(void)
     measurement_available = false;
     level_indicator_reset();
 
-    CONSOLE_PRINTLN("Tare completed.");
+    CONSOLE_PRINTLN("Tare completed and saved.");
     console_newline();
 
     /*
@@ -89,6 +183,8 @@ static void perform_tare(void)
      * application is blocked.
      */
     console_discard_input();
+
+    return true;
 }
 
 
@@ -199,12 +295,32 @@ static void confirm_calibration_zero(void)
         OPERATION_INDICATOR_TARE
     );
 
-    scale_tare();
+    if (!scale_tare())
+    {
+        operation_indicator_show_error(
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
 
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration tare samples "
+            "could not be read."
+        );
+
+        CONSOLE_PRINTLN(
+            "Keep the empty container in place "
+            "and confirm again."
+        );
+
+        console_newline();
+        console_discard_input();
+        return;
+    }
+
+    tare_available = true;
 
     CONSOLE_PRINT("Tare offset: ");
     console_print_int32(
-        (int32_t)scale_get_offset()
+        scale_get_offset()
     );
     console_newline();
 
@@ -451,7 +567,7 @@ static void cancel_calibration(void)
 
     measurement_available = false;
 
-    operation_indicator_clear();
+    restore_idle_operation_mode();
     level_indicator_reset();
 
     console_newline();
@@ -462,9 +578,19 @@ static void cancel_calibration(void)
         "has not been changed."
     );
 
-    CONSOLE_PRINTLN(
-        "Normal measurement resumed."
-    );
+    if (tare_available)
+    {
+        CONSOLE_PRINTLN(
+            "Normal measurement resumed."
+        );
+    }
+    else
+    {
+        CONSOLE_PRINTLN(
+            "Tare is still required before "
+            "normal measurement."
+        );
+    }
 
     console_newline();
 }
@@ -492,7 +618,7 @@ static void process_calibration_confirmation(void)
 
             measurement_available = false;
 
-            operation_indicator_clear();
+            restore_idle_operation_mode();
             level_indicator_reset();
 
             CONSOLE_PRINTLN(
@@ -759,19 +885,55 @@ void app_init(void)
     );
     CONSOLE_PRINTLN(" counts/g");
 
+    int32_t stored_tare_offset = 0;
+
+    if (tare_storage_load(
+            &stored_tare_offset))
+    {
+        scale_set_offset(
+            stored_tare_offset
+        );
+
+        tare_available = true;
+
+        CONSOLE_PRINT("Stored tare offset loaded: ");
+        console_print_int32(
+            scale_get_offset()
+        );
+        console_newline();
+
+        CONSOLE_PRINTLN(
+            "Normal measurement started."
+        );
+    }
+    else
+    {
+        tare_available = false;
+        measurement_available = false;
+        level_indicator_reset();
+
+        operation_indicator_set_mode(
+            OPERATION_INDICATOR_TARE_REQUIRED
+        );
+
+        CONSOLE_PRINTLN(
+            "No valid tare offset is stored."
+        );
+
+        CONSOLE_PRINTLN(
+            "Normal level indication is disabled."
+        );
+
+        CONSOLE_PRINTLN(
+            "Place the empty container on the platform."
+        );
+
+        CONSOLE_PRINTLN(
+            "Press TARE or send 't' to establish zero."
+        );
+    }
+
     console_newline();
-    CONSOLE_PRINTLN(
-        "Automatic tare will start in 3 seconds."
-    );
-    CONSOLE_PRINTLN(
-        "Leave the scale unloaded or "
-        "with the empty container."
-    );
-
-    hal_time_delay_ms(3000UL);
-
-    perform_tare();
-
     CONSOLE_PRINTLN("Controls:");
     CONSOLE_PRINTLN(
         "  Physical button on D4 = tare"
@@ -805,6 +967,10 @@ void app_init(void)
 
     CONSOLE_PRINTLN(
         " All LEDs on = tare in progress"
+    );
+
+    CONSOLE_PRINTLN(
+        " All LEDs blinking slowly = tare required"
     );
 
     CONSOLE_PRINTLN(
@@ -903,6 +1069,18 @@ void app_update(void)
     if (button_was_pressed(&tare_button))
     {
         perform_tare();
+
+        if (operation_indicator_is_temporary_active())
+        {
+            return;
+        }
+    }
+
+    if (!tare_available)
+    {
+        measurement_available = false;
+        level_indicator_reset();
+        return;
     }
 
     update_weight_measurement();
