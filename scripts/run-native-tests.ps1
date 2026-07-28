@@ -49,6 +49,7 @@ $testEnvironments = @(
     "native_operation_indicator",
     "native_scale",
     "native_tare_record",
+    "native_tare_storage",
     "native_calibration_storage",
     "native_console",
     "native_time_delay"
@@ -100,7 +101,7 @@ foreach ($environment in $testEnvironments)
 
 Write-Host "Native regression completed successfully."
 Write-Host "Suites passed: $completedSuites/$totalSuites"
-Write-Host "Expected project test inventory: 197 tests"
+Write-Host "Expected project test inventory: 218 tests"
 Write-Host ""
 
 exit 0
