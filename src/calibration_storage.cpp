@@ -4,13 +4,7 @@
 #include "calibration_record.h"
 #include "calibration_storage.h"
 #include "hal_storage.h"
-
-
-/*
- * First non-volatile storage address used by this
- * module.
- */
-static const size_t CALIBRATION_STORAGE_ADDRESS = 0U;
+#include "storage_layout.h"
 
 
 /*
