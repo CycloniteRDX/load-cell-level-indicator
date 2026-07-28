@@ -385,7 +385,8 @@ These tags preserve the progressive learning path from an Arduino/Bogde prototyp
 
 Start with:
 
-- [`docs/project-seed.md`](docs/project-seed.md) — complete project history and learning plan.
+- [`docs/project-seed.md`](docs/project-seed.md) — completed project history and architecture.
+- [`docs/project-roadmap.md`](docs/project-roadmap.md) — active continuation plan after `v1.0`.
 - [`docs/hx711-driver-notes.md`](docs/hx711-driver-notes.md) — custom HX711 driver.
 - [`docs/hal-design-notes.md`](docs/hal-design-notes.md) — hardware-abstraction design.
 - [`docs/native-unit-test-notes.md`](docs/native-unit-test-notes.md) — native test strategy.
