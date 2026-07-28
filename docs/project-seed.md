@@ -2038,3 +2038,342 @@ The completed milestone is tagged:
 ```text
 v0.16-direct-avr-entrypoint
 ```
+
+# Functional prototype release — v1.0
+
+The progressive development phase from `v0.1` through `v0.16` was consolidated as the first stable functional prototype.
+
+Release tag:
+
+```text
+v1.0-functional-prototype
+```
+
+The release did not add a new firmware feature beyond `v0.16`. It established a reproducible baseline with:
+
+- A complete project README.
+- English project documentation.
+- Release notes.
+- A one-command native regression script.
+- A cleaned branch structure.
+- The direct AVR production build as the supported firmware.
+- The Arduino entry-point environment retained only for controlled comparison.
+
+Validated baseline:
+
+```text
+Native suites: 8/8
+Tests:         177
+Failures:        0
+```
+
+Memory usage:
+
+```text
+Direct AVR production:
+RAM:   194 bytes
+Flash: 11356 bytes
+
+Arduino reference:
+RAM:   203 bytes
+Flash: 11664 bytes
+```
+
+The release tag is:
+
+```text
+v1.0-functional-prototype
+```
+
+# Safe startup tare — v1.1
+
+The first post-`v1.0` milestone corrected a field-safety problem in the startup sequence.
+
+Before this milestone, every restart performed an automatic tare. If power failed while the permanent container was partially filled, the current load became the new zero after reboot.
+
+The new startup policy is:
+
+```text
+load calibration
+    |
+    v
+load persistent tare
+    |
+    +--> valid
+    |       → apply offset
+    |       → normal measurement
+    |
+    +--> missing or invalid
+            → TARE_REQUIRED
+            → disable normal level indication
+```
+
+Automatic startup tare was removed.
+
+## Persistent tare format
+
+The project now owns a fixed 12-byte tare record:
+
+```text
+bytes 0–3
+    magic: "TARE"
+
+bytes 4–5
+    format version
+
+bytes 6–9
+    signed int32_t offset, little-endian
+
+bytes 10–11
+    CRC-16/CCITT
+```
+
+The codec:
+
+- Accepts positive and negative offsets.
+- Accepts zero.
+- Accepts `INT32_MIN` and `INT32_MAX`.
+- Rejects null pointers.
+- Rejects short buffers.
+- Rejects invalid magic.
+- Rejects unsupported versions.
+- Rejects corrupted payload or checksum.
+- Preserves output values after failed decoding.
+
+The new modules are:
+
+```text
+src/tare_record.h
+src/tare_record.cpp
+```
+
+## Shared EEPROM layout
+
+Storage addresses are defined centrally in:
+
+```text
+src/storage_layout.h
+```
+
+Layout:
+
+```text
+EEPROM 0–11
+    calibration record
+
+EEPROM 12–23
+    tare record
+
+EEPROM 24 onward
+    unused
+```
+
+The new storage module is:
+
+```text
+src/tare_storage.h
+src/tare_storage.cpp
+```
+
+It provides:
+
+```cpp
+bool tare_storage_load(
+    int32_t *tare_offset
+);
+
+bool tare_storage_save(
+    int32_t tare_offset
+);
+
+bool tare_storage_clear(void);
+```
+
+Saving includes a write, read-back, complete decode and value comparison.
+
+Clearing invalidates and verifies only the tare magic bytes.
+
+Calibration storage and tare storage are tested to remain non-overlapping.
+
+## Restorable scale offset
+
+The scale module now provides:
+
+```cpp
+void scale_set_offset(
+    int32_t tare_offset
+);
+
+int32_t scale_get_offset(void);
+
+bool scale_tare(void);
+```
+
+`scale_tare()` reports success or failure.
+
+A failed tare preserves the previous offset.
+
+A stored offset can be restored without taking a new HX711 measurement.
+
+## TARE_REQUIRED
+
+When no valid tare exists:
+
+```text
+normal level indication disabled
+all three LEDs blink slowly
+console requests an empty-container tare
+```
+
+This state is distinct from `VERY_LOW`, because the firmware does not yet have a valid measurement zero.
+
+An integration error was found during physical validation: `level_indicator_reset()` initially overwrote the operational blink output. The final application ownership order resets the level indicator first and then applies `TARE_REQUIRED`.
+
+## Deliberate tare and serial commands
+
+Normal-operation physical control:
+
+```text
+short D4 press
+    → ignored
+
+hold D4 for approximately 3 seconds
+    → perform tare
+    → save EEPROM
+    → verify EEPROM
+```
+
+Serial service control:
+
+```text
+t
+    → immediate persistent tare
+
+z
+    → clear only persistent tare
+    → enter TARE_REQUIRED
+```
+
+The existing:
+
+```text
+x
+```
+
+continues clearing only the calibration record.
+
+Physical and serial testing confirmed that `x` and `z` remain independent.
+
+## Transactional tare behaviour
+
+Before a new tare, the application preserves:
+
+```text
+previous runtime offset
+previous tare-valid state
+```
+
+If sampling fails, no EEPROM write occurs.
+
+If storage or verification fails:
+
+```text
+restore previous runtime offset
+restore previous tare-valid state
+report error
+```
+
+RAM and EEPROM therefore do not silently retain different zero references.
+
+## Calibration interaction
+
+The calibration-zero confirmation now:
+
+```text
+performs tare
+    → saves and verifies tare
+    → advances to reference-mass stage
+```
+
+If tare sampling or storage fails, calibration remains at zero confirmation.
+
+If calibration is cancelled after zero confirmation:
+
+- The new tare remains stored.
+- The previous calibration factor remains active.
+
+D4 still cancels calibration immediately.
+
+The press used to cancel is suppressed until release, preventing the same long press from later triggering a normal-operation tare.
+
+## Native regression
+
+New environments:
+
+```text
+native_tare_record
+native_tare_storage
+```
+
+Updated complete inventory:
+
+```text
+native_button:                       11
+native_hx711:                        18
+native_level_indicator:              14
+native_operation_indicator:          16
+native_scale:                        36
+native_tare_record:                  20
+native_tare_storage:                 21
+native_calibration_storage:          40
+native_console:                      43
+native_time_delay:                    6
+
+Total:                              225
+Failures:                             0
+Suites:                           10/10
+```
+
+The regression script returned:
+
+```text
+exit code 0
+```
+
+## Memory usage
+
+Direct AVR production:
+
+```text
+RAM:   195 bytes
+Flash: 13566 bytes
+```
+
+Arduino reference:
+
+```text
+RAM:   204 bytes
+Flash: 13862 bytes
+```
+
+## Physical validation
+
+Confirmed on the physical Nano:
+
+- Missing tare produces `TARE_REQUIRED`.
+- All three LEDs blink correctly.
+- Serial and physical tare persist across reset.
+- Short D4 presses do not tare.
+- Long D4 holds tare exactly once.
+- A load remains correctly measured after complete power loss.
+- Calibration can begin from `TARE_REQUIRED`.
+- Calibration zero persists tare.
+- Complete calibration restores both records.
+- A held D4 cancellation does not later trigger tare.
+- Calibration and tare clear commands remain independent.
+
+The completed milestone is tagged:
+
+```text
+v1.1-safe-startup-tare
+```
