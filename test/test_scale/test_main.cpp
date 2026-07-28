@@ -65,7 +65,7 @@ static void establish_non_default_scale_state(void)
         ESTABLISHED_TARE_OFFSET
     );
 
-    scale_tare();
+    TEST_ASSERT_TRUE(scale_tare());
 
     TEST_ASSERT_EQUAL_INT32(
         ESTABLISHED_TARE_OFFSET,
@@ -413,6 +413,135 @@ test_minimum_magnitude_boundary_is_accepted(
     assert_calibration_factor_is(-0.000001F);
 }
 
+static void
+test_scale_set_offset_accepts_zero_positive_and_negative_values(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    fake_hx711_driver_reset();
+
+    scale_set_offset(0);
+
+    TEST_ASSERT_EQUAL_INT32(
+        0,
+        scale_get_offset()
+    );
+
+    scale_set_offset(123456);
+
+    TEST_ASSERT_EQUAL_INT32(
+        123456,
+        scale_get_offset()
+    );
+
+    scale_set_offset(-654321);
+
+    TEST_ASSERT_EQUAL_INT32(
+        -654321,
+        scale_get_offset()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hx711_driver_get_read_raw_call_count()
+    );
+}
+
+
+static void
+test_scale_set_offset_accepts_int32_boundaries(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    scale_set_offset(INT32_MIN);
+
+    TEST_ASSERT_EQUAL_INT32(
+        INT32_MIN,
+        scale_get_offset()
+    );
+
+    scale_set_offset(INT32_MAX);
+
+    TEST_ASSERT_EQUAL_INT32(
+        INT32_MAX,
+        scale_get_offset()
+    );
+}
+
+
+static void
+test_restored_offset_is_used_by_net_count_reading(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    scale_set_offset(1000);
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            1250
+        )
+    );
+
+    float net_counts = 0.0F;
+
+    TEST_ASSERT_TRUE(
+        scale_read_net_counts(
+            &net_counts,
+            1U
+        )
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        FLOAT_COMPARISON_TOLERANCE,
+        250.0F,
+        net_counts
+    );
+}
+
+
+static void
+test_restored_offset_is_used_by_weight_reading(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_TRUE(
+        scale_set_calibration_factor(50.0F)
+    );
+
+    scale_set_offset(-1000);
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            0
+        )
+    );
+
+    float weight_grams = 0.0F;
+
+    TEST_ASSERT_TRUE(
+        scale_read_weight(
+            &weight_grams
+        )
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        FLOAT_COMPARISON_TOLERANCE,
+        20.0F,
+        weight_grams
+    );
+}
+
+
 static void establish_tare_offset(
     int32_t tare_value
 )
@@ -424,7 +553,7 @@ static void establish_tare_offset(
         tare_value
     );
 
-    scale_tare();
+    TEST_ASSERT_TRUE(scale_tare());
 
     TEST_ASSERT_EQUAL_INT32(
         tare_value,
@@ -503,7 +632,7 @@ test_successful_tare_averages_all_samples(
         );
     }
 
-    scale_tare();
+    TEST_ASSERT_TRUE(scale_tare());
 
     TEST_ASSERT_EQUAL_INT32(
         200,
@@ -551,7 +680,7 @@ test_tare_failure_on_first_read_preserves_offset(
         )
     );
 
-    scale_tare();
+    TEST_ASSERT_FALSE(scale_tare());
 
     TEST_ASSERT_EQUAL_INT32(
         ESTABLISHED_TARE_OFFSET,
@@ -592,7 +721,7 @@ test_tare_failure_in_middle_preserves_offset(
         6000
     );
 
-    scale_tare();
+    TEST_ASSERT_FALSE(scale_tare());
 
     TEST_ASSERT_EQUAL_INT32(
         ESTABLISHED_TARE_OFFSET,
@@ -628,7 +757,7 @@ test_tare_failure_on_final_read_preserves_offset(
         HX711_STATUS_TIMEOUT
     );
 
-    scale_tare();
+    TEST_ASSERT_FALSE(scale_tare());
 
     TEST_ASSERT_EQUAL_INT32(
         ESTABLISHED_TARE_OFFSET,
@@ -661,7 +790,7 @@ test_repeated_successful_tare_replaces_offset(
         -250
     );
 
-    scale_tare();
+    TEST_ASSERT_TRUE(scale_tare());
 
     TEST_ASSERT_EQUAL_INT32(
         -250,
@@ -1269,6 +1398,22 @@ int main(void)
 
     RUN_TEST(
         test_minimum_magnitude_boundary_is_accepted
+    );
+
+    RUN_TEST(
+        test_scale_set_offset_accepts_zero_positive_and_negative_values
+    );
+
+    RUN_TEST(
+        test_scale_set_offset_accepts_int32_boundaries
+    );
+
+    RUN_TEST(
+        test_restored_offset_is_used_by_net_count_reading
+    );
+
+    RUN_TEST(
+        test_restored_offset_is_used_by_weight_reading
     );
 
 

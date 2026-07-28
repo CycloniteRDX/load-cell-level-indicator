@@ -38,8 +38,13 @@ static const uint32_t CONSOLE_BAUD_RATE =
  * Timing configuration.
  */
 static const uint32_t BUTTON_DEBOUNCE_MS = 40UL;
+
+static const uint32_t TARE_START_HOLD_MS =
+    3000UL;
+
 static const uint32_t CALIBRATION_START_HOLD_MS =
     3000UL;
+
 static const uint32_t PRINT_PERIOD_MS = 500UL;
 
 
@@ -49,6 +54,14 @@ static const uint32_t PRINT_PERIOD_MS = 500UL;
  */
 static const uint32_t
     OPERATION_INDICATOR_BLINK_PERIOD_MS = 500UL;
+
+
+/*
+ * Slow all-LED blinking used when no valid tare
+ * offset is available.
+ */
+static const uint32_t
+    TARE_REQUIRED_BLINK_PERIOD_MS = 1000UL;
 
 
 /*

@@ -76,6 +76,69 @@ static void test_tare_turns_all_leds_on_persistently(void)
     );
 }
 
+static void test_tare_required_blinks_all_leds_slowly(void)
+{
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_TARE_REQUIRED
+    );
+
+    assert_leds(true, true, true);
+
+    advance_and_update(
+        TARE_REQUIRED_BLINK_PERIOD_MS - 1U
+    );
+
+    assert_leds(true, true, true);
+
+    advance_and_update(1U);
+
+    assert_leds(false, false, false);
+
+    advance_and_update(
+        TARE_REQUIRED_BLINK_PERIOD_MS
+    );
+
+    assert_leds(true, true, true);
+
+    TEST_ASSERT_FALSE(
+        operation_indicator_is_temporary_active()
+    );
+}
+
+
+static void test_error_can_return_to_tare_required_mode(void)
+{
+    operation_indicator_show_error(
+        OPERATION_INDICATOR_TARE_REQUIRED
+    );
+
+    for (uint8_t transition = 0U;
+         transition < 5U;
+         ++transition)
+    {
+        advance_and_update(
+            OPERATION_RESULT_BLINK_PERIOD_MS
+        );
+    }
+
+    TEST_ASSERT_FALSE(
+        operation_indicator_is_temporary_active()
+    );
+
+    assert_leds(true, true, true);
+
+    advance_and_update(
+        TARE_REQUIRED_BLINK_PERIOD_MS - 1U
+    );
+
+    assert_leds(true, true, true);
+
+    advance_and_update(1U);
+
+    assert_leds(false, false, false);
+}
+
+
 static void test_calibration_zero_blinks_only_low_led(void)
 {
     operation_indicator_set_mode(
@@ -392,6 +455,8 @@ int main(void)
 
     RUN_TEST(test_init_turns_all_leds_off);
     RUN_TEST(test_tare_turns_all_leds_on_persistently);
+    RUN_TEST(test_tare_required_blinks_all_leds_slowly);
+    RUN_TEST(test_error_can_return_to_tare_required_mode);
     RUN_TEST(test_calibration_zero_blinks_only_low_led);
     RUN_TEST(test_calibration_mass_blinks_only_medium_led);
     RUN_TEST(test_none_mode_turns_all_leds_off);

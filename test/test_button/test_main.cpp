@@ -97,6 +97,10 @@ test_null_button_pointer_is_handled_safely(
             1000U
         )
     );
+
+    button_suppress_hold_until_release(
+        nullptr
+    );
 }
 
 void tearDown(void)
@@ -643,6 +647,118 @@ test_release_allows_a_new_hold_event(
     );
 }
 
+static void
+test_suppressed_hold_is_not_reported_until_release(
+    void
+)
+{
+    static const uint32_t HOLD_MS = 1000U;
+
+    button_t button = {};
+
+    button_init(
+        &button,
+        TEST_BUTTON_PIN,
+        TEST_DEBOUNCE_MS
+    );
+
+    fake_hal_set_time_ms(100U);
+
+    fake_hal_set_pin_input(
+        TEST_BUTTON_PIN,
+        false
+    );
+
+    TEST_ASSERT_FALSE(
+        button_was_pressed(&button)
+    );
+
+    fake_hal_set_time_ms(140U);
+
+    TEST_ASSERT_TRUE(
+        button_was_pressed(&button)
+    );
+
+    button_suppress_hold_until_release(
+        &button
+    );
+
+    /*
+     * The same physical press remains suppressed even
+     * after the required hold time has elapsed.
+     */
+    fake_hal_set_time_ms(1140U);
+
+    TEST_ASSERT_FALSE(
+        button_was_held(
+            &button,
+            HOLD_MS
+        )
+    );
+
+    /*
+     * Release and debounce.
+     */
+    fake_hal_set_time_ms(1200U);
+
+    fake_hal_set_pin_input(
+        TEST_BUTTON_PIN,
+        true
+    );
+
+    TEST_ASSERT_FALSE(
+        button_was_held(
+            &button,
+            HOLD_MS
+        )
+    );
+
+    fake_hal_set_time_ms(1240U);
+
+    TEST_ASSERT_FALSE(
+        button_was_held(
+            &button,
+            HOLD_MS
+        )
+    );
+
+    /*
+     * A later independent press may generate a hold.
+     */
+    fake_hal_set_time_ms(1300U);
+
+    fake_hal_set_pin_input(
+        TEST_BUTTON_PIN,
+        false
+    );
+
+    TEST_ASSERT_FALSE(
+        button_was_held(
+            &button,
+            HOLD_MS
+        )
+    );
+
+    fake_hal_set_time_ms(1340U);
+
+    TEST_ASSERT_FALSE(
+        button_was_held(
+            &button,
+            HOLD_MS
+        )
+    );
+
+    fake_hal_set_time_ms(2340U);
+
+    TEST_ASSERT_TRUE(
+        button_was_held(
+            &button,
+            HOLD_MS
+        )
+    );
+}
+
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -685,6 +801,10 @@ int main(void)
 
     RUN_TEST(
         test_null_button_pointer_is_handled_safely
+    );
+
+    RUN_TEST(
+        test_suppressed_hold_is_not_reported_until_release
     );
 
     return UNITY_END();

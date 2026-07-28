@@ -9,6 +9,7 @@
 #include "level_indicator.h"
 #include "scale.h"
 #include "calibration_storage.h"
+#include "tare_storage.h"
 #include "indicator_leds.h"
 #include "operation_indicator.h"
 #include "hal_time.h"
@@ -16,6 +17,7 @@
 
 static float latest_weight_grams = 0.0F;
 static bool measurement_available = false;
+static bool tare_available = false;
 
 static button_t tare_button;
 static button_t calibration_button;
@@ -46,24 +48,116 @@ static calibration_state_t calibration_state =
     CALIBRATION_IDLE;
 
 
+static operation_indicator_mode_t
+get_idle_operation_mode(void)
+{
+    if (tare_available)
+    {
+        return OPERATION_INDICATOR_NONE;
+    }
 
-static void perform_tare(void)
+    return OPERATION_INDICATOR_TARE_REQUIRED;
+}
+
+
+static void restore_idle_operation_mode(void)
+{
+    const operation_indicator_mode_t idle_mode =
+        get_idle_operation_mode();
+
+    if (idle_mode == OPERATION_INDICATOR_NONE)
+    {
+        operation_indicator_clear();
+        return;
+    }
+
+    operation_indicator_set_mode(idle_mode);
+}
+
+
+static bool perform_tare(void)
 {
     console_newline();
     CONSOLE_PRINTLN("Taring...");
     CONSOLE_PRINTLN("Leave only the empty platform or container.");
 
+    const int32_t previous_tare_offset =
+        scale_get_offset();
+
+    const bool previous_tare_available =
+        tare_available;
+
+    const operation_indicator_mode_t return_mode =
+        get_idle_operation_mode();
+
     operation_indicator_set_mode(
         OPERATION_INDICATOR_TARE
     );
 
-    scale_tare();
+    if (!scale_tare())
+    {
+        measurement_available = false;
+        level_indicator_reset();
+
+        operation_indicator_show_error(
+            return_mode
+        );
+
+        CONSOLE_PRINTLN(
+            "ERROR: Tare samples could not be read."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        console_newline();
+        console_discard_input();
+
+        return false;
+    }
+
+    const int32_t new_tare_offset =
+        scale_get_offset();
+
+    if (!tare_storage_save(
+            new_tare_offset))
+    {
+        scale_set_offset(
+            previous_tare_offset
+        );
+
+        tare_available =
+            previous_tare_available;
+
+        measurement_available = false;
+        level_indicator_reset();
+
+        operation_indicator_show_error(
+            return_mode
+        );
+
+        CONSOLE_PRINTLN(
+            "ERROR: New tare offset could not be saved."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset has been restored."
+        );
+
+        console_newline();
+        console_discard_input();
+
+        return false;
+    }
+
+    tare_available = true;
 
     operation_indicator_clear();
 
     CONSOLE_PRINT("New tare offset: ");
     console_print_int32(
-        (int32_t)scale_get_offset()
+        scale_get_offset()
     );
     console_newline();
 
@@ -74,7 +168,7 @@ static void perform_tare(void)
     measurement_available = false;
     level_indicator_reset();
 
-    CONSOLE_PRINTLN("Tare completed.");
+    CONSOLE_PRINTLN("Tare completed and saved.");
     console_newline();
 
     /*
@@ -89,6 +183,8 @@ static void perform_tare(void)
      * application is blocked.
      */
     console_discard_input();
+
+    return true;
 }
 
 
@@ -137,6 +233,57 @@ static void clear_stored_calibration(void)
 
     CONSOLE_PRINTLN("The active factor remains unchanged "
         "until the next restart.");
+
+    console_newline();
+}
+
+
+static void clear_stored_tare(void)
+{
+    console_newline();
+
+    if (!tare_storage_clear())
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Stored tare offset could not be cleared."
+        );
+
+        console_newline();
+        return;
+    }
+
+    /*
+     * A persisted tare no longer exists, so normal
+     * measurement must stop immediately.
+     *
+     * The offset currently held by scale remains in RAM,
+     * but it is deliberately ignored until a new tare is
+     * measured and saved.
+     */
+    tare_available = false;
+    measurement_available = false;
+
+    level_indicator_reset();
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_TARE_REQUIRED
+    );
+
+    CONSOLE_PRINTLN(
+        "Stored tare offset cleared."
+    );
+
+    CONSOLE_PRINTLN(
+        "Normal level indication is disabled."
+    );
+
+    CONSOLE_PRINTLN(
+        "Place the empty container on the platform."
+    );
+
+    CONSOLE_PRINTLN(
+        "Hold TARE for 3 seconds or send 't' to establish zero."
+    );
 
     console_newline();
 }
@@ -195,18 +342,91 @@ static void confirm_calibration_zero(void)
     console_newline();
     CONSOLE_PRINTLN("Performing calibration tare...");
 
+    const int32_t previous_tare_offset =
+        scale_get_offset();
+
+    const bool previous_tare_available =
+        tare_available;
+
     operation_indicator_set_mode(
         OPERATION_INDICATOR_TARE
     );
 
-    scale_tare();
+    if (!scale_tare())
+    {
+        operation_indicator_show_error(
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
 
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration tare samples "
+            "could not be read."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        CONSOLE_PRINTLN(
+            "Keep the empty container in place "
+            "and confirm again."
+        );
+
+        console_newline();
+        console_discard_input();
+        return;
+    }
+
+    const int32_t new_tare_offset =
+        scale_get_offset();
+
+    if (!tare_storage_save(
+            new_tare_offset))
+    {
+        /*
+         * Do not leave RAM and EEPROM using different
+         * tare offsets after a storage failure.
+         */
+        scale_set_offset(
+            previous_tare_offset
+        );
+
+        tare_available =
+            previous_tare_available;
+
+        operation_indicator_show_error(
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
+
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration tare could not be saved."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset has been restored."
+        );
+
+        CONSOLE_PRINTLN(
+            "Keep the empty container in place "
+            "and confirm again."
+        );
+
+        console_newline();
+        console_discard_input();
+        return;
+    }
+
+    tare_available = true;
 
     CONSOLE_PRINT("Tare offset: ");
     console_print_int32(
-        (int32_t)scale_get_offset()
+        new_tare_offset
     );
     console_newline();
+
+    CONSOLE_PRINTLN(
+        "Calibration tare saved successfully."
+    );
 
     calibration_state =
         CALIBRATION_WAITING_FOR_MASS;
@@ -239,7 +459,8 @@ static void confirm_calibration_zero(void)
 
     /*
      * Ignore commands accumulated while the blocking
-     * calibration tare was running.
+     * calibration tare and EEPROM verification were
+     * running.
      *
      * In particular, a second queued 'c' must not
      * advance immediately to calibration completion
@@ -451,8 +672,8 @@ static void cancel_calibration(void)
 
     measurement_available = false;
 
-    operation_indicator_clear();
     level_indicator_reset();
+    restore_idle_operation_mode();
 
     console_newline();
     CONSOLE_PRINTLN("Calibration cancelled.");
@@ -462,9 +683,19 @@ static void cancel_calibration(void)
         "has not been changed."
     );
 
-    CONSOLE_PRINTLN(
-        "Normal measurement resumed."
-    );
+    if (tare_available)
+    {
+        CONSOLE_PRINTLN(
+            "Normal measurement resumed."
+        );
+    }
+    else
+    {
+        CONSOLE_PRINTLN(
+            "Tare is still required before "
+            "normal measurement."
+        );
+    }
 
     console_newline();
 }
@@ -492,8 +723,8 @@ static void process_calibration_confirmation(void)
 
             measurement_available = false;
 
-            operation_indicator_clear();
             level_indicator_reset();
+            restore_idle_operation_mode();
 
             CONSOLE_PRINTLN(
                 "ERROR: Invalid calibration state."
@@ -612,6 +843,23 @@ static void process_console_commands(void)
 
             break;
 
+        case 'z':
+        case 'Z':
+
+            if (calibration_is_active())
+            {
+                CONSOLE_PRINTLN(
+                    "Stored tare cannot be cleared "
+                    "during calibration."
+                );
+            }
+            else
+            {
+                clear_stored_tare();
+            }
+
+            break;
+
         default:
             CONSOLE_PRINTLN("Unknown command.");
             CONSOLE_PRINTLN("Available commands:");
@@ -620,6 +868,7 @@ static void process_console_commands(void)
             CONSOLE_PRINTLN("  q = cancel calibration");
             CONSOLE_PRINTLN("  s = save active calibration");
             CONSOLE_PRINTLN("  x = clear stored calibration");
+            CONSOLE_PRINTLN("  z = clear stored tare");
             break;
     }
 }
@@ -759,22 +1008,58 @@ void app_init(void)
     );
     CONSOLE_PRINTLN(" counts/g");
 
+    int32_t stored_tare_offset = 0;
+
+    if (tare_storage_load(
+            &stored_tare_offset))
+    {
+        scale_set_offset(
+            stored_tare_offset
+        );
+
+        tare_available = true;
+
+        CONSOLE_PRINT("Stored tare offset loaded: ");
+        console_print_int32(
+            scale_get_offset()
+        );
+        console_newline();
+
+        CONSOLE_PRINTLN(
+            "Normal measurement started."
+        );
+    }
+    else
+    {
+        tare_available = false;
+        measurement_available = false;
+        level_indicator_reset();
+
+        operation_indicator_set_mode(
+            OPERATION_INDICATOR_TARE_REQUIRED
+        );
+
+        CONSOLE_PRINTLN(
+            "No valid tare offset is stored."
+        );
+
+        CONSOLE_PRINTLN(
+            "Normal level indication is disabled."
+        );
+
+        CONSOLE_PRINTLN(
+            "Place the empty container on the platform."
+        );
+
+        CONSOLE_PRINTLN(
+            "Hold TARE for 3 seconds or send 't' to establish zero."
+        );
+    }
+
     console_newline();
-    CONSOLE_PRINTLN(
-        "Automatic tare will start in 3 seconds."
-    );
-    CONSOLE_PRINTLN(
-        "Leave the scale unloaded or "
-        "with the empty container."
-    );
-
-    hal_time_delay_ms(3000UL);
-
-    perform_tare();
-
     CONSOLE_PRINTLN("Controls:");
     CONSOLE_PRINTLN(
-        "  Physical button on D4 = tare"
+        "  Hold button on D4 for 3 s = tare"
     );
     CONSOLE_PRINTLN(
         "  Serial command 't'    = tare"
@@ -784,6 +1069,9 @@ void app_init(void)
     );
     CONSOLE_PRINTLN(
         "  Serial command 'x'    = clear calibration"
+    );
+    CONSOLE_PRINTLN(
+        "  Serial command 'z'    = clear tare"
     );
     CONSOLE_PRINTLN(
         "  Serial command 'c'    = calibrate/confirm"
@@ -805,6 +1093,10 @@ void app_init(void)
 
     CONSOLE_PRINTLN(
         " All LEDs on = tare in progress"
+    );
+
+    CONSOLE_PRINTLN(
+        " All LEDs blinking slowly = tare required"
     );
 
     CONSOLE_PRINTLN(
@@ -881,6 +1173,15 @@ void app_update(void)
     {
         if (button_was_pressed(&tare_button))
         {
+            /*
+             * The press cancels calibration immediately.
+             * It must not later become a three-second
+             * tare event if the user keeps holding D4.
+             */
+            button_suppress_hold_until_release(
+                &tare_button
+            );
+
             cancel_calibration();
             return;
         }
@@ -900,9 +1201,31 @@ void app_update(void)
         return;
     }
 
-    if (button_was_pressed(&tare_button))
+    /*
+     * Outside calibration, a deliberate long press is
+     * required before the physical TARE button can
+     * redefine the operational zero.
+     *
+     * Short presses are intentionally ignored.
+     * The serial 't' command remains an immediate
+     * service operation.
+     */
+    if (button_was_held(
+            &tare_button,
+            TARE_START_HOLD_MS))
     {
         perform_tare();
+
+        if (operation_indicator_is_temporary_active())
+        {
+            return;
+        }
+    }
+
+    if (!tare_available)
+    {
+        measurement_available = false;
+        return;
     }
 
     update_weight_measurement();

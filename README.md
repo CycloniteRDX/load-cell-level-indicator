@@ -2,30 +2,33 @@
 
 A bare-metal ATmega328P firmware project that measures the weight of a container through an HX711 load-cell ADC and represents the measured level with three LEDs.
 
-The project began as a small Arduino learning exercise and was progressively evolved into a modular, tested firmware with project-owned drivers, hardware-abstraction layers, persistent calibration, native unit tests and a direct AVR entry point.
+The project began as a small Arduino learning exercise and was progressively evolved into a modular, tested firmware with project-owned drivers, hardware-abstraction layers, persistent calibration and tare records, native unit tests and a direct AVR entry point.
 
-> **Project status:** functional prototype / `v1.0` release candidate  
-> **Latest completed milestone:** `v0.16-direct-avr-entrypoint`
+> **Project status:** validated functional prototype
+> **Latest completed milestone:** `v1.1-safe-startup-tare`
 
 ## Features
 
 - Load-cell measurement through a project-owned HX711 driver.
-- Automatic tare during startup.
-- Manual tare through a physical button or serial command.
+- Persistent tare offset restored after reset or power loss.
+- Explicit `TARE_REQUIRED` state when no valid tare exists.
+- Deliberate physical tare through a three-second button hold.
+- Immediate service tare through the serial console.
 - In-place calibration using a known reference mass.
 - Persistent calibration factor stored in the ATmega328P EEPROM.
+- Independent, versioned and CRC-protected calibration and tare records.
 - Four logical level states represented by three LEDs:
   - `VERY_LOW`
   - `LOW`
   - `MEDIUM`
   - `HIGH`
 - Hysteresis around level thresholds to prevent rapid switching.
-- Visual feedback for tare, calibration, success and error states.
-- Debounced physical buttons.
+- Visual feedback for tare-required, tare, calibration, success and error states.
+- Debounced physical buttons with short-press and hold events.
 - Serial console with fixed-point number formatting.
 - Direct AVR implementations for GPIO, Timer1, EEPROM and USART0.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 177 native Unity tests.
+- 225 native Unity tests.
 
 ## Hardware
 
@@ -71,8 +74,9 @@ The current values are provisional and can be changed in [`src/config.h`](src/co
 
 | Setting | Current value |
 |---|---:|
-| Startup tare delay | 3000 ms |
 | Button debounce | 40 ms |
+| Physical tare hold | 3000 ms |
+| Calibration-start hold | 3000 ms |
 | Weight output period | 500 ms |
 | Tare samples | 20 |
 | Weight samples | 1 |
@@ -107,20 +111,26 @@ The state machine applies 20 g of hysteresis around these boundaries after the i
 
 | Operation | LED behaviour |
 |---|---|
+| Tare required | All LEDs blink together slowly |
 | Tare in progress | All LEDs on |
 | Waiting for calibration zero | Low LED blinking |
 | Waiting for reference mass | Medium LED blinking |
-| Successful calibration | All LEDs flash twice |
-| Calibration error | High LED flashes three times |
+| Successful operation | All LEDs flash twice |
+| Operation error | High LED flashes three times |
+
+While `TARE_REQUIRED` is active, normal level indication is disabled because the firmware does not have a trustworthy operational zero.
 
 ## Controls
 
 ### Physical buttons
 
-- **D4 short press:** perform tare during normal operation.
-- **D4 during calibration:** cancel calibration.
-- **D8 hold for 3 seconds:** start calibration.
+- **D4 short press during normal operation:** ignored.
+- **D4 hold for approximately 3 seconds:** perform and persist tare.
+- **D4 during calibration:** cancel calibration immediately.
+- **D8 hold for approximately 3 seconds:** start calibration.
 - **D8 short press during calibration:** confirm the current calibration step.
+
+A D4 press used to cancel calibration is suppressed until release, so the same physical press cannot later be reinterpreted as a tare hold.
 
 ### Serial console
 
@@ -137,11 +147,12 @@ Commands are case-insensitive:
 
 | Command | Action |
 |---|---|
-| `t` | Perform tare |
+| `t` | Perform and persist tare immediately |
 | `c` | Start or confirm calibration |
 | `q` | Cancel calibration |
 | `s` | Save the active calibration factor |
-| `x` | Clear the stored calibration record |
+| `x` | Clear only the stored calibration record |
+| `z` | Clear only the stored tare record and enter `TARE_REQUIRED` |
 
 No newline is required. When several bytes are pending, the application processes the first command and discards the remaining queued input.
 
@@ -155,29 +166,76 @@ After reset, the production firmware:
 2. Enables global interrupts.
 3. Initializes Timer1, USART0, buttons and LEDs.
 4. Initializes the HX711.
-5. Loads a valid calibration factor from EEPROM, or uses the default factor.
-6. Waits approximately three seconds.
-7. Performs an automatic tare.
-8. Enters normal measurement operation.
+5. Loads a valid calibration factor from EEPROM, or uses the compiled default factor.
+6. Loads and validates the persistent tare record.
+7. Applies the stored offset and enters normal measurement when the tare is valid.
+8. Enters `TARE_REQUIRED` when the tare record is absent, invalid or corrupt.
 
-Leave the scale unloaded, or leave only the empty platform/container in place, during startup.
+The firmware does **not** automatically tare during startup.
+
+A restart while the container is partially filled therefore restores the previous operational zero instead of redefining the current load as zero.
+
+### First startup after upgrading from `v1.0`
+
+`v1.0` stored only the calibration record. Its calibration data remains in EEPROM addresses 0–11.
+
+`v1.1` adds the tare record in addresses 12–23. On the first startup after upgrading, no valid tare record exists yet, so the firmware enters `TARE_REQUIRED`.
+
+Place the empty permanent container on the platform and either:
+
+```text
+hold D4 for approximately 3 seconds
+```
+
+or send:
+
+```text
+t
+```
+
+The new tare is then stored and restored on later resets and power cycles.
+
+## Tare procedure
+
+The preferred operational zero is:
+
+```text
+platform + empty permanent container
+```
+
+To establish or replace it:
+
+1. Place the empty permanent container on the platform.
+2. Wait for the mechanical assembly to become stable.
+3. Hold D4 for approximately three seconds, or send `t`.
+4. Wait for the HX711 samples and EEPROM verification to complete.
+5. Confirm that normal measurement resumes.
+
+A short D4 press cannot redefine zero.
+
+If HX711 sampling fails, the previous offset remains active. If EEPROM saving or verification fails, the firmware restores the previous runtime offset.
 
 ## Calibration procedure
 
 The current calibration uses a reference mass of **1500 g**. Change `CALIBRATION_MASS_GRAMS` before calibrating with a different mass.
 
+Calibration may be started from normal operation or from `TARE_REQUIRED`.
+
 ### Using the physical controls
 
 1. Hold the D8 calibration button for three seconds.
-2. Remove the measured load and leave only the empty platform or container.
+2. Leave only the empty platform and permanent container in place.
 3. Wait for mechanical stability.
 4. Press D8 to confirm zero.
-5. Place the configured reference mass on the scale.
-6. Wait for stability.
-7. Press D8 again.
-8. The firmware calculates, validates, applies and stores the new factor in EEPROM.
+5. The new tare is measured, saved and verified before calibration advances.
+6. Place the configured reference mass on the scale.
+7. Wait for stability.
+8. Press D8 again.
+9. The firmware calculates, validates, applies and stores the new factor in EEPROM.
 
 Press D4 at any calibration stage to cancel.
+
+If calibration is cancelled after the zero stage, the newly confirmed tare remains stored while the previous calibration factor remains active.
 
 ### Using the serial console
 
@@ -185,7 +243,7 @@ The same sequence can be completed with:
 
 ```text
 c → start calibration
-c → confirm zero
+c → confirm and persist zero
 c → calculate and save using the reference mass
 q → cancel
 ```
@@ -194,7 +252,33 @@ A successful calibration is saved automatically.
 
 The `s` command stores the currently active factor manually.
 
-The `x` command invalidates the stored calibration. The active factor remains in use until the next restart, when the firmware falls back to the default factor unless another valid record has been saved.
+The `x` command invalidates only the stored calibration record. The active factor remains in use until the next restart, when the firmware falls back to the default factor unless another valid calibration record has been saved.
+
+The `z` command invalidates only the stored tare record, disables normal level indication and enters `TARE_REQUIRED` immediately.
+
+## Persistent EEPROM layout
+
+```text
+EEPROM 0–11
+    calibration record
+
+EEPROM 12–23
+    tare record
+
+EEPROM 24 onward
+    unused
+```
+
+Both records use explicit fixed-size binary layouts, format versions and CRC-16/CCITT validation.
+
+Calibration and tare are independent physical properties:
+
+```text
+calibration = ADC counts per gram
+tare        = raw ADC count at operational zero
+```
+
+Clearing or replacing one record does not modify the other.
 
 ## Firmware architecture
 
@@ -218,7 +302,11 @@ app.cpp
     |
     +--> level_indicator.cpp
     +--> operation_indicator.cpp
+    +--> calibration_record.cpp
     +--> calibration_storage.cpp
+    +--> tare_record.cpp
+    +--> tare_storage.cpp
+    +--> storage_layout.h
     +--> console.c
     |
     +--> hal_gpio_avr.c
@@ -237,7 +325,7 @@ An Arduino entry-point environment remains available only as a controlled refere
 
 ```text
 .
-├── docs/       Detailed milestone and architecture notes
+├── docs/       Detailed milestone, validation and architecture notes
 ├── include/    Public C-compatible driver and HAL headers
 ├── src/        Application, modules, drivers and HAL backends
 ├── test/       Native Unity test suites and fake backends
@@ -313,7 +401,13 @@ Stop the monitor with `Ctrl+C` before the next upload.
 
 ## Native tests
 
-Run every suite:
+Run the complete regression:
+
+```powershell
+.\scripts\run-native-tests.ps1
+```
+
+The individual environments are:
 
 ```powershell
 pio test -e native_button
@@ -321,39 +415,59 @@ pio test -e native_hx711
 pio test -e native_level_indicator
 pio test -e native_operation_indicator
 pio test -e native_scale
+pio test -e native_tare_record
+pio test -e native_tare_storage
 pio test -e native_calibration_storage
 pio test -e native_console
 pio test -e native_time_delay
 ```
 
-Current test inventory:
+Validated test inventory:
 
 | Environment | Tests |
 |---|---:|
-| `native_button` | 10 |
+| `native_button` | 11 |
 | `native_hx711` | 18 |
 | `native_level_indicator` | 14 |
-| `native_operation_indicator` | 14 |
-| `native_scale` | 32 |
+| `native_operation_indicator` | 16 |
+| `native_scale` | 36 |
+| `native_tare_record` | 20 |
+| `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **177** |
+| **Total** | **225** |
+
+Validated result:
+
+```text
+Suites passed: 10/10
+Tests passed:  225/225
+Failures:      0
+Exit code:     0
+```
 
 ## Production memory usage
 
-For the direct AVR production environment at `v0.16`:
+For the direct AVR production environment at `v1.1`:
 
 ```text
-Static SRAM: 194 bytes
-Flash:       11356 bytes
+Static SRAM: 195 bytes of 2048 bytes (9.5%)
+Flash:       13566 bytes of 30720 bytes (44.2%)
 ```
 
 For the controlled Arduino entry-point reference environment:
 
 ```text
-Static SRAM: 203 bytes
-Flash:       11664 bytes
+Static SRAM: 204 bytes of 2048 bytes (10.0%)
+Flash:       13862 bytes of 30720 bytes (45.1%)
+```
+
+The Arduino reference currently uses:
+
+```text
+9 additional SRAM bytes
+296 additional Flash bytes
 ```
 
 ## Project history
@@ -377,16 +491,21 @@ v0.13-console-abstraction
 v0.14-direct-avr-uart
 v0.15-remove-arduino-delay
 v0.16-direct-avr-entrypoint
+v1.0-functional-prototype
+v1.1-safe-startup-tare
 ```
 
-These tags preserve the progressive learning path from an Arduino/Bogde prototype to a direct AVR firmware.
+These tags preserve the progressive learning path from an Arduino/Bogde prototype to a direct AVR firmware with restart-safe tare persistence.
 
 ## Detailed documentation
 
 Start with:
 
 - [`docs/project-seed.md`](docs/project-seed.md) — completed project history and architecture.
-- [`docs/project-roadmap.md`](docs/project-roadmap.md) — active continuation plan after `v1.0`.
+- [`docs/project-roadmap.md`](docs/project-roadmap.md) — active continuation plan after `v1.1`.
+- [`docs/v1.1-release-notes.md`](docs/v1.1-release-notes.md) — release summary and upgrade behaviour.
+- [`docs/v1.1-safe-startup-tare-validation.md`](docs/v1.1-safe-startup-tare-validation.md) — native, build and physical validation.
+- [`docs/safe-startup-tare-notes.md`](docs/safe-startup-tare-notes.md) — selected design and failure policy.
 - [`docs/hx711-driver-notes.md`](docs/hx711-driver-notes.md) — custom HX711 driver.
 - [`docs/hal-design-notes.md`](docs/hal-design-notes.md) — hardware-abstraction design.
 - [`docs/native-unit-test-notes.md`](docs/native-unit-test-notes.md) — native test strategy.
@@ -405,26 +524,33 @@ This is a functional educational prototype, not yet an industrial product.
 Current limitations include:
 
 - Tare and calibration sample collection are blocking operations.
+- One EEPROM slot is used per persistent record.
+- No EEPROM wear levelling.
 - Thresholds and the reference calibration mass are compile-time constants.
-- No watchdog or complete fault-recovery strategy.
 - No stable-weight detector or advanced outlier rejection.
-- No configuration interface beyond the existing commands.
+- No watchdog or complete fault-recovery strategy.
+- No brown-out reset diagnosis.
+- Serial service commands do not require confirmation.
 - No 24 V output-driver hardware is included in this repository.
 - The current hardware target is only the ATmega328P Nano.
 - The current measurement backend is only the HX711.
 
-## Roadmap after `v1.0`
+## Roadmap after `v1.1`
 
-Possible next phases:
+The next firmware milestone is expected to address non-blocking application operations.
 
-1. Convert startup, tare and calibration into non-blocking application states.
+Later phases include:
+
+1. Convert tare, calibration and temporary operations into explicit non-blocking states.
 2. Add explicit fault states, diagnostics and watchdog handling.
 3. Improve measurement stability and outlier rejection.
 4. Design the 24 V power and tower-light driver hardware.
 5. Create a first custom PCB.
 6. Add alternative scale backends such as NAU7802 or ADS1232.
 7. Add LoRa communication after the local system is stable.
-8. Build a separate educational repository with heavily annotated versions of each milestone.
+8. Continue the separate educational repository with heavily annotated milestone lessons.
+
+See [`docs/project-roadmap.md`](docs/project-roadmap.md) for the active plan.
 
 ## Safety and validation
 

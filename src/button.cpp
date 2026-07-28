@@ -173,3 +173,19 @@ bool button_was_held(
 
     return true;
 }
+
+void button_suppress_hold_until_release(
+    button_t *button
+)
+{
+    if (button == nullptr)
+    {
+        return;
+    }
+
+    /*
+     * button_update_state() clears this flag when a new
+     * debounced press begins after a release.
+     */
+    button->hold_event_reported = true;
+}

@@ -99,16 +99,27 @@ bool scale_set_calibration_factor(
     return true;
 }
 
-void scale_tare(void)
+void scale_set_offset(
+    int32_t new_tare_offset
+)
+{
+    tare_offset = new_tare_offset;
+}
+
+bool scale_tare(void)
 {
     int32_t new_tare_offset = 0;
 
-    if (scale_read_average_raw(
+    if (!scale_read_average_raw(
             &new_tare_offset,
             TARE_SAMPLES))
     {
-        tare_offset = new_tare_offset;
+        return false;
     }
+
+    tare_offset = new_tare_offset;
+
+    return true;
 }
 
 bool scale_read_weight(float *weight_grams)
@@ -172,9 +183,9 @@ bool scale_read_net_counts(
     return true;
 }
 
-long scale_get_offset(void)
+int32_t scale_get_offset(void)
 {
-    return (long)tare_offset;
+    return tare_offset;
 }
 
 float scale_get_calibration_factor(void)

@@ -27,9 +27,22 @@ bool scale_set_calibration_factor(
 
 
 /*
- * Sets the current load as the zero reference.
+ * Applies a previously established tare offset.
+ *
+ * Every signed 32-bit offset is valid.
  */
-void scale_tare(void);
+void scale_set_offset(
+    int32_t tare_offset
+);
+
+
+/*
+ * Sets the current load as the zero reference.
+ *
+ * Returns true when all tare samples were collected
+ * and the new offset was applied.
+ */
+bool scale_tare(void);
 
 
 /*
@@ -57,7 +70,7 @@ bool scale_read_net_counts(
 /*
  * Returns the current tare offset in raw ADC counts.
  */
-long scale_get_offset(void);
+int32_t scale_get_offset(void);
 
 
 /*

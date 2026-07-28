@@ -19,6 +19,12 @@ typedef enum
     OPERATION_INDICATOR_TARE,
 
     /*
+     * All LEDs blink slowly when normal measurement
+     * is disabled because no valid tare offset exists.
+     */
+    OPERATION_INDICATOR_TARE_REQUIRED,
+
+    /*
      * The LOW LED blinks while waiting for
      * the empty platform confirmation.
      */
