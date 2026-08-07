@@ -147,33 +147,37 @@ Repository:
 load-cell-level-indicator-study
 ```
 
-The repository skeleton and its first commit have been created. The next educational work is the detailed project overview followed by the `v0.1` and `v0.2` lessons.
+The repository is complete through Lesson 19 and documents the full historical
+progression from the initial PlatformIO project through
+`v1.1-safe-startup-tare`.
 
-## Initial structure
+## Current structure
 
 ```text
 load-cell-level-indicator-study/
-├── README.md
-├── lessons/
-│   ├── 00-project-overview/
-│   ├── 01-minimal-functional/
-│   ├── 02-modular-architecture/
-│   ├── 03-persistent-calibration/
-│   ├── 04-custom-hx711-driver/
-│   ├── 05-hardware-abstraction/
-│   ├── 06-native-testing/
-│   ├── 07-direct-avr-peripherals/
-│   └── 08-bare-metal-entrypoint/
-├── reference/
-│   ├── c-cpp-glossary.md
-│   ├── avr-registers.md
-│   └── execution-flow.md
-└── exercises/
+â”œâ”€â”€ README.md
+â”œâ”€â”€ lessons/
+â”‚   â”œâ”€â”€ 00-project-overview/
+â”‚   â”œâ”€â”€ 01-initial-platformio-project/
+â”‚   â”‚   â”œâ”€â”€ README.md
+â”‚   â”‚   â”œâ”€â”€ annotated-source/
+â”‚   â”‚   â”œâ”€â”€ exercises.md
+â”‚   â”‚   â””â”€â”€ solutions.md
+â”‚   â”œâ”€â”€ ...
+â”‚   â””â”€â”€ 19-safe-startup-tare/
+â”‚       â”œâ”€â”€ README.md
+â”‚       â”œâ”€â”€ annotated-source/
+â”‚       â”œâ”€â”€ exercises.md
+â”‚       â””â”€â”€ solutions.md
+â””â”€â”€ reference/
+    â””â”€â”€ README.md
 ```
 
-Do not copy the complete final firmware into every lesson at once.
+Exercises and solutions belong to the lesson that provides their context.
+`reference/README.md` is a transversal index that points to the detailed
+explanations inside the lessons.
 
-Build the educational repository progressively from the stable tags:
+The completed educational path was built progressively from the stable tags:
 
 ```text
 v0.1-minimal-functional
@@ -193,7 +197,13 @@ v0.14-direct-avr-uart
 v0.15-remove-arduino-delay
 v0.16-direct-avr-entrypoint
 v1.0-functional-prototype
+v1.1-safe-startup-tare
 ```
+
+Do not create a lesson for planned firmware. Add the next lesson only after its
+production milestone has been implemented, tested, integrated and tagged. The
+next educational addition will therefore be Lesson 20 after
+`v1.2-non-blocking-application` is stable.
 
 ## Educational method
 
@@ -535,10 +545,10 @@ Possible module boundary:
 
 ```text
 app
- ├── scale
- ├── indicators
- ├── console
- └── radio
+ â”œâ”€â”€ scale
+ â”œâ”€â”€ indicators
+ â”œâ”€â”€ console
+ â””â”€â”€ radio
 ```
 
 The radio must not become a dependency of the measurement driver.
@@ -640,8 +650,8 @@ from the first incomplete milestone without restarting the project.
 Current recommended order:
 
 ```text
-1. Begin the detailed educational study of v0.1 and v0.2
-2. Implement v1.2 non-blocking application operations
+1. Implement v1.2 non-blocking application operations
+2. Add Lesson 20 to the study repository after v1.2 is stable
 3. Add fault handling and watchdog
 4. Improve measurement robustness
 5. Validate 24 V power and output hardware
@@ -652,4 +662,4 @@ Current recommended order:
 10. Reorganize the source tree only when growth justifies it
 ```
 
-The educational and production tracks may progress in parallel, but production changes should remain small, testable and independently tagged.
+The educational and production tracks may progres

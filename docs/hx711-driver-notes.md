@@ -651,24 +651,24 @@ The initial implementation will probably use:
 
 ```text
 include/
-└── hx711_driver.h
+â””â”€â”€ hx711_driver.h
 
 src/
-├── hx711_driver.c
-└── main.cpp
+â”œâ”€â”€ hx711_driver.c
+â””â”€â”€ main.cpp
 ```
 
 A platform abstraction may be added later:
 
 ```text
 include/
-├── hx711_driver.h
-└── hx711_platform.h
+â”œâ”€â”€ hx711_driver.h
+â””â”€â”€ hx711_platform.h
 
 src/
-├── hx711_driver.c
-├── hx711_platform_arduino.cpp
-└── main.cpp
+â”œâ”€â”€ hx711_driver.c
+â”œâ”€â”€ hx711_platform_arduino.cpp
+â””â”€â”€ main.cpp
 ```
 
 The exact location may be adjusted to match the existing project structure.
@@ -902,13 +902,13 @@ The final implementation consists of:
 
 ```text
 include/
-└── hx711_driver.h
+â””â”€â”€ hx711_driver.h
 
 src/
-├── hx711_driver.c
-├── hx711_platform.h
-├── hx711_platform_arduino.cpp
-└── scale.cpp
+â”œâ”€â”€ hx711_driver.c
+â”œâ”€â”€ hx711_platform.h
+â”œâ”€â”€ hx711_platform_arduino.cpp
+â””â”€â”€ scale.cpp
 ```
 
 The responsibilities are divided as follows:
@@ -1171,7 +1171,8 @@ The current implementation has the following limitations:
 * Only one HX711 device is currently used by the application.
 * The application uses only channel A with gain 128.
 * The Arduino platform adapter is AVR-specific because it saves and restores the AVR status register.
-* No automated unit tests currently simulate the HX711 protocol.
+* Automated native tests simulate the HX711 protocol through a fake platform,
+  but they do not validate real electrical timing.
 * Power-down and power-up have not received a dedicated physical test.
 * Mechanical accuracy and repeatability have not been characterized using the final platform.
 * The provisional sensitivity calculated during testing is not a final calibration value.
@@ -1199,5 +1200,5 @@ The current implementation has the following limitations:
 * [x] The Bogde dependency has been removed.
 * [x] The project builds and runs without Bogde.
 * [x] The implementation and validation are documented.
-* [x] Dedicated HX711 power-down and power-up testing.
-* [ ] Automated driver tests using a simulated platform.
+* [ ] Dedicated physical HX711 power-down and power-up testing.
+* [x] Automated driver tests using a simulated platform.
