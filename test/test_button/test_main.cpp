@@ -149,6 +149,10 @@ test_button_init_configures_pullup_and_released_state(
     TEST_ASSERT_FALSE(
         button.hold_event_reported
     );
+
+    TEST_ASSERT_FALSE(
+        button.hold_suppressed_until_release
+    );
 }
 
 
@@ -648,7 +652,7 @@ test_release_allows_a_new_hold_event(
 }
 
 static void
-test_suppressed_hold_is_not_reported_until_release(
+test_suppression_survives_debounce_until_release(
     void
 )
 {
@@ -662,6 +666,18 @@ test_suppressed_hold_is_not_reported_until_release(
         TEST_DEBOUNCE_MS
     );
 
+    /*
+     * Suppression while fully released must not affect a
+     * future independent press.
+     */
+    button_suppress_hold_until_release(
+        &button
+    );
+
+    TEST_ASSERT_FALSE(
+        button.hold_suppressed_until_release
+    );
+
     fake_hal_set_time_ms(100U);
 
     fake_hal_set_pin_input(
@@ -673,14 +689,27 @@ test_suppressed_hold_is_not_reported_until_release(
         button_was_pressed(&button)
     );
 
+    /*
+     * Consume the physical press before its debounce
+     * interval has finished. The suppression must survive
+     * when that same press later becomes debounced.
+     */
+    button_suppress_hold_until_release(
+        &button
+    );
+
+    TEST_ASSERT_TRUE(
+        button.hold_suppressed_until_release
+    );
+
     fake_hal_set_time_ms(140U);
 
     TEST_ASSERT_TRUE(
         button_was_pressed(&button)
     );
 
-    button_suppress_hold_until_release(
-        &button
+    TEST_ASSERT_TRUE(
+        button.hold_suppressed_until_release
     );
 
     /*
@@ -720,6 +749,10 @@ test_suppressed_hold_is_not_reported_until_release(
             &button,
             HOLD_MS
         )
+    );
+
+    TEST_ASSERT_FALSE(
+        button.hold_suppressed_until_release
     );
 
     /*
@@ -804,7 +837,7 @@ int main(void)
     );
 
     RUN_TEST(
-        test_suppressed_hold_is_not_reported_until_release
+        test_suppression_survives_debounce_until_release
     );
 
     return UNITY_END();

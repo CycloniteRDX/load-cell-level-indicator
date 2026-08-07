@@ -42,6 +42,20 @@ static bool button_update_state(button_t *button)
     }
 
     /*
+     * A suppressed press remains suppressed until the
+     * input has been continuously released for the full
+     * debounce interval.
+     *
+     * This also clears suppression when a raw press was
+     * rejected as contact bounce and never became a
+     * debounced press.
+     */
+    if (raw_state)
+    {
+        button->hold_suppressed_until_release = false;
+    }
+
+    /*
      * There is no new stable transition.
      */
     if (raw_state == button->stable_state)
@@ -111,6 +125,7 @@ void button_init(
 
     button->pressed_since_ms = now;
     button->hold_event_reported = false;
+    button->hold_suppressed_until_release = false;
 }
 
 
@@ -156,6 +171,15 @@ bool button_was_held(
         return false;
     }
 
+    /*
+     * The current physical press was already consumed in
+     * a different application context.
+     */
+    if (button->hold_suppressed_until_release)
+    {
+        return false;
+    }
+
     const uint32_t now =
         hal_time_millis();
 
@@ -184,8 +208,21 @@ void button_suppress_hold_until_release(
     }
 
     /*
-     * button_update_state() clears this flag when a new
-     * debounced press begins after a release.
+     * Sample the pin here as well so the function also
+     * covers a press that began since the caller last
+     * queried the button.
      */
-    button->hold_event_reported = true;
+    (void)button_update_state(button);
+
+    /*
+     * Do not suppress a future independent press when the
+     * input is currently fully released. last_raw_state
+     * also covers a press that has started but has not yet
+     * completed its debounce interval.
+     */
+    if ((!button->last_raw_state) ||
+        (!button->stable_state))
+    {
+        button->hold_suppressed_until_release = true;
+    }
 }
