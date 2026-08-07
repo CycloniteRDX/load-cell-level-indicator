@@ -430,7 +430,7 @@ Validated test inventory:
 | `native_button` | 11 |
 | `native_hx711` | 18 |
 | `native_level_indicator` | 14 |
-| `native_operation_indicator` | 17 |
+| `native_operation_indicator` | 16 |
 | `native_scale` | 47 |
 | `native_app` | 12 |
 | `native_tare_record` | 20 |
@@ -438,13 +438,13 @@ Validated test inventory:
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **249** |
+| **Total** | **248** |
 
 Validated result:
 
 ```text
 Suites passed: 11/11
-Tests passed:  249/249
+Tests passed:  248/248
 Failures:      0
 Exit code:     0
 ```

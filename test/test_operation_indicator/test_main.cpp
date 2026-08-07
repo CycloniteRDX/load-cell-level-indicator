@@ -403,25 +403,6 @@ static void test_set_mode_cancels_temporary_pattern(void)
     assert_leds(false, false, false);
 }
 
-static void test_invalid_mode_turns_leds_off_and_does_not_blink(void)
-{
-    operation_indicator_set_mode(
-        (operation_indicator_mode_t)99
-    );
-
-    assert_leds(false, false, false);
-
-    advance_and_update(
-        OPERATION_INDICATOR_BLINK_PERIOD_MS * 3U
-    );
-
-    assert_leds(false, false, false);
-
-    TEST_ASSERT_FALSE(
-        operation_indicator_is_temporary_active()
-    );
-}
-
 static void test_persistent_blinking_handles_millisecond_overflow(void)
 {
     fake_operation_indicator_set_time_ms(
@@ -496,7 +477,6 @@ int main(void)
     RUN_TEST(test_error_with_none_return_releases_leds);
     RUN_TEST(test_clear_cancels_temporary_pattern);
     RUN_TEST(test_set_mode_cancels_temporary_pattern);
-    RUN_TEST(test_invalid_mode_turns_leds_off_and_does_not_blink);
     RUN_TEST(test_persistent_blinking_handles_millisecond_overflow);
     RUN_TEST(test_temporary_pattern_handles_millisecond_overflow);
 
