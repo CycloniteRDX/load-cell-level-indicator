@@ -806,6 +806,7 @@ pio test -e native_button \
          -e native_level_indicator \
          -e native_operation_indicator \
          -e native_scale \
+         -e native_app \
          -e native_tare_record \
          -e native_tare_storage \
          -e native_calibration_storage \
@@ -813,7 +814,8 @@ pio test -e native_button \
          -e native_time_delay
 ```
 
-The new `native_app` environment will be added to the complete test command.
+The `native_app` environment is included in the complete test command from the
+cooperative startup and fault-state commit onward.
 
 Flash and SRAM changes must be recorded for both AVR builds. The state machine
 must use static storage only and must not introduce heap allocation.

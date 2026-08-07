@@ -1,0 +1,71 @@
+#ifndef TEST_APP_FAKE_SUPPORT_H
+#define TEST_APP_FAKE_SUPPORT_H
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "operation_indicator.h"
+
+
+void fake_app_reset(void);
+
+
+void fake_app_set_time_ms(uint32_t time_ms);
+void fake_app_advance_time_ms(uint32_t elapsed_ms);
+
+
+void fake_app_set_scale_init_result(bool result);
+void fake_app_set_scale_ready(bool ready);
+
+uint32_t fake_app_scale_init_call_count(void);
+uint32_t fake_app_scale_ready_call_count(void);
+uint32_t fake_app_scale_cancel_call_count(void);
+uint32_t fake_app_scale_tare_call_count(void);
+uint32_t fake_app_scale_weight_read_call_count(void);
+
+
+void fake_app_set_calibration_record(
+    bool available,
+    float calibration_factor
+);
+
+void fake_app_set_scale_factor_result(bool result);
+
+uint32_t fake_app_calibration_load_call_count(void);
+uint32_t fake_app_scale_factor_set_call_count(void);
+float fake_app_last_scale_factor(void);
+
+
+void fake_app_set_tare_record(
+    bool available,
+    int32_t tare_offset
+);
+
+uint32_t fake_app_tare_load_call_count(void);
+uint32_t fake_app_scale_offset_set_call_count(void);
+int32_t fake_app_last_scale_offset(void);
+
+
+operation_indicator_mode_t
+fake_app_operation_indicator_mode(void);
+
+uint32_t fake_app_operation_indicator_update_call_count(void);
+uint32_t fake_app_level_reset_call_count(void);
+
+
+void fake_app_queue_console_command(char command);
+void fake_app_queue_console_command_during_tare_load(
+    char command
+);
+bool fake_app_console_input_is_pending(void);
+const char *fake_app_console_output(void);
+
+
+void fake_app_press_tare_button(void);
+void fake_app_press_calibration_button(void);
+
+uint32_t fake_app_tare_button_suppression_count(void);
+uint32_t fake_app_calibration_button_suppression_count(void);
+
+
+#endif

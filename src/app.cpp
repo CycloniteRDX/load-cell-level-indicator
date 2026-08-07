@@ -25,6 +25,31 @@ static button_t calibration_button;
 static uint32_t last_print_ms = 0;
 
 
+/*
+ * The first application states introduced by the
+ * cooperative v1.2 migration.
+ *
+ * Tare, calibration and result handling still use their
+ * v1.1 control flow in this intermediate commit. Their
+ * states will be added here as each blocking operation
+ * is migrated.
+ */
+typedef enum
+{
+    APP_STATE_STARTUP_WAIT_FOR_SCALE,
+    APP_STATE_STARTUP_LOAD_CONFIGURATION,
+    APP_STATE_TARE_REQUIRED,
+    APP_STATE_NORMAL_OPERATION,
+    APP_STATE_FAULT
+} app_state_t;
+
+
+static app_state_t app_state =
+    APP_STATE_STARTUP_WAIT_FOR_SCALE;
+
+static uint32_t operation_started_ms = 0UL;
+
+
 typedef enum
 {
     CALIBRATION_IDLE,
@@ -48,6 +73,17 @@ static calibration_state_t calibration_state =
     CALIBRATION_IDLE;
 
 
+static app_state_t get_idle_application_state(void)
+{
+    if (tare_available)
+    {
+        return APP_STATE_NORMAL_OPERATION;
+    }
+
+    return APP_STATE_TARE_REQUIRED;
+}
+
+
 static operation_indicator_mode_t
 get_idle_operation_mode(void)
 {
@@ -60,8 +96,10 @@ get_idle_operation_mode(void)
 }
 
 
-static void restore_idle_operation_mode(void)
+static void restore_idle_application_state(void)
 {
+    app_state = get_idle_application_state();
+
     const operation_indicator_mode_t idle_mode =
         get_idle_operation_mode();
 
@@ -72,6 +110,23 @@ static void restore_idle_operation_mode(void)
     }
 
     operation_indicator_set_mode(idle_mode);
+}
+
+
+static void enter_fault_state(void)
+{
+    app_state = APP_STATE_FAULT;
+
+    calibration_state = CALIBRATION_IDLE;
+
+    measurement_available = false;
+
+    scale_cancel_sample_collection();
+    level_indicator_reset();
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_FAULT
+    );
 }
 
 
@@ -152,6 +207,7 @@ static bool perform_tare(void)
     }
 
     tare_available = true;
+    app_state = APP_STATE_NORMAL_OPERATION;
 
     operation_indicator_clear();
 
@@ -261,6 +317,7 @@ static void clear_stored_tare(void)
      * measured and saved.
      */
     tare_available = false;
+    app_state = APP_STATE_TARE_REQUIRED;
     measurement_available = false;
 
     level_indicator_reset();
@@ -394,6 +451,9 @@ static void confirm_calibration_zero(void)
         tare_available =
             previous_tare_available;
 
+        app_state =
+            get_idle_application_state();
+
         operation_indicator_show_error(
             OPERATION_INDICATOR_CALIBRATION_ZERO
         );
@@ -417,6 +477,7 @@ static void confirm_calibration_zero(void)
     }
 
     tare_available = true;
+    app_state = APP_STATE_NORMAL_OPERATION;
 
     CONSOLE_PRINT("Tare offset: ");
     console_print_int32(
@@ -673,7 +734,7 @@ static void cancel_calibration(void)
     measurement_available = false;
 
     level_indicator_reset();
-    restore_idle_operation_mode();
+    restore_idle_application_state();
 
     console_newline();
     CONSOLE_PRINTLN("Calibration cancelled.");
@@ -724,7 +785,7 @@ static void process_calibration_confirmation(void)
             measurement_available = false;
 
             level_indicator_reset();
-            restore_idle_operation_mode();
+            restore_idle_application_state();
 
             CONSOLE_PRINTLN(
                 "ERROR: Invalid calibration state."
@@ -878,7 +939,7 @@ static void update_weight_measurement(void)
 {
     float weight_grams = 0.0F;
 
-    if (!scale_read_weight(&weight_grams))
+    if (!scale_try_read_weight(&weight_grams))
     {
         return;
     }
@@ -921,141 +982,8 @@ static void print_weight_periodically(void)
 }
 
 
-void app_init(void)
+static void print_runtime_information(void)
 {
-
-    /*
-     * Initialize the active time backend before any
-     * module reads the project millisecond counter.
-     */
-    hal_time_init();
-
-    console_init(CONSOLE_BAUD_RATE);
-
-    button_init(
-        &tare_button,
-        TARE_BUTTON_PIN,
-        BUTTON_DEBOUNCE_MS
-    );
-    button_init(
-        &calibration_button,
-        CALIBRATION_BUTTON_PIN,
-        BUTTON_DEBOUNCE_MS
-    );
-
-    indicator_leds_init();
-    level_indicator_init();
-    operation_indicator_init();
-
-    console_newline();
-    CONSOLE_PRINTLN(
-        "=== Load cell level indicator ==="
-    );
-
-    if (!scale_init())
-    {
-        CONSOLE_PRINTLN("ERROR: HX711 not found.");
-
-        while (true)
-        {
-            hal_time_delay_ms(1000UL);
-        }
-    }
-
-    float calibration_factor =
-        DEFAULT_CALIBRATION_FACTOR;
-
-    const bool stored_calibration_loaded =
-        calibration_storage_load(
-            &calibration_factor
-        );
-
-    if (stored_calibration_loaded)
-    {
-        CONSOLE_PRINTLN(
-            "Stored calibration loaded from EEPROM."
-        );
-    }
-    else
-    {
-        CONSOLE_PRINTLN(
-            "No valid stored calibration found."
-        );
-
-        CONSOLE_PRINTLN(
-            "Using default calibration factor."
-        );
-    }
-
-    if (!scale_set_calibration_factor(
-            calibration_factor))
-    {
-        CONSOLE_PRINTLN(
-            "ERROR: Invalid calibration factor."
-        );
-
-        while (true)
-        {
-            hal_time_delay_ms(1000UL);
-        }
-    }
-
-
-    CONSOLE_PRINT("Calibration factor: ");
-    console_print_float(
-        scale_get_calibration_factor(),
-        6U
-    );
-    CONSOLE_PRINTLN(" counts/g");
-
-    int32_t stored_tare_offset = 0;
-
-    if (tare_storage_load(
-            &stored_tare_offset))
-    {
-        scale_set_offset(
-            stored_tare_offset
-        );
-
-        tare_available = true;
-
-        CONSOLE_PRINT("Stored tare offset loaded: ");
-        console_print_int32(
-            scale_get_offset()
-        );
-        console_newline();
-
-        CONSOLE_PRINTLN(
-            "Normal measurement started."
-        );
-    }
-    else
-    {
-        tare_available = false;
-        measurement_available = false;
-        level_indicator_reset();
-
-        operation_indicator_set_mode(
-            OPERATION_INDICATOR_TARE_REQUIRED
-        );
-
-        CONSOLE_PRINTLN(
-            "No valid tare offset is stored."
-        );
-
-        CONSOLE_PRINTLN(
-            "Normal level indication is disabled."
-        );
-
-        CONSOLE_PRINTLN(
-            "Place the empty container on the platform."
-        );
-
-        CONSOLE_PRINTLN(
-            "Hold TARE for 3 seconds or send 't' to establish zero."
-        );
-    }
-
     console_newline();
     CONSOLE_PRINTLN("Controls:");
     CONSOLE_PRINTLN(
@@ -1107,6 +1035,10 @@ void app_init(void)
         " MEDIUM blinking = waiting for reference mass"
     );
 
+    CONSOLE_PRINTLN(
+        " HIGH blinking = reset-required fault"
+    );
+
     console_newline();
     CONSOLE_PRINTLN("Provisional levels:");
 
@@ -1128,12 +1060,326 @@ void app_init(void)
 }
 
 
+static void consume_busy_buttons(void)
+{
+    /*
+     * Sample both debouncers, but never let a press that
+     * began in this state become a later hold event.
+     *
+     * Suppression is unconditional so a button already
+     * held during initialization is covered as well.
+     */
+    (void)button_was_pressed(&tare_button);
+    (void)button_was_pressed(&calibration_button);
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+}
+
+
+static void process_startup_input(void)
+{
+    consume_busy_buttons();
+
+    if (!console_input_available())
+    {
+        return;
+    }
+
+    char ignored_command = '\0';
+    const bool command_read =
+        console_read_char(&ignored_command);
+
+    console_discard_input();
+
+    if (command_read)
+    {
+        CONSOLE_PRINTLN(
+            "Startup is not complete."
+        );
+    }
+}
+
+
+static void process_fault_input(void)
+{
+    consume_busy_buttons();
+
+    if (!console_input_available())
+    {
+        return;
+    }
+
+    char ignored_command = '\0';
+    const bool command_read =
+        console_read_char(&ignored_command);
+
+    console_discard_input();
+
+    if (command_read)
+    {
+        CONSOLE_PRINTLN(
+            "FAULT: Reset required."
+        );
+    }
+}
+
+
+static void load_startup_configuration(void)
+{
+    float calibration_factor =
+        DEFAULT_CALIBRATION_FACTOR;
+
+    const bool stored_calibration_loaded =
+        calibration_storage_load(
+            &calibration_factor
+        );
+
+    if (stored_calibration_loaded)
+    {
+        CONSOLE_PRINTLN(
+            "Stored calibration loaded from EEPROM."
+        );
+    }
+    else
+    {
+        CONSOLE_PRINTLN(
+            "No valid stored calibration found."
+        );
+
+        CONSOLE_PRINTLN(
+            "Using default calibration factor."
+        );
+    }
+
+    if (!scale_set_calibration_factor(
+            calibration_factor))
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Invalid calibration factor."
+        );
+
+        enter_fault_state();
+        return;
+    }
+
+    CONSOLE_PRINT("Calibration factor: ");
+    console_print_float(
+        scale_get_calibration_factor(),
+        6U
+    );
+    CONSOLE_PRINTLN(" counts/g");
+
+    int32_t stored_tare_offset = 0;
+
+    if (tare_storage_load(
+            &stored_tare_offset))
+    {
+        scale_set_offset(
+            stored_tare_offset
+        );
+
+        /*
+         * Do not carry input received during the bounded
+         * configuration step into normal operation.
+         */
+        consume_busy_buttons();
+        console_discard_input();
+
+        tare_available = true;
+        app_state = APP_STATE_NORMAL_OPERATION;
+
+        operation_indicator_clear();
+
+        CONSOLE_PRINT("Stored tare offset loaded: ");
+        console_print_int32(
+            scale_get_offset()
+        );
+        console_newline();
+
+        CONSOLE_PRINTLN(
+            "Normal measurement started."
+        );
+    }
+    else
+    {
+        /*
+         * Do not reinterpret startup input as a tare or
+         * calibration request after this transition.
+         */
+        consume_busy_buttons();
+        console_discard_input();
+
+        tare_available = false;
+        app_state = APP_STATE_TARE_REQUIRED;
+
+        measurement_available = false;
+        level_indicator_reset();
+
+        operation_indicator_set_mode(
+            OPERATION_INDICATOR_TARE_REQUIRED
+        );
+
+        CONSOLE_PRINTLN(
+            "No valid tare offset is stored."
+        );
+
+        CONSOLE_PRINTLN(
+            "Normal level indication is disabled."
+        );
+
+        CONSOLE_PRINTLN(
+            "Place the empty container on the platform."
+        );
+
+        CONSOLE_PRINTLN(
+            "Hold TARE for 3 seconds or send 't' to establish zero."
+        );
+    }
+
+    print_runtime_information();
+}
+
+
+static void update_startup_wait_for_scale(void)
+{
+    process_startup_input();
+
+    if (scale_is_ready())
+    {
+        app_state =
+            APP_STATE_STARTUP_LOAD_CONFIGURATION;
+
+        return;
+    }
+
+    const uint32_t now = hal_time_millis();
+
+    if ((uint32_t)(now - operation_started_ms) <
+        SCALE_STARTUP_TIMEOUT_MS)
+    {
+        return;
+    }
+
+    CONSOLE_PRINTLN(
+        "ERROR: HX711 startup timed out."
+    );
+
+    enter_fault_state();
+}
+
+
+static bool process_cooperative_base_state(void)
+{
+    switch (app_state)
+    {
+        case APP_STATE_STARTUP_WAIT_FOR_SCALE:
+            update_startup_wait_for_scale();
+            return true;
+
+        case APP_STATE_STARTUP_LOAD_CONFIGURATION:
+            process_startup_input();
+            load_startup_configuration();
+            return true;
+
+        case APP_STATE_FAULT:
+            process_fault_input();
+            return true;
+
+        case APP_STATE_TARE_REQUIRED:
+        case APP_STATE_NORMAL_OPERATION:
+            return false;
+
+        default:
+            CONSOLE_PRINTLN(
+                "ERROR: Invalid application state."
+            );
+
+            enter_fault_state();
+            return true;
+    }
+}
+
+
+void app_init(void)
+{
+    /*
+     * Initialize the active time backend before any
+     * module reads the project millisecond counter.
+     */
+    hal_time_init();
+
+    console_init(CONSOLE_BAUD_RATE);
+
+    button_init(
+        &tare_button,
+        TARE_BUTTON_PIN,
+        BUTTON_DEBOUNCE_MS
+    );
+    button_init(
+        &calibration_button,
+        CALIBRATION_BUTTON_PIN,
+        BUTTON_DEBOUNCE_MS
+    );
+
+    indicator_leds_init();
+    level_indicator_init();
+    operation_indicator_init();
+
+    latest_weight_grams = 0.0F;
+    measurement_available = false;
+    tare_available = false;
+
+    calibration_state = CALIBRATION_IDLE;
+
+    last_print_ms = 0UL;
+    operation_started_ms = hal_time_millis();
+
+    app_state = APP_STATE_STARTUP_WAIT_FOR_SCALE;
+
+    console_newline();
+    CONSOLE_PRINTLN(
+        "=== Load cell level indicator ==="
+    );
+
+    if (!scale_init())
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: HX711 initialization failed."
+        );
+
+        enter_fault_state();
+        return;
+    }
+
+    operation_started_ms = hal_time_millis();
+
+    CONSOLE_PRINTLN(
+        "Waiting for the first HX711 conversion..."
+    );
+}
+
+
 void app_update(void)
 {
     /*
      * Update the current visual pattern first.
      */
     operation_indicator_update();
+
+    /*
+     * Startup and fault handling keep the superloop
+     * cooperative but do not permit operational work.
+     */
+    if (process_cooperative_base_state())
+    {
+        return;
+    }
 
     /*
      * While a finite success or error pattern is being

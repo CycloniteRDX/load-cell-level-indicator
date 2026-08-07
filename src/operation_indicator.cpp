@@ -54,6 +54,9 @@ static bool mode_is_blinking(
         (mode ==
          OPERATION_INDICATOR_CALIBRATION_MASS) ||
 
+        (mode ==
+         OPERATION_INDICATOR_FAULT) ||
+
         mode_is_temporary(mode);
 }
 
@@ -95,6 +98,14 @@ static void apply_current_output(void)
                 false,
                 blink_led_on,
                 false
+            );
+            break;
+
+        case OPERATION_INDICATOR_FAULT:
+            indicator_leds_set(
+                false,
+                false,
+                blink_led_on
             );
             break;
 

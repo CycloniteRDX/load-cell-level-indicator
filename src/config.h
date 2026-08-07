@@ -48,6 +48,14 @@ static const uint32_t PRINT_PERIOD_MS = 500UL;
 
 
 /*
+ * Maximum time allowed for the first HX711 conversion
+ * to become ready after pin configuration.
+ */
+static const uint32_t SCALE_STARTUP_TIMEOUT_MS =
+    2000UL;
+
+
+/*
  * Slow blinking used while waiting for the user
  * during the calibration workflow.
  */

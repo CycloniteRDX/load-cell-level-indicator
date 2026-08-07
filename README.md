@@ -415,6 +415,7 @@ pio test -e native_hx711
 pio test -e native_level_indicator
 pio test -e native_operation_indicator
 pio test -e native_scale
+pio test -e native_app
 pio test -e native_tare_record
 pio test -e native_tare_storage
 pio test -e native_calibration_storage
@@ -429,20 +430,21 @@ Validated test inventory:
 | `native_button` | 11 |
 | `native_hx711` | 18 |
 | `native_level_indicator` | 14 |
-| `native_operation_indicator` | 16 |
-| `native_scale` | 36 |
+| `native_operation_indicator` | 17 |
+| `native_scale` | 47 |
+| `native_app` | 12 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **225** |
+| **Total** | **249** |
 
 Validated result:
 
 ```text
-Suites passed: 10/10
-Tests passed:  225/225
+Suites passed: 11/11
+Tests passed:  249/249
 Failures:      0
 Exit code:     0
 ```
