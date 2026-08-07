@@ -192,10 +192,10 @@ conversion count, timeout, button or command to change.
 
 ## Application states
 
-The existing calibration-only state variable will be replaced by one explicit
+The earlier calibration-only state variable has been replaced by one explicit
 application state.
 
-Planned state type:
+Current state type:
 
 ```cpp
 typedef enum
@@ -613,21 +613,22 @@ received in another state.
 ## Result-pattern state
 
 The operation-indicator module already generates success and error patterns
-without delay loops. The application will keep that implementation.
+without delay loops. The application keeps that implementation.
 
-The change is that pattern ownership becomes explicit through
+Pattern ownership is now explicit through
 `APP_STATE_RESULT_PATTERN` instead of being a global early-return condition in
 `app_update()`.
 
-Starting a result pattern will:
+Starting a result pattern:
 
 1. Select success or error in `operation_indicator`.
 2. Store the intended `state_after_result`.
 3. Enter `APP_STATE_RESULT_PATTERN`.
 
-The state will continue to update the indicator and consume current input. When
+The state continues to update the indicator and consume current input. When
 `operation_indicator_is_temporary_active()` becomes false, the application will
-enter `state_after_result`.
+enter `state_after_result` and reserve that complete iteration for the state
+transition. Operational work resumes on the following `app_update()` call.
 
 This state does not enable normal measurement while a result pattern owns the
 three shared LEDs.
@@ -904,8 +905,8 @@ commit must retain a clear single purpose.
 - [x] Buttons are sampled during long operations.
 - [x] UART input received during long operations has an immediate explicit
       policy.
-- [ ] No command remains queued for execution in a later state.
-- [ ] Temporary result patterns are represented by an application state.
+- [x] No command remains queued for execution in a later state.
+- [x] Temporary result patterns are represented by an application state.
 - [x] Startup failures enter a cooperative latched fault state.
 - [x] Runtime tare and calibration rollback guarantees are preserved.
 - [ ] All native tests pass, including scale and application transition tests.

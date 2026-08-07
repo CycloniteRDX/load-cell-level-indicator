@@ -28,8 +28,8 @@ static uint32_t last_print_ms = 0;
 /*
  * Cooperative application states.
  *
- * Temporary result patterns remain the last v1.1
- * control-flow mechanism to migrate in the next commit.
+ * Every long-lived application condition, including a
+ * temporary result pattern, has an explicit state.
  */
 typedef enum
 {
@@ -42,6 +42,7 @@ typedef enum
     APP_STATE_CALIBRATION_ZERO_SAMPLING,
     APP_STATE_CALIBRATION_WAITING_FOR_MASS,
     APP_STATE_CALIBRATION_MASS_SAMPLING,
+    APP_STATE_RESULT_PATTERN,
     APP_STATE_FAULT
 } app_state_t;
 
@@ -56,6 +57,13 @@ static uint32_t operation_started_ms = 0UL;
  * cancelled or fails.
  */
 static app_state_t tare_return_state =
+    APP_STATE_TARE_REQUIRED;
+
+/*
+ * State entered after a finite success or error
+ * indication releases the shared LEDs.
+ */
+static app_state_t state_after_result =
     APP_STATE_TARE_REQUIRED;
 
 
@@ -128,6 +136,29 @@ get_operation_mode_for_idle_state(
 }
 
 
+static void start_error_result_pattern(
+    app_state_t next_state,
+    operation_indicator_mode_t next_mode
+)
+{
+    state_after_result = next_state;
+    app_state = APP_STATE_RESULT_PATTERN;
+
+    operation_indicator_show_error(next_mode);
+}
+
+
+static void start_success_result_pattern(
+    app_state_t next_state
+)
+{
+    state_after_result = next_state;
+    app_state = APP_STATE_RESULT_PATTERN;
+
+    operation_indicator_show_success();
+}
+
+
 static void restore_tare_return_state(void)
 {
     app_state = tare_return_state;
@@ -154,9 +185,8 @@ static void finish_tare_with_error(void)
     measurement_available = false;
     level_indicator_reset();
 
-    app_state = tare_return_state;
-
-    operation_indicator_show_error(
+    start_error_result_pattern(
+        tare_return_state,
         get_operation_mode_for_idle_state(
             tare_return_state
         )
@@ -724,9 +754,10 @@ static void finish_calibration_sampling_with_error(
     measurement_available = false;
     level_indicator_reset();
 
-    app_state = retry_state;
-
-    operation_indicator_show_error(retry_mode);
+    start_error_result_pattern(
+        retry_state,
+        retry_mode
+    );
 
     button_suppress_hold_until_release(
         &tare_button
@@ -1136,9 +1167,8 @@ static void complete_calibration_mass(
 
         level_indicator_reset();
 
-        app_state = get_idle_application_state();
-
-        operation_indicator_show_error(
+        start_error_result_pattern(
+            get_idle_application_state(),
             get_idle_operation_mode()
         );
 
@@ -1164,9 +1194,9 @@ static void complete_calibration_mass(
 
     level_indicator_reset();
 
-    app_state = APP_STATE_NORMAL_OPERATION;
-
-    operation_indicator_show_success();
+    start_success_result_pattern(
+        APP_STATE_NORMAL_OPERATION
+    );
 
     button_suppress_hold_until_release(
         &tare_button
@@ -1668,6 +1698,47 @@ static void process_fault_input(void)
 }
 
 
+static void process_result_pattern(void)
+{
+    /*
+     * The result indication owns the shared LEDs and the
+     * application state until completion. Sample both
+     * buttons on every iteration and prevent any press
+     * begun here from becoming a later hold action.
+     */
+    consume_busy_buttons();
+
+    if (console_input_available())
+    {
+        char ignored_command = '\0';
+        const bool command_read =
+            console_read_char(&ignored_command);
+
+        console_discard_input();
+
+        if (command_read)
+        {
+            CONSOLE_PRINTLN(
+                "Result indication is active."
+            );
+        }
+    }
+
+    if (operation_indicator_is_temporary_active())
+    {
+        return;
+    }
+
+    /*
+     * Reserve this whole iteration for leaving the busy
+     * state. Normal work begins on the next app_update(),
+     * so input sampled at the completion boundary cannot
+     * be reinterpreted under the restored state.
+     */
+    app_state = state_after_result;
+}
+
+
 static void load_startup_configuration(void)
 {
     float calibration_factor =
@@ -1841,6 +1912,10 @@ static bool process_cooperative_base_state(void)
             update_calibration_mass_sampling();
             return true;
 
+        case APP_STATE_RESULT_PATTERN:
+            process_result_pattern();
+            return true;
+
         case APP_STATE_TARE_REQUIRED:
         case APP_STATE_NORMAL_OPERATION:
         case APP_STATE_CALIBRATION_WAITING_FOR_ZERO:
@@ -1893,6 +1968,9 @@ void app_init(void)
     tare_return_state =
         APP_STATE_TARE_REQUIRED;
 
+    state_after_result =
+        APP_STATE_TARE_REQUIRED;
+
     app_state = APP_STATE_STARTUP_WAIT_FOR_SCALE;
 
     console_newline();
@@ -1934,23 +2012,6 @@ void app_update(void)
         return;
     }
 
-    /*
-     * While a finite success or error pattern is being
-     * displayed, normal operation remains paused.
-     */
-    if (operation_indicator_is_temporary_active())
-    {
-        /*
-         * Physical buttons are not processed while a
-         * finite success or error pattern is active.
-         *
-         * Discard serial input as well so both input
-         * mechanisms follow the same busy-state policy.
-         */
-        console_discard_input();
-        return;
-    }
-
     process_console_commands();
 
     /*
@@ -1961,16 +2022,8 @@ void app_update(void)
         (app_state ==
             APP_STATE_CALIBRATION_ZERO_SAMPLING) ||
         (app_state ==
-            APP_STATE_CALIBRATION_MASS_SAMPLING))
-    {
-        return;
-    }
-
-    /*
-     * A console command may have started a temporary
-     * success or error pattern.
-     */
-    if (operation_indicator_is_temporary_active())
+            APP_STATE_CALIBRATION_MASS_SAMPLING) ||
+        (app_state == APP_STATE_RESULT_PATTERN))
     {
         return;
     }
@@ -2028,7 +2081,7 @@ void app_update(void)
     {
         start_tare();
 
-        if (operation_indicator_is_temporary_active())
+        if (app_state == APP_STATE_RESULT_PATTERN)
         {
             return;
         }

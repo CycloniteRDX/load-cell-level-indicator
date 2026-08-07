@@ -1022,6 +1022,89 @@ static void test_tare_start_failure_restores_previous_idle_state(void)
 }
 
 
+static void test_result_pattern_rejects_input_and_suppresses_holds(void)
+{
+    load_configuration_with_tare(-172706);
+    start_serial_tare();
+
+    fake_app_set_tare_save_result(false);
+    fake_app_set_scale_sample_average(true, -172802);
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_COMPLETE
+    );
+
+    app_update();
+
+    const uint32_t collection_starts_before =
+        fake_app_scale_collection_start_call_count();
+
+    const uint32_t tare_suppressions_before =
+        fake_app_tare_button_suppression_count();
+
+    const uint32_t calibration_suppressions_before =
+        fake_app_calibration_button_suppression_count();
+
+    fake_app_queue_console_command('c');
+    fake_app_hold_tare_button();
+    fake_app_hold_calibration_button();
+
+    app_update();
+
+    TEST_ASSERT_FALSE(
+        fake_app_console_input_is_pending()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        collection_starts_before,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        tare_suppressions_before + 1UL,
+        fake_app_tare_button_suppression_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        calibration_suppressions_before + 1UL,
+        fake_app_calibration_button_suppression_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_weight_read_call_count()
+    );
+
+    assert_console_contains(
+        "Result indication is active."
+    );
+
+    fake_app_complete_operation_pattern();
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        collection_starts_before,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_weight_read_call_count()
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        collection_starts_before,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_weight_read_call_count()
+    );
+}
+
+
 static void test_calibration_entry_waits_for_zero_without_starting_collection(void)
 {
     load_configuration_with_tare(-172706);
@@ -1254,6 +1337,8 @@ static void test_zero_save_failure_preserves_previous_offset_and_allows_retry(vo
     );
 
     fake_app_complete_operation_pattern();
+    app_update();
+
     fake_app_set_tare_save_result(true);
     fake_app_queue_console_command('c');
     app_update();
@@ -1559,11 +1644,63 @@ static void test_small_mass_signal_is_rejected_and_allows_retry(void)
     );
 
     fake_app_complete_operation_pattern();
+    app_update();
+
     fake_app_queue_console_command('c');
     app_update();
 
     TEST_ASSERT_EQUAL_UINT32(
         3UL,
+        fake_app_scale_collection_start_call_count()
+    );
+}
+
+
+static void test_result_completion_consumes_boundary_input_before_retry(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-1000);
+
+    fake_app_set_scale_sample_average(true, 3999);
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_COMPLETE
+    );
+
+    app_update();
+
+    const uint32_t collection_starts_before =
+        fake_app_scale_collection_start_call_count();
+
+    fake_app_complete_operation_pattern();
+    fake_app_queue_console_command('c');
+
+    app_update();
+
+    TEST_ASSERT_FALSE(
+        fake_app_console_input_is_pending()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        collection_starts_before,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    assert_console_contains(
+        "Result indication is active."
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        collection_starts_before,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    fake_app_queue_console_command('c');
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        collection_starts_before + 1UL,
         fake_app_scale_collection_start_call_count()
     );
 }
@@ -1643,6 +1780,13 @@ static void test_calibration_save_failure_restores_previous_factor_and_exits(voi
     );
 
     fake_app_complete_operation_pattern();
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_weight_read_call_count()
+    );
+
     app_update();
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -1800,6 +1944,7 @@ int main(void)
     RUN_TEST(test_tare_timeout_is_exact_and_handles_millisecond_overflow);
     RUN_TEST(test_completed_tare_wins_at_timeout_deadline);
     RUN_TEST(test_tare_start_failure_restores_previous_idle_state);
+    RUN_TEST(test_result_pattern_rejects_input_and_suppresses_holds);
     RUN_TEST(test_calibration_entry_waits_for_zero_without_starting_collection);
     RUN_TEST(test_zero_confirmation_starts_incremental_collection);
     RUN_TEST(test_zero_sampling_updates_once_and_rejects_other_input);
@@ -1816,6 +1961,7 @@ int main(void)
     RUN_TEST(test_serial_q_cancels_mass_without_changing_factor_or_new_tare);
     RUN_TEST(test_completed_mass_calculates_saves_and_applies_factor);
     RUN_TEST(test_small_mass_signal_is_rejected_and_allows_retry);
+    RUN_TEST(test_result_completion_consumes_boundary_input_before_retry);
     RUN_TEST(test_invalid_calculated_factor_preserves_previous_factor);
     RUN_TEST(test_calibration_save_failure_restores_previous_factor_and_exits);
     RUN_TEST(test_mass_read_error_returns_to_mass_wait);

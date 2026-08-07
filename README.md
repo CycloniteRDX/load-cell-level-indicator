@@ -157,7 +157,9 @@ Commands are case-insensitive:
 
 No newline is required. When several bytes are pending, the application processes the first command and discards the remaining queued input.
 
-Commands received while blocking operations or temporary result patterns are active are discarded so they are not unexpectedly executed later.
+Commands received during startup, sample collection, temporary result patterns or a fault receive an immediate state-specific response and are discarded so they cannot execute later in a different state.
+
+While a temporary success or error pattern is active, both buttons are still sampled and their hold actions are suppressed until release. Normal measurement or calibration retry work resumes only after the application has observed the end of the pattern.
 
 ## Startup sequence
 
@@ -438,19 +440,19 @@ Validated test inventory:
 | `native_level_indicator` | 14 |
 | `native_operation_indicator` | 16 |
 | `native_scale` | 32 |
-| `native_app` | 46 |
+| `native_app` | 48 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **267** |
+| **Total** | **269** |
 
 Validated result:
 
 ```text
 Suites passed: 11/11
-Tests passed:  267/267
+Tests passed:  269/269
 Failures:      0
 Exit code:     0
 ```

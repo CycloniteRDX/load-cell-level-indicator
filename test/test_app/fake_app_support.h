@@ -97,6 +97,7 @@ const char *fake_app_console_output(void);
 void fake_app_press_tare_button(void);
 void fake_app_hold_tare_button(void);
 void fake_app_press_calibration_button(void);
+void fake_app_hold_calibration_button(void);
 
 uint32_t fake_app_tare_button_suppression_count(void);
 uint32_t fake_app_calibration_button_suppression_count(void);

@@ -87,6 +87,7 @@ static size_t console_output_length = 0U;
 static bool tare_button_press_pending = false;
 static bool tare_button_hold_pending = false;
 static bool calibration_button_press_pending = false;
+static bool calibration_button_hold_pending = false;
 
 static uint32_t tare_button_suppression_calls = 0UL;
 static uint32_t calibration_button_suppression_calls = 0UL;
@@ -202,6 +203,7 @@ void fake_app_reset(void)
     tare_button_press_pending = false;
     tare_button_hold_pending = false;
     calibration_button_press_pending = false;
+    calibration_button_hold_pending = false;
 
     tare_button_suppression_calls = 0UL;
     calibration_button_suppression_calls = 0UL;
@@ -514,6 +516,12 @@ void fake_app_press_calibration_button(void)
 }
 
 
+void fake_app_hold_calibration_button(void)
+{
+    calibration_button_hold_pending = true;
+}
+
+
 uint32_t fake_app_tare_button_suppression_count(void)
 {
     return tare_button_suppression_calls;
@@ -589,13 +597,26 @@ bool button_was_held(
 {
     (void)hold_ms;
 
-    if ((button != NULL) &&
-        (button->pin == TARE_BUTTON_PIN))
+    if (button == NULL)
+    {
+        return false;
+    }
+
+    if (button->pin == TARE_BUTTON_PIN)
     {
         const bool was_held =
             tare_button_hold_pending;
 
         tare_button_hold_pending = false;
+        return was_held;
+    }
+
+    if (button->pin == CALIBRATION_BUTTON_PIN)
+    {
+        const bool was_held =
+            calibration_button_hold_pending;
+
+        calibration_button_hold_pending = false;
         return was_held;
     }
 
@@ -615,10 +636,12 @@ void button_suppress_hold_until_release(
     if (button->pin == TARE_BUTTON_PIN)
     {
         ++tare_button_suppression_calls;
+        tare_button_hold_pending = false;
     }
     else if (button->pin == CALIBRATION_BUTTON_PIN)
     {
         ++calibration_button_suppression_calls;
+        calibration_button_hold_pending = false;
     }
 }
 
