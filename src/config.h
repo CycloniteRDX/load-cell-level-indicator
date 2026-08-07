@@ -26,7 +26,6 @@ static const uint8_t HIGH_LEVEL_LED_PIN = 7U;
  * HX711 sampling configuration.
  */
 static const uint8_t TARE_SAMPLES = 20U;
-static const uint8_t WEIGHT_SAMPLES = 1U;
 
 /*
  * Console configuration.
