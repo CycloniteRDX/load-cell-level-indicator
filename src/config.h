@@ -56,6 +56,18 @@ static const uint32_t SCALE_STARTUP_TIMEOUT_MS =
 
 
 /*
+ * Maximum total time allowed for one incremental
+ * multi-sample HX711 collection.
+ *
+ * Twenty samples require approximately two seconds at
+ * the current 10 SPS rate. Five seconds leaves margin
+ * while still detecting a stalled or disconnected ADC.
+ */
+static const uint32_t
+    SCALE_SAMPLE_COLLECTION_TIMEOUT_MS = 5000UL;
+
+
+/*
  * Slow blinking used while waiting for the user
  * during the calibration workflow.
  */

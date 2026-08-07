@@ -26,13 +26,13 @@ static uint32_t last_print_ms = 0;
 
 
 /*
- * The first application states introduced by the
- * cooperative v1.2 migration.
+ * Application states introduced incrementally during
+ * the cooperative v1.2 migration.
  *
- * Tare, calibration and result handling still use their
- * v1.1 control flow in this intermediate commit. Their
- * states will be added here as each blocking operation
- * is migrated.
+ * Calibration and result handling still use their v1.1
+ * control flow in this intermediate commit. Their
+ * remaining states will be added as those operations
+ * are migrated.
  */
 typedef enum
 {
@@ -40,6 +40,7 @@ typedef enum
     APP_STATE_STARTUP_LOAD_CONFIGURATION,
     APP_STATE_TARE_REQUIRED,
     APP_STATE_NORMAL_OPERATION,
+    APP_STATE_TARE_SAMPLING,
     APP_STATE_FAULT
 } app_state_t;
 
@@ -48,6 +49,13 @@ static app_state_t app_state =
     APP_STATE_STARTUP_WAIT_FOR_SCALE;
 
 static uint32_t operation_started_ms = 0UL;
+
+/*
+ * Idle state to restore if an operational tare is
+ * cancelled or fails.
+ */
+static app_state_t tare_return_state =
+    APP_STATE_TARE_REQUIRED;
 
 
 typedef enum
@@ -130,34 +138,290 @@ static void enter_fault_state(void)
 }
 
 
-static bool perform_tare(void)
+static operation_indicator_mode_t
+get_operation_mode_for_idle_state(
+    app_state_t idle_state
+)
 {
-    console_newline();
-    CONSOLE_PRINTLN("Taring...");
-    CONSOLE_PRINTLN("Leave only the empty platform or container.");
+    if (idle_state == APP_STATE_NORMAL_OPERATION)
+    {
+        return OPERATION_INDICATOR_NONE;
+    }
 
-    const int32_t previous_tare_offset =
-        scale_get_offset();
+    return OPERATION_INDICATOR_TARE_REQUIRED;
+}
 
-    const bool previous_tare_available =
-        tare_available;
+
+static void restore_tare_return_state(void)
+{
+    app_state = tare_return_state;
 
     const operation_indicator_mode_t return_mode =
-        get_idle_operation_mode();
+        get_operation_mode_for_idle_state(
+            tare_return_state
+        );
+
+    if (return_mode == OPERATION_INDICATOR_NONE)
+    {
+        operation_indicator_clear();
+        return;
+    }
+
+    operation_indicator_set_mode(return_mode);
+}
+
+
+static void finish_tare_with_error(void)
+{
+    scale_cancel_sample_collection();
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    app_state = tare_return_state;
+
+    operation_indicator_show_error(
+        get_operation_mode_for_idle_state(
+            tare_return_state
+        )
+    );
+
+    /*
+     * Input received while the bounded failure handling
+     * was running must not become an idle-state action.
+     */
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
+}
+
+
+static void cancel_tare(void)
+{
+    scale_cancel_sample_collection();
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    restore_tare_return_state();
+
+    console_discard_input();
+
+    console_newline();
+    CONSOLE_PRINTLN("Tare cancelled.");
+
+    CONSOLE_PRINTLN(
+        "The previous tare offset remains active."
+    );
+
+    console_newline();
+}
+
+
+static void start_tare(void)
+{
+    tare_return_state =
+        get_idle_application_state();
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    console_newline();
+    CONSOLE_PRINTLN("Taring...");
+    CONSOLE_PRINTLN(
+        "Leave only the empty platform or container."
+    );
+
+    CONSOLE_PRINTLN(
+        "Press TARE again or send 'q' to cancel."
+    );
+
+    if (!scale_start_sample_collection(
+            TARE_SAMPLES))
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Tare sample collection could not be started."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        finish_tare_with_error();
+        console_newline();
+        return;
+    }
+
+    operation_started_ms = hal_time_millis();
 
     operation_indicator_set_mode(
         OPERATION_INDICATOR_TARE
     );
 
-    if (!scale_tare())
-    {
-        measurement_available = false;
-        level_indicator_reset();
+    app_state = APP_STATE_TARE_SAMPLING;
+}
 
-        operation_indicator_show_error(
-            return_mode
+
+static bool process_tare_sampling_input(void)
+{
+    const bool tare_pressed =
+        button_was_pressed(&tare_button);
+
+    /*
+     * Suppress both a debounced press and a candidate
+     * press that has not completed its debounce interval.
+     * The initiating D4 hold also remains harmless until
+     * the user releases it.
+     */
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    (void)button_was_pressed(
+        &calibration_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    if (tare_pressed)
+    {
+        cancel_tare();
+        return true;
+    }
+
+    if (!console_input_available())
+    {
+        return false;
+    }
+
+    char command = '\0';
+    const bool command_read =
+        console_read_char(&command);
+
+    console_discard_input();
+
+    if (!command_read)
+    {
+        return false;
+    }
+
+    if ((command == 'q') ||
+        (command == 'Q'))
+    {
+        cancel_tare();
+        return true;
+    }
+
+    CONSOLE_PRINTLN(
+        "Tare is in progress. Send 'q' to cancel."
+    );
+
+    return false;
+}
+
+
+static void complete_tare(
+    int32_t candidate_tare_offset
+)
+{
+    /*
+     * Persist and verify the candidate before changing
+     * the active runtime offset. A failed save therefore
+     * needs no RAM rollback.
+     */
+    if (!tare_storage_save(
+            candidate_tare_offset))
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: New tare offset could not be saved."
         );
 
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        finish_tare_with_error();
+        console_newline();
+        return;
+    }
+
+    scale_set_offset(candidate_tare_offset);
+
+    tare_available = true;
+    app_state = APP_STATE_NORMAL_OPERATION;
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    operation_indicator_clear();
+
+    /*
+     * Do not reinterpret input received during the
+     * bounded EEPROM save and verification step.
+     */
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
+
+    CONSOLE_PRINT("New tare offset: ");
+    console_print_int32(candidate_tare_offset);
+    console_newline();
+
+    CONSOLE_PRINTLN("Tare completed and saved.");
+    console_newline();
+}
+
+
+static void update_tare_sampling(void)
+{
+    if (process_tare_sampling_input())
+    {
+        return;
+    }
+
+    const scale_sample_collection_status_t status =
+        scale_update_sample_collection();
+
+    if (status == SCALE_SAMPLE_COLLECTION_COMPLETE)
+    {
+        int32_t candidate_tare_offset = 0;
+
+        if (!scale_take_sample_average(
+                &candidate_tare_offset))
+        {
+            CONSOLE_PRINTLN(
+                "ERROR: Completed tare average could not be obtained."
+            );
+
+            CONSOLE_PRINTLN(
+                "The previous tare offset remains active."
+            );
+
+            finish_tare_with_error();
+            console_newline();
+            return;
+        }
+
+        complete_tare(candidate_tare_offset);
+        return;
+    }
+
+    if (status == SCALE_SAMPLE_COLLECTION_ERROR)
+    {
         CONSOLE_PRINTLN(
             "ERROR: Tare samples could not be read."
         );
@@ -166,81 +430,44 @@ static bool perform_tare(void)
             "The previous tare offset remains active."
         );
 
+        finish_tare_with_error();
         console_newline();
-        console_discard_input();
-
-        return false;
+        return;
     }
 
-    const int32_t new_tare_offset =
-        scale_get_offset();
-
-    if (!tare_storage_save(
-            new_tare_offset))
+    if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
     {
-        scale_set_offset(
-            previous_tare_offset
-        );
-
-        tare_available =
-            previous_tare_available;
-
-        measurement_available = false;
-        level_indicator_reset();
-
-        operation_indicator_show_error(
-            return_mode
+        CONSOLE_PRINTLN(
+            "ERROR: Invalid tare sample collection state."
         );
 
         CONSOLE_PRINTLN(
-            "ERROR: New tare offset could not be saved."
+            "The previous tare offset remains active."
         );
 
-        CONSOLE_PRINTLN(
-            "The previous tare offset has been restored."
-        );
-
+        finish_tare_with_error();
         console_newline();
-        console_discard_input();
-
-        return false;
+        return;
     }
 
-    tare_available = true;
-    app_state = APP_STATE_NORMAL_OPERATION;
+    const uint32_t now = hal_time_millis();
 
-    operation_indicator_clear();
+    if ((uint32_t)(now - operation_started_ms) <
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS)
+    {
+        return;
+    }
 
-    CONSOLE_PRINT("New tare offset: ");
-    console_print_int32(
-        scale_get_offset()
+    CONSOLE_PRINTLN(
+        "ERROR: Tare sample collection timed out."
     );
+
+    CONSOLE_PRINTLN(
+        "The previous tare offset remains active."
+    );
+
+    finish_tare_with_error();
     console_newline();
-
-    /*
-     * The previous measurement is no longer valid
-     * because the tare offset has changed.
-     */
-    measurement_available = false;
-    level_indicator_reset();
-
-    CONSOLE_PRINTLN("Tare completed and saved.");
-    console_newline();
-
-    /*
-     * scale_tare() blocks the application loop, but
-     * USART reception continues through its interrupt.
-     *
-     * Discard commands received while the tare was in
-     * progress so they are not executed afterwards.
-     *
-     * This makes serial input consistent with physical
-     * button presses, which are not processed while the
-     * application is blocked.
-     */
-    console_discard_input();
-
-    return true;
 }
 
 
@@ -865,7 +1092,7 @@ static void process_console_commands(void)
             }
             else
             {
-                perform_tare();
+                start_tare();
             }
 
             break;
@@ -926,7 +1153,9 @@ static void process_console_commands(void)
             CONSOLE_PRINTLN("Available commands:");
             CONSOLE_PRINTLN("  t = tare");
             CONSOLE_PRINTLN("  c = start/confirm calibration");
-            CONSOLE_PRINTLN("  q = cancel calibration");
+            CONSOLE_PRINTLN(
+                "  q = cancel current tare/calibration"
+            );
             CONSOLE_PRINTLN("  s = save active calibration");
             CONSOLE_PRINTLN("  x = clear stored calibration");
             CONSOLE_PRINTLN("  z = clear stored tare");
@@ -1006,7 +1235,7 @@ static void print_runtime_information(void)
     );
 
     CONSOLE_PRINTLN(
-        "  Serial command 'q'    = cancel calibration"
+        "  Serial command 'q'    = cancel current tare/calibration"
     );
 
     CONSOLE_PRINTLN(
@@ -1291,6 +1520,10 @@ static bool process_cooperative_base_state(void)
             process_fault_input();
             return true;
 
+        case APP_STATE_TARE_SAMPLING:
+            update_tare_sampling();
+            return true;
+
         case APP_STATE_TARE_REQUIRED:
         case APP_STATE_NORMAL_OPERATION:
             return false;
@@ -1339,6 +1572,9 @@ void app_init(void)
 
     last_print_ms = 0UL;
     operation_started_ms = hal_time_millis();
+
+    tare_return_state =
+        APP_STATE_TARE_REQUIRED;
 
     app_state = APP_STATE_STARTUP_WAIT_FOR_SCALE;
 
@@ -1401,6 +1637,15 @@ void app_update(void)
     process_console_commands();
 
     /*
+     * A serial 't' command may have started an
+     * incremental tare in this iteration.
+     */
+    if (app_state == APP_STATE_TARE_SAMPLING)
+    {
+        return;
+    }
+
+    /*
      * A console command may have started a temporary
      * success or error pattern.
      */
@@ -1460,9 +1705,14 @@ void app_update(void)
             &tare_button,
             TARE_START_HOLD_MS))
     {
-        perform_tare();
+        start_tare();
 
         if (operation_indicator_is_temporary_active())
+        {
+            return;
+        }
+
+        if (app_state == APP_STATE_TARE_SAMPLING)
         {
             return;
         }

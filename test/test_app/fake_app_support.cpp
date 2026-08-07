@@ -23,10 +23,20 @@ static uint32_t current_time_ms = 0UL;
 static bool scale_init_result = true;
 static bool scale_ready = false;
 static bool scale_factor_result = true;
+static bool scale_collection_start_result = true;
+static scale_sample_collection_status_t
+    scale_collection_status =
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS;
+static bool scale_sample_average_available = true;
+static int32_t scale_sample_average = 0;
 
 static uint32_t scale_init_calls = 0UL;
 static uint32_t scale_ready_calls = 0UL;
 static uint32_t scale_cancel_calls = 0UL;
+static uint32_t scale_collection_start_calls = 0UL;
+static uint32_t scale_collection_update_calls = 0UL;
+static uint32_t scale_average_take_calls = 0UL;
+static uint8_t last_requested_sample_count = 0U;
 static uint32_t scale_tare_calls = 0UL;
 static uint32_t scale_weight_read_calls = 0UL;
 
@@ -43,9 +53,16 @@ static uint32_t calibration_load_calls = 0UL;
 static bool tare_record_available = false;
 static int32_t stored_tare_offset = 0;
 static uint32_t tare_load_calls = 0UL;
+static bool tare_save_result = true;
+static uint32_t tare_save_calls = 0UL;
+static int32_t last_saved_tare_offset = 0;
+static int32_t scale_offset_when_tare_was_saved = 0;
 
 static operation_indicator_mode_t operation_mode =
     OPERATION_INDICATOR_NONE;
+static operation_indicator_mode_t
+    operation_return_mode =
+        OPERATION_INDICATOR_NONE;
 
 static uint32_t operation_update_calls = 0UL;
 static uint32_t level_reset_calls = 0UL;
@@ -55,11 +72,14 @@ static char pending_console_command = '\0';
 
 static bool queue_command_during_tare_load = false;
 static char tare_load_console_command = '\0';
+static bool queue_command_during_tare_save = false;
+static char tare_save_console_command = '\0';
 
 static char console_output[CONSOLE_OUTPUT_CAPACITY];
 static size_t console_output_length = 0U;
 
 static bool tare_button_press_pending = false;
+static bool tare_button_hold_pending = false;
 static bool calibration_button_press_pending = false;
 
 static uint32_t tare_button_suppression_calls = 0UL;
@@ -116,10 +136,19 @@ void fake_app_reset(void)
     scale_init_result = true;
     scale_ready = false;
     scale_factor_result = true;
+    scale_collection_start_result = true;
+    scale_collection_status =
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS;
+    scale_sample_average_available = true;
+    scale_sample_average = 0;
 
     scale_init_calls = 0UL;
     scale_ready_calls = 0UL;
     scale_cancel_calls = 0UL;
+    scale_collection_start_calls = 0UL;
+    scale_collection_update_calls = 0UL;
+    scale_average_take_calls = 0UL;
+    last_requested_sample_count = 0U;
     scale_tare_calls = 0UL;
     scale_weight_read_calls = 0UL;
 
@@ -136,8 +165,14 @@ void fake_app_reset(void)
     tare_record_available = false;
     stored_tare_offset = 0;
     tare_load_calls = 0UL;
+    tare_save_result = true;
+    tare_save_calls = 0UL;
+    last_saved_tare_offset = 0;
+    scale_offset_when_tare_was_saved = 0;
 
     operation_mode = OPERATION_INDICATOR_NONE;
+    operation_return_mode =
+        OPERATION_INDICATOR_NONE;
     operation_update_calls = 0UL;
     level_reset_calls = 0UL;
 
@@ -146,11 +181,14 @@ void fake_app_reset(void)
 
     queue_command_during_tare_load = false;
     tare_load_console_command = '\0';
+    queue_command_during_tare_save = false;
+    tare_save_console_command = '\0';
 
     console_output[0] = '\0';
     console_output_length = 0U;
 
     tare_button_press_pending = false;
+    tare_button_hold_pending = false;
     calibration_button_press_pending = false;
 
     tare_button_suppression_calls = 0UL;
@@ -182,6 +220,32 @@ void fake_app_set_scale_ready(bool ready)
 }
 
 
+void fake_app_set_scale_collection_start_result(
+    bool result
+)
+{
+    scale_collection_start_result = result;
+}
+
+
+void fake_app_set_scale_collection_status(
+    scale_sample_collection_status_t status
+)
+{
+    scale_collection_status = status;
+}
+
+
+void fake_app_set_scale_sample_average(
+    bool available,
+    int32_t average_raw
+)
+{
+    scale_sample_average_available = available;
+    scale_sample_average = average_raw;
+}
+
+
 uint32_t fake_app_scale_init_call_count(void)
 {
     return scale_init_calls;
@@ -197,6 +261,30 @@ uint32_t fake_app_scale_ready_call_count(void)
 uint32_t fake_app_scale_cancel_call_count(void)
 {
     return scale_cancel_calls;
+}
+
+
+uint32_t fake_app_scale_collection_start_call_count(void)
+{
+    return scale_collection_start_calls;
+}
+
+
+uint32_t fake_app_scale_collection_update_call_count(void)
+{
+    return scale_collection_update_calls;
+}
+
+
+uint32_t fake_app_scale_average_take_call_count(void)
+{
+    return scale_average_take_calls;
+}
+
+
+uint8_t fake_app_last_requested_sample_count(void)
+{
+    return last_requested_sample_count;
 }
 
 
@@ -262,6 +350,30 @@ uint32_t fake_app_tare_load_call_count(void)
 }
 
 
+void fake_app_set_tare_save_result(bool result)
+{
+    tare_save_result = result;
+}
+
+
+uint32_t fake_app_tare_save_call_count(void)
+{
+    return tare_save_calls;
+}
+
+
+int32_t fake_app_last_saved_tare_offset(void)
+{
+    return last_saved_tare_offset;
+}
+
+
+int32_t fake_app_scale_offset_when_tare_was_saved(void)
+{
+    return scale_offset_when_tare_was_saved;
+}
+
+
 uint32_t fake_app_scale_offset_set_call_count(void)
 {
     return scale_offset_set_calls;
@@ -278,6 +390,13 @@ operation_indicator_mode_t
 fake_app_operation_indicator_mode(void)
 {
     return operation_mode;
+}
+
+
+operation_indicator_mode_t
+fake_app_operation_indicator_return_mode(void)
+{
+    return operation_return_mode;
 }
 
 
@@ -309,6 +428,15 @@ void fake_app_queue_console_command_during_tare_load(
 }
 
 
+void fake_app_queue_console_command_during_tare_save(
+    char command
+)
+{
+    tare_save_console_command = command;
+    queue_command_during_tare_save = true;
+}
+
+
 bool fake_app_console_input_is_pending(void)
 {
     return console_command_pending;
@@ -324,6 +452,12 @@ const char *fake_app_console_output(void)
 void fake_app_press_tare_button(void)
 {
     tare_button_press_pending = true;
+}
+
+
+void fake_app_hold_tare_button(void)
+{
+    tare_button_hold_pending = true;
 }
 
 
@@ -406,8 +540,17 @@ bool button_was_held(
     uint32_t hold_ms
 )
 {
-    (void)button;
     (void)hold_ms;
+
+    if ((button != NULL) &&
+        (button->pin == TARE_BUTTON_PIN))
+    {
+        const bool was_held =
+            tare_button_hold_pending;
+
+        tare_button_hold_pending = false;
+        return was_held;
+    }
 
     return false;
 }
@@ -572,6 +715,8 @@ const char *level_indicator_get_state_name(void)
 void operation_indicator_init(void)
 {
     operation_mode = OPERATION_INDICATOR_NONE;
+    operation_return_mode =
+        OPERATION_INDICATOR_NONE;
 }
 
 
@@ -580,12 +725,16 @@ void operation_indicator_set_mode(
 )
 {
     operation_mode = mode;
+    operation_return_mode =
+        OPERATION_INDICATOR_NONE;
 }
 
 
 void operation_indicator_show_success(void)
 {
     operation_mode = OPERATION_INDICATOR_SUCCESS;
+    operation_return_mode =
+        OPERATION_INDICATOR_NONE;
 }
 
 
@@ -593,7 +742,7 @@ void operation_indicator_show_error(
     operation_indicator_mode_t return_mode
 )
 {
-    (void)return_mode;
+    operation_return_mode = return_mode;
     operation_mode = OPERATION_INDICATOR_ERROR;
 }
 
@@ -615,6 +764,8 @@ void operation_indicator_update(void)
 void operation_indicator_clear(void)
 {
     operation_mode = OPERATION_INDICATOR_NONE;
+    operation_return_mode =
+        OPERATION_INDICATOR_NONE;
 }
 
 
@@ -658,6 +809,59 @@ void scale_set_offset(int32_t tare_offset)
 void scale_cancel_sample_collection(void)
 {
     ++scale_cancel_calls;
+
+    scale_collection_status =
+        SCALE_SAMPLE_COLLECTION_IDLE;
+}
+
+
+bool scale_start_sample_collection(
+    uint8_t sample_count
+)
+{
+    ++scale_collection_start_calls;
+    last_requested_sample_count = sample_count;
+
+    if (!scale_collection_start_result)
+    {
+        return false;
+    }
+
+    scale_collection_status =
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS;
+
+    return true;
+}
+
+
+scale_sample_collection_status_t
+scale_update_sample_collection(void)
+{
+    ++scale_collection_update_calls;
+    return scale_collection_status;
+}
+
+
+bool scale_take_sample_average(
+    int32_t *average_raw
+)
+{
+    ++scale_average_take_calls;
+
+    if ((average_raw == NULL) ||
+        !scale_sample_average_available ||
+        (scale_collection_status !=
+            SCALE_SAMPLE_COLLECTION_COMPLETE))
+    {
+        return false;
+    }
+
+    *average_raw = scale_sample_average;
+
+    scale_collection_status =
+        SCALE_SAMPLE_COLLECTION_IDLE;
+
+    return true;
 }
 
 
@@ -766,8 +970,21 @@ bool tare_storage_load(int32_t *tare_offset)
 
 bool tare_storage_save(int32_t tare_offset)
 {
-    (void)tare_offset;
-    return true;
+    ++tare_save_calls;
+    last_saved_tare_offset = tare_offset;
+    scale_offset_when_tare_was_saved =
+        active_scale_offset;
+
+    if (queue_command_during_tare_save)
+    {
+        pending_console_command =
+            tare_save_console_command;
+
+        console_command_pending = true;
+        queue_command_during_tare_save = false;
+    }
+
+    return tare_save_result;
 }
 
 

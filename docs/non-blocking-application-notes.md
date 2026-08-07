@@ -664,10 +664,10 @@ and makes later fault handling possible.
 
 ## Timing constants
 
-The application configuration will expose named timeout values rather than
-keeping the startup timeout private inside `scale.cpp`.
+The application configuration exposes named timeout values rather than
+keeping timeout policy private inside `scale.cpp`.
 
-Planned direction:
+Current configuration:
 
 ```cpp
 static const uint32_t SCALE_STARTUP_TIMEOUT_MS =

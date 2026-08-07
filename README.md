@@ -126,11 +126,12 @@ While `TARE_REQUIRED` is active, normal level indication is disabled because the
 
 - **D4 short press during normal operation:** ignored.
 - **D4 hold for approximately 3 seconds:** perform and persist tare.
+- **New D4 press during tare:** cancel the active tare.
 - **D4 during calibration:** cancel calibration immediately.
 - **D8 hold for approximately 3 seconds:** start calibration.
 - **D8 short press during calibration:** confirm the current calibration step.
 
-A D4 press used to cancel calibration is suppressed until release, so the same physical press cannot later be reinterpreted as a tare hold.
+A D4 press consumed during tare or used to cancel an operation is suppressed until release, so the same physical press cannot later be reinterpreted as a tare hold.
 
 ### Serial console
 
@@ -149,7 +150,7 @@ Commands are case-insensitive:
 |---|---|
 | `t` | Perform and persist tare immediately |
 | `c` | Start or confirm calibration |
-| `q` | Cancel calibration |
+| `q` | Cancel the active tare or calibration |
 | `s` | Save the active calibration factor |
 | `x` | Clear only the stored calibration record |
 | `z` | Clear only the stored tare record and enter `TARE_REQUIRED` |
@@ -432,19 +433,19 @@ Validated test inventory:
 | `native_level_indicator` | 14 |
 | `native_operation_indicator` | 16 |
 | `native_scale` | 47 |
-| `native_app` | 12 |
+| `native_app` | 24 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **248** |
+| **Total** | **260** |
 
 Validated result:
 
 ```text
 Suites passed: 11/11
-Tests passed:  248/248
+Tests passed:  260/260
 Failures:      0
 Exit code:     0
 ```
