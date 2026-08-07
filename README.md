@@ -236,6 +236,11 @@ Calibration may be started from normal operation or from `TARE_REQUIRED`.
 
 Press D4 at any calibration stage to cancel.
 
+Both the zero and reference-mass phases collect their 20 HX711 samples
+cooperatively. Buttons, UART input and LED patterns continue to be processed
+between conversions, and cancellation is evaluated before the next sample is
+read.
+
 If calibration is cancelled after the zero stage, the newly confirmed tare remains stored while the previous calibration factor remains active.
 
 ### Using the serial console
@@ -432,20 +437,20 @@ Validated test inventory:
 | `native_hx711` | 18 |
 | `native_level_indicator` | 14 |
 | `native_operation_indicator` | 16 |
-| `native_scale` | 47 |
-| `native_app` | 24 |
+| `native_scale` | 32 |
+| `native_app` | 46 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **260** |
+| **Total** | **267** |
 
 Validated result:
 
 ```text
 Suites passed: 11/11
-Tests passed:  260/260
+Tests passed:  267/267
 Failures:      0
 Exit code:     0
 ```

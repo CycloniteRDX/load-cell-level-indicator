@@ -102,43 +102,6 @@ bool scale_try_read_weight(float *weight_grams);
 
 
 /*
- * Transitional application API retained only while
- * app.cpp is migrated to the new scale operations.
- */
-
-
-/*
- * Sets the current load as the zero reference.
- *
- * Returns true when all tare samples were collected
- * and the new offset was applied.
- */
-bool scale_tare(void);
-
-
-/*
- * Attempts to obtain a new weight measurement.
- *
- * Returns true when a new measurement was available.
- * The result is written to weight_grams.
- */
-bool scale_read_weight(float *weight_grams);
-
-
-/*
- * Reads averaged raw ADC counts after subtracting
- * the current tare offset.
- *
- * This operation is blocking while the requested
- * samples are collected.
- */
-bool scale_read_net_counts(
-    float *net_counts,
-    uint8_t samples
-);
-
-
-/*
  * Returns the current tare offset in raw ADC counts.
  */
 int32_t scale_get_offset(void);

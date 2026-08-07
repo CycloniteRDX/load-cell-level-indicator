@@ -71,7 +71,7 @@ document explicitly defines a change.
 
 ---
 
-## Current blocking paths
+## `v1.1` baseline blocking paths
 
 | Path | Current behaviour | Approximate consequence |
 | --- | --- | --- |
@@ -321,7 +321,7 @@ measurement-robustness milestone.
 
 ### Incremental sample collection
 
-Planned public status:
+Current public status:
 
 ```cpp
 typedef enum
@@ -333,7 +333,7 @@ typedef enum
 } scale_sample_collection_status_t;
 ```
 
-Planned public operations:
+Current public operations:
 
 ```cpp
 bool scale_start_sample_collection(
@@ -350,7 +350,7 @@ bool scale_take_sample_average(
 void scale_cancel_sample_collection(void);
 ```
 
-The existing blocking public functions will be removed:
+The calibration migration removed the old blocking public functions:
 
 ```cpp
 bool scale_tare(void);
@@ -361,12 +361,12 @@ bool scale_read_net_counts(
 );
 ```
 
-Removing them prevents a future caller from accidentally reintroducing the old
+Their removal prevents a future caller from accidentally reintroducing the old
 multi-conversion blocking behaviour.
 
 ### Collector invariants
 
-The scale module will own:
+The scale module owns:
 
 ```text
 collector status
@@ -537,7 +537,7 @@ net counts
     = calibration factor in counts/g
 ```
 
-The application will preserve the existing checks:
+The application preserves the existing checks:
 
 - Reject a reference signal whose absolute net count is below
   `MINIMUM_CALIBRATION_SIGNAL_COUNTS`.
@@ -782,10 +782,10 @@ transition coverage.
 
 ### Regression tests
 
-All existing native environments must continue to pass. Existing scale tests
-that directly call the removed blocking APIs will be rewritten around the
-incremental contract while preserving their previous arithmetic, failure and
-boundary assertions.
+All existing native environments continue to pass. Tests that directly called
+the removed blocking APIs were retired; their arithmetic, failure and boundary
+coverage now belongs to the incremental collector tests and the application
+transition tests that compose the collector into tare and calibration.
 
 ---
 
@@ -893,21 +893,21 @@ commit must retain a clear single purpose.
 
 ## Definition of done
 
-- [ ] `app_init()` contains no permanent wait or error loop.
-- [ ] Scale startup readiness is polled from `app_update()`.
-- [ ] Tare collection reads at most one ready sample per update.
-- [ ] Calibration collection reads at most one ready sample per update.
-- [ ] Blocking `scale_tare()` and `scale_read_net_counts()` are removed.
-- [ ] Normal weight acquisition cannot start a multi-sample loop.
-- [ ] Startup and sample collection use overflow-safe timeouts.
-- [ ] Sampling operations can be cancelled between conversions.
-- [ ] Buttons are sampled during long operations.
-- [ ] UART input received during long operations has an immediate explicit
+- [x] `app_init()` contains no permanent wait or error loop.
+- [x] Scale startup readiness is polled from `app_update()`.
+- [x] Tare collection reads at most one ready sample per update.
+- [x] Calibration collection reads at most one ready sample per update.
+- [x] Blocking `scale_tare()` and `scale_read_net_counts()` are removed.
+- [x] Normal weight acquisition cannot start a multi-sample loop.
+- [x] Startup and sample collection use overflow-safe timeouts.
+- [x] Sampling operations can be cancelled between conversions.
+- [x] Buttons are sampled during long operations.
+- [x] UART input received during long operations has an immediate explicit
       policy.
 - [ ] No command remains queued for execution in a later state.
 - [ ] Temporary result patterns are represented by an application state.
-- [ ] Startup failures enter a cooperative latched fault state.
-- [ ] Runtime tare and calibration rollback guarantees are preserved.
+- [x] Startup failures enter a cooperative latched fault state.
+- [x] Runtime tare and calibration rollback guarantees are preserved.
 - [ ] All native tests pass, including scale and application transition tests.
 - [ ] Direct AVR and Arduino reference firmware builds pass.
 - [ ] Flash and SRAM usage are recorded.

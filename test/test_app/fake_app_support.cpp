@@ -37,7 +37,6 @@ static uint32_t scale_collection_start_calls = 0UL;
 static uint32_t scale_collection_update_calls = 0UL;
 static uint32_t scale_average_take_calls = 0UL;
 static uint8_t last_requested_sample_count = 0U;
-static uint32_t scale_tare_calls = 0UL;
 static uint32_t scale_weight_read_calls = 0UL;
 
 static float active_scale_factor = 1.0F;
@@ -49,6 +48,11 @@ static uint32_t scale_offset_set_calls = 0UL;
 static bool calibration_record_available = false;
 static float stored_calibration_factor = 0.0F;
 static uint32_t calibration_load_calls = 0UL;
+static bool calibration_save_result = true;
+static uint32_t calibration_save_calls = 0UL;
+static float last_saved_calibration_factor = 0.0F;
+static float scale_factor_when_calibration_was_saved =
+    0.0F;
 
 static bool tare_record_available = false;
 static int32_t stored_tare_offset = 0;
@@ -74,6 +78,8 @@ static bool queue_command_during_tare_load = false;
 static char tare_load_console_command = '\0';
 static bool queue_command_during_tare_save = false;
 static char tare_save_console_command = '\0';
+static bool queue_command_during_calibration_save = false;
+static char calibration_save_console_command = '\0';
 
 static char console_output[CONSOLE_OUTPUT_CAPACITY];
 static size_t console_output_length = 0U;
@@ -149,7 +155,6 @@ void fake_app_reset(void)
     scale_collection_update_calls = 0UL;
     scale_average_take_calls = 0UL;
     last_requested_sample_count = 0U;
-    scale_tare_calls = 0UL;
     scale_weight_read_calls = 0UL;
 
     active_scale_factor = 1.0F;
@@ -161,6 +166,11 @@ void fake_app_reset(void)
     calibration_record_available = false;
     stored_calibration_factor = 0.0F;
     calibration_load_calls = 0UL;
+    calibration_save_result = true;
+    calibration_save_calls = 0UL;
+    last_saved_calibration_factor = 0.0F;
+    scale_factor_when_calibration_was_saved =
+        0.0F;
 
     tare_record_available = false;
     stored_tare_offset = 0;
@@ -183,6 +193,8 @@ void fake_app_reset(void)
     tare_load_console_command = '\0';
     queue_command_during_tare_save = false;
     tare_save_console_command = '\0';
+    queue_command_during_calibration_save = false;
+    calibration_save_console_command = '\0';
 
     console_output[0] = '\0';
     console_output_length = 0U;
@@ -288,12 +300,6 @@ uint8_t fake_app_last_requested_sample_count(void)
 }
 
 
-uint32_t fake_app_scale_tare_call_count(void)
-{
-    return scale_tare_calls;
-}
-
-
 uint32_t fake_app_scale_weight_read_call_count(void)
 {
     return scale_weight_read_calls;
@@ -316,9 +322,21 @@ void fake_app_set_scale_factor_result(bool result)
 }
 
 
+void fake_app_set_calibration_save_result(bool result)
+{
+    calibration_save_result = result;
+}
+
+
 uint32_t fake_app_calibration_load_call_count(void)
 {
     return calibration_load_calls;
+}
+
+
+uint32_t fake_app_calibration_save_call_count(void)
+{
+    return calibration_save_calls;
 }
 
 
@@ -331,6 +349,18 @@ uint32_t fake_app_scale_factor_set_call_count(void)
 float fake_app_last_scale_factor(void)
 {
     return active_scale_factor;
+}
+
+
+float fake_app_last_saved_calibration_factor(void)
+{
+    return last_saved_calibration_factor;
+}
+
+
+float fake_app_scale_factor_when_calibration_was_saved(void)
+{
+    return scale_factor_when_calibration_was_saved;
 }
 
 
@@ -400,6 +430,14 @@ fake_app_operation_indicator_return_mode(void)
 }
 
 
+void fake_app_complete_operation_pattern(void)
+{
+    operation_mode = operation_return_mode;
+    operation_return_mode =
+        OPERATION_INDICATOR_NONE;
+}
+
+
 uint32_t fake_app_operation_indicator_update_call_count(void)
 {
     return operation_update_calls;
@@ -434,6 +472,15 @@ void fake_app_queue_console_command_during_tare_save(
 {
     tare_save_console_command = command;
     queue_command_during_tare_save = true;
+}
+
+
+void fake_app_queue_console_command_during_calibration_save(
+    char command
+)
+{
+    calibration_save_console_command = command;
+    queue_command_during_calibration_save = true;
 }
 
 
@@ -865,30 +912,11 @@ bool scale_take_sample_average(
 }
 
 
-bool scale_tare(void)
-{
-    ++scale_tare_calls;
-    return false;
-}
-
-
 bool scale_try_read_weight(float *weight_grams)
 {
     (void)weight_grams;
 
     ++scale_weight_read_calls;
-    return false;
-}
-
-
-bool scale_read_net_counts(
-    float *net_counts,
-    uint8_t samples
-)
-{
-    (void)net_counts;
-    (void)samples;
-
     return false;
 }
 
@@ -930,8 +958,23 @@ bool calibration_storage_save(
     float calibration_factor
 )
 {
-    (void)calibration_factor;
-    return true;
+    ++calibration_save_calls;
+    last_saved_calibration_factor =
+        calibration_factor;
+
+    scale_factor_when_calibration_was_saved =
+        active_scale_factor;
+
+    if (queue_command_during_calibration_save)
+    {
+        pending_console_command =
+            calibration_save_console_command;
+
+        console_command_pending = true;
+        queue_command_during_calibration_save = false;
+    }
+
+    return calibration_save_result;
 }
 
 

@@ -35,7 +35,6 @@ uint32_t fake_app_scale_collection_start_call_count(void);
 uint32_t fake_app_scale_collection_update_call_count(void);
 uint32_t fake_app_scale_average_take_call_count(void);
 uint8_t fake_app_last_requested_sample_count(void);
-uint32_t fake_app_scale_tare_call_count(void);
 uint32_t fake_app_scale_weight_read_call_count(void);
 
 
@@ -45,10 +44,14 @@ void fake_app_set_calibration_record(
 );
 
 void fake_app_set_scale_factor_result(bool result);
+void fake_app_set_calibration_save_result(bool result);
 
 uint32_t fake_app_calibration_load_call_count(void);
+uint32_t fake_app_calibration_save_call_count(void);
 uint32_t fake_app_scale_factor_set_call_count(void);
 float fake_app_last_scale_factor(void);
+float fake_app_last_saved_calibration_factor(void);
+float fake_app_scale_factor_when_calibration_was_saved(void);
 
 
 void fake_app_set_tare_record(
@@ -71,6 +74,8 @@ fake_app_operation_indicator_mode(void);
 operation_indicator_mode_t
 fake_app_operation_indicator_return_mode(void);
 
+void fake_app_complete_operation_pattern(void);
+
 uint32_t fake_app_operation_indicator_update_call_count(void);
 uint32_t fake_app_level_reset_call_count(void);
 
@@ -80,6 +85,9 @@ void fake_app_queue_console_command_during_tare_load(
     char command
 );
 void fake_app_queue_console_command_during_tare_save(
+    char command
+);
+void fake_app_queue_console_command_during_calibration_save(
     char command
 );
 bool fake_app_console_input_is_pending(void);

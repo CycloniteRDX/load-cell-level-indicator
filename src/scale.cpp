@@ -33,40 +33,6 @@ static void scale_reset_sample_collection(void)
     completed_sample_average = 0;
 }
 
-static bool scale_read_average_raw(
-    int32_t *average_raw,
-    uint8_t samples
-)
-{
-    if ((average_raw == NULL) || (samples == 0U))
-    {
-        return false;
-    }
-
-    int32_t raw_sum = 0;
-
-    for (uint8_t sample_index = 0U;
-         sample_index < samples;
-         ++sample_index)
-    {
-        int32_t raw_value = 0;
-
-        const hx711_status_t status =
-            hx711_read_raw(&hx711_device, &raw_value);
-
-        if (status != HX711_STATUS_OK)
-        {
-            return false;
-        }
-
-        raw_sum += raw_value;
-    }
-
-    *average_raw = raw_sum / (int32_t)samples;
-
-    return true;
-}
-
 bool scale_init(void)
 {
     const hx711_status_t init_status = hx711_init(
@@ -217,22 +183,6 @@ void scale_cancel_sample_collection(void)
     scale_reset_sample_collection();
 }
 
-bool scale_tare(void)
-{
-    int32_t new_tare_offset = 0;
-
-    if (!scale_read_average_raw(
-            &new_tare_offset,
-            TARE_SAMPLES))
-    {
-        return false;
-    }
-
-    tare_offset = new_tare_offset;
-
-    return true;
-}
-
 bool scale_try_read_weight(float *weight_grams)
 {
     if (weight_grams == NULL)
@@ -273,36 +223,6 @@ bool scale_try_read_weight(float *weight_grams)
     return true;
 }
 
-
-bool scale_read_weight(float *weight_grams)
-{
-    return scale_try_read_weight(weight_grams);
-}
-
-bool scale_read_net_counts(
-    float *net_counts,
-    uint8_t samples
-)
-{
-    if ((net_counts == NULL) || (samples == 0U))
-    {
-        return false;
-    }
-
-    int32_t average_raw = 0;
-
-    if (!scale_read_average_raw(
-            &average_raw,
-            samples))
-    {
-        return false;
-    }
-
-    *net_counts =
-        (float)(average_raw - tare_offset);
-
-    return true;
-}
 
 int32_t scale_get_offset(void)
 {

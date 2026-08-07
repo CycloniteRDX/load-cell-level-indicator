@@ -72,6 +72,59 @@ static void start_serial_tare(void)
 }
 
 
+static void start_calibration_waiting_for_zero(void)
+{
+    fake_app_queue_console_command('c');
+    app_update();
+}
+
+
+static void start_calibration_zero_sampling(void)
+{
+    start_calibration_waiting_for_zero();
+
+    fake_app_queue_console_command('c');
+    app_update();
+}
+
+
+static void complete_calibration_zero(
+    int32_t tare_offset
+)
+{
+    fake_app_set_scale_sample_average(
+        true,
+        tare_offset
+    );
+
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_COMPLETE
+    );
+
+    app_update();
+}
+
+
+static void reach_calibration_mass_wait(
+    int32_t tare_offset
+)
+{
+    start_calibration_zero_sampling();
+    complete_calibration_zero(tare_offset);
+}
+
+
+static void start_calibration_mass_sampling(
+    int32_t tare_offset
+)
+{
+    reach_calibration_mass_wait(tare_offset);
+
+    fake_app_queue_console_command('c');
+    app_update();
+}
+
+
 static void test_init_configures_scale_without_polling_or_loading_storage(void)
 {
     app_init();
@@ -328,11 +381,6 @@ static void test_valid_stored_configuration_is_loaded_once(void)
         fake_app_scale_weight_read_call_count()
     );
 
-    TEST_ASSERT_EQUAL_UINT32(
-        0UL,
-        fake_app_scale_tare_call_count()
-    );
-
     app_update();
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -365,11 +413,6 @@ static void test_missing_tare_selects_tare_required_and_disables_measurement(voi
     TEST_ASSERT_EQUAL_INT(
         OPERATION_INDICATOR_TARE_REQUIRED,
         fake_app_operation_indicator_mode()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        0UL,
-        fake_app_scale_tare_call_count()
     );
 
     app_update();
@@ -437,11 +480,6 @@ static void test_startup_commands_and_presses_are_consumed(void)
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        0UL,
-        fake_app_scale_tare_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
         1UL,
         fake_app_tare_button_suppression_count()
     );
@@ -474,17 +512,7 @@ static void test_input_received_during_configuration_is_not_executed_later(void)
         fake_app_console_input_is_pending()
     );
 
-    TEST_ASSERT_EQUAL_UINT32(
-        0UL,
-        fake_app_scale_tare_call_count()
-    );
-
     app_update();
-
-    TEST_ASSERT_EQUAL_UINT32(
-        0UL,
-        fake_app_scale_tare_call_count()
-    );
 }
 
 
@@ -518,11 +546,6 @@ static void test_fault_is_latched_and_rejects_commands(void)
         fake_app_calibration_load_call_count()
     );
 
-    TEST_ASSERT_EQUAL_UINT32(
-        0UL,
-        fake_app_scale_tare_call_count()
-    );
-
     TEST_ASSERT_FALSE(
         fake_app_console_input_is_pending()
     );
@@ -552,11 +575,6 @@ static void test_serial_tare_starts_incremental_collection_without_blocking(void
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
         fake_app_scale_collection_update_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        0UL,
-        fake_app_scale_tare_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -1004,6 +1022,756 @@ static void test_tare_start_failure_restores_previous_idle_state(void)
 }
 
 
+static void test_calibration_entry_waits_for_zero_without_starting_collection(void)
+{
+    load_configuration_with_tare(-172706);
+
+    start_calibration_waiting_for_zero();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_ZERO,
+        fake_app_operation_indicator_mode()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_weight_read_call_count()
+    );
+}
+
+
+static void test_zero_confirmation_starts_incremental_collection(void)
+{
+    load_configuration_with_tare(-172706);
+
+    start_calibration_zero_sampling();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT8(
+        TARE_SAMPLES,
+        fake_app_last_requested_sample_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_TARE,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_zero_sampling_updates_once_and_rejects_other_input(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_zero_sampling();
+
+    fake_app_press_calibration_button();
+    fake_app_queue_console_command('s');
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_FALSE(
+        fake_app_console_input_is_pending()
+    );
+
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT32(
+        1UL,
+        fake_app_calibration_button_suppression_count()
+    );
+
+    assert_console_contains(
+        "Calibration sampling is in progress."
+    );
+}
+
+
+static void test_serial_q_cancels_zero_before_next_sample(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_zero_sampling();
+
+    fake_app_queue_console_command('q');
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_cancel_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        -172706,
+        fake_app_last_scale_offset()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains("Calibration cancelled.");
+}
+
+
+static void test_tare_button_cancels_zero_and_restores_tare_required(void)
+{
+    load_configuration();
+    start_calibration_zero_sampling();
+
+    fake_app_press_tare_button();
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_cancel_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_TARE_REQUIRED,
+        fake_app_operation_indicator_mode()
+    );
+
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT32(
+        1UL,
+        fake_app_tare_button_suppression_count()
+    );
+}
+
+
+static void test_completed_zero_saves_before_applying_and_survives_later_cancel(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_zero_sampling();
+
+    fake_app_queue_console_command_during_tare_save(
+        'c'
+    );
+
+    complete_calibration_zero(-172802);
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_tare_save_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        -172802,
+        fake_app_last_saved_tare_offset()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        -172706,
+        fake_app_scale_offset_when_tare_was_saved()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        -172802,
+        fake_app_last_scale_offset()
+    );
+
+    TEST_ASSERT_FALSE(
+        fake_app_console_input_is_pending()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_MASS,
+        fake_app_operation_indicator_mode()
+    );
+
+    fake_app_queue_console_command('q');
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT32(
+        -172802,
+        fake_app_last_scale_offset()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_zero_save_failure_preserves_previous_offset_and_allows_retry(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_zero_sampling();
+
+    fake_app_set_tare_save_result(false);
+    complete_calibration_zero(-172802);
+
+    TEST_ASSERT_EQUAL_INT32(
+        -172706,
+        fake_app_last_scale_offset()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_offset_set_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_ERROR,
+        fake_app_operation_indicator_mode()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_ZERO,
+        fake_app_operation_indicator_return_mode()
+    );
+
+    fake_app_complete_operation_pattern();
+    fake_app_set_tare_save_result(true);
+    fake_app_queue_console_command('c');
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        2UL,
+        fake_app_scale_collection_start_call_count()
+    );
+}
+
+
+static void test_zero_read_error_returns_to_zero_wait(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_zero_sampling();
+
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_ERROR
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_tare_save_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        -172706,
+        fake_app_last_scale_offset()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_ZERO,
+        fake_app_operation_indicator_return_mode()
+    );
+
+    assert_console_contains(
+        "ERROR: Calibration tare samples could not be read."
+    );
+}
+
+
+static void test_zero_timeout_is_exact_and_handles_millisecond_overflow(void)
+{
+    fake_app_set_time_ms(UINT32_MAX - 1000UL);
+
+    load_configuration_with_tare(-172706);
+    start_calibration_zero_sampling();
+
+    fake_app_advance_time_ms(
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS - 1UL
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_cancel_call_count()
+    );
+
+    fake_app_advance_time_ms(1UL);
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_cancel_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_ZERO,
+        fake_app_operation_indicator_return_mode()
+    );
+
+    assert_console_contains(
+        "ERROR: Calibration tare sample collection timed out."
+    );
+}
+
+
+static void test_completed_zero_wins_at_timeout_deadline(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_zero_sampling();
+
+    fake_app_advance_time_ms(
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS
+    );
+
+    complete_calibration_zero(-172802);
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_tare_save_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_cancel_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_MASS,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_zero_collection_start_failure_returns_to_zero_wait(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_waiting_for_zero();
+
+    fake_app_set_scale_collection_start_result(false);
+    fake_app_queue_console_command('c');
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_ZERO,
+        fake_app_operation_indicator_return_mode()
+    );
+}
+
+
+static void test_mass_confirmation_starts_incremental_collection(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-172802);
+
+    TEST_ASSERT_EQUAL_UINT32(
+        2UL,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT8(
+        CALIBRATION_SAMPLES,
+        fake_app_last_requested_sample_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_MASS,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_mass_sampling_updates_once_and_rejects_other_input(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-172802);
+
+    const uint32_t updates_before =
+        fake_app_scale_collection_update_call_count();
+
+    fake_app_press_calibration_button();
+    fake_app_queue_console_command('x');
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        updates_before + 1UL,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_FALSE(
+        fake_app_console_input_is_pending()
+    );
+
+    assert_console_contains(
+        "Calibration sampling is in progress."
+    );
+}
+
+
+static void test_serial_q_cancels_mass_without_changing_factor_or_new_tare(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-172802);
+
+    const uint32_t updates_before =
+        fake_app_scale_collection_update_call_count();
+
+    fake_app_queue_console_command('q');
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        updates_before,
+        fake_app_scale_collection_update_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        -172802,
+        fake_app_last_scale_offset()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        DEFAULT_CALIBRATION_FACTOR,
+        fake_app_last_scale_factor()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_completed_mass_calculates_saves_and_applies_factor(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-1000);
+
+    fake_app_set_scale_sample_average(true, 59000);
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_COMPLETE
+    );
+
+    fake_app_queue_console_command_during_calibration_save(
+        't'
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_calibration_save_call_count()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        40.0F,
+        fake_app_last_saved_calibration_factor()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        40.0F,
+        fake_app_scale_factor_when_calibration_was_saved()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        40.0F,
+        fake_app_last_scale_factor()
+    );
+
+    TEST_ASSERT_FALSE(
+        fake_app_console_input_is_pending()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_SUCCESS,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "Calibration completed successfully."
+    );
+}
+
+
+static void test_small_mass_signal_is_rejected_and_allows_retry(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-1000);
+
+    fake_app_set_scale_sample_average(true, 3999);
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_COMPLETE
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_calibration_save_call_count()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        DEFAULT_CALIBRATION_FACTOR,
+        fake_app_last_scale_factor()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_MASS,
+        fake_app_operation_indicator_return_mode()
+    );
+
+    fake_app_complete_operation_pattern();
+    fake_app_queue_console_command('c');
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        3UL,
+        fake_app_scale_collection_start_call_count()
+    );
+}
+
+
+static void test_invalid_calculated_factor_preserves_previous_factor(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-1000);
+
+    fake_app_set_scale_factor_result(false);
+    fake_app_set_scale_sample_average(true, 59000);
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_COMPLETE
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_calibration_save_call_count()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        DEFAULT_CALIBRATION_FACTOR,
+        fake_app_last_scale_factor()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_MASS,
+        fake_app_operation_indicator_return_mode()
+    );
+}
+
+
+static void test_calibration_save_failure_restores_previous_factor_and_exits(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-1000);
+
+    fake_app_set_calibration_save_result(false);
+    fake_app_set_scale_sample_average(true, 59000);
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_COMPLETE
+    );
+
+    fake_app_queue_console_command_during_calibration_save(
+        'c'
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        3UL,
+        fake_app_scale_factor_set_call_count()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        DEFAULT_CALIBRATION_FACTOR,
+        fake_app_last_scale_factor()
+    );
+
+    TEST_ASSERT_FALSE(
+        fake_app_console_input_is_pending()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_ERROR,
+        fake_app_operation_indicator_mode()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_return_mode()
+    );
+
+    fake_app_complete_operation_pattern();
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_weight_read_call_count()
+    );
+}
+
+
+static void test_mass_read_error_returns_to_mass_wait(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-1000);
+
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_ERROR
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_calibration_save_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_MASS,
+        fake_app_operation_indicator_return_mode()
+    );
+
+    assert_console_contains(
+        "ERROR: Calibration samples could not be read."
+    );
+}
+
+
+static void test_mass_timeout_is_exact_and_handles_millisecond_overflow(void)
+{
+    fake_app_set_time_ms(UINT32_MAX - 1000UL);
+
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-1000);
+
+    const uint32_t cancels_before =
+        fake_app_scale_cancel_call_count();
+
+    fake_app_advance_time_ms(
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS - 1UL
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        cancels_before,
+        fake_app_scale_cancel_call_count()
+    );
+
+    fake_app_advance_time_ms(1UL);
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        cancels_before + 1UL,
+        fake_app_scale_cancel_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_MASS,
+        fake_app_operation_indicator_return_mode()
+    );
+}
+
+
+static void test_completed_mass_wins_at_timeout_deadline(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_mass_sampling(-1000);
+
+    const uint32_t cancels_before =
+        fake_app_scale_cancel_call_count();
+
+    fake_app_advance_time_ms(
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS
+    );
+
+    fake_app_set_scale_sample_average(true, 59000);
+    fake_app_set_scale_collection_status(
+        SCALE_SAMPLE_COLLECTION_COMPLETE
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        cancels_before,
+        fake_app_scale_cancel_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_calibration_save_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_SUCCESS,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_mass_collection_start_failure_returns_to_mass_wait(void)
+{
+    load_configuration_with_tare(-172706);
+    reach_calibration_mass_wait(-1000);
+
+    fake_app_set_scale_collection_start_result(false);
+    fake_app_queue_console_command('c');
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        2UL,
+        fake_app_scale_collection_start_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_MASS,
+        fake_app_operation_indicator_return_mode()
+    );
+}
+
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -1032,6 +1800,28 @@ int main(void)
     RUN_TEST(test_tare_timeout_is_exact_and_handles_millisecond_overflow);
     RUN_TEST(test_completed_tare_wins_at_timeout_deadline);
     RUN_TEST(test_tare_start_failure_restores_previous_idle_state);
+    RUN_TEST(test_calibration_entry_waits_for_zero_without_starting_collection);
+    RUN_TEST(test_zero_confirmation_starts_incremental_collection);
+    RUN_TEST(test_zero_sampling_updates_once_and_rejects_other_input);
+    RUN_TEST(test_serial_q_cancels_zero_before_next_sample);
+    RUN_TEST(test_tare_button_cancels_zero_and_restores_tare_required);
+    RUN_TEST(test_completed_zero_saves_before_applying_and_survives_later_cancel);
+    RUN_TEST(test_zero_save_failure_preserves_previous_offset_and_allows_retry);
+    RUN_TEST(test_zero_read_error_returns_to_zero_wait);
+    RUN_TEST(test_zero_timeout_is_exact_and_handles_millisecond_overflow);
+    RUN_TEST(test_completed_zero_wins_at_timeout_deadline);
+    RUN_TEST(test_zero_collection_start_failure_returns_to_zero_wait);
+    RUN_TEST(test_mass_confirmation_starts_incremental_collection);
+    RUN_TEST(test_mass_sampling_updates_once_and_rejects_other_input);
+    RUN_TEST(test_serial_q_cancels_mass_without_changing_factor_or_new_tare);
+    RUN_TEST(test_completed_mass_calculates_saves_and_applies_factor);
+    RUN_TEST(test_small_mass_signal_is_rejected_and_allows_retry);
+    RUN_TEST(test_invalid_calculated_factor_preserves_previous_factor);
+    RUN_TEST(test_calibration_save_failure_restores_previous_factor_and_exits);
+    RUN_TEST(test_mass_read_error_returns_to_mass_wait);
+    RUN_TEST(test_mass_timeout_is_exact_and_handles_millisecond_overflow);
+    RUN_TEST(test_completed_mass_wins_at_timeout_deadline);
+    RUN_TEST(test_mass_collection_start_failure_returns_to_mass_wait);
 
     return UNITY_END();
 }

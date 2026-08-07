@@ -26,13 +26,10 @@ static uint32_t last_print_ms = 0;
 
 
 /*
- * Application states introduced incrementally during
- * the cooperative v1.2 migration.
+ * Cooperative application states.
  *
- * Calibration and result handling still use their v1.1
- * control flow in this intermediate commit. Their
- * remaining states will be added as those operations
- * are migrated.
+ * Temporary result patterns remain the last v1.1
+ * control-flow mechanism to migrate in the next commit.
  */
 typedef enum
 {
@@ -41,6 +38,10 @@ typedef enum
     APP_STATE_TARE_REQUIRED,
     APP_STATE_NORMAL_OPERATION,
     APP_STATE_TARE_SAMPLING,
+    APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+    APP_STATE_CALIBRATION_ZERO_SAMPLING,
+    APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+    APP_STATE_CALIBRATION_MASS_SAMPLING,
     APP_STATE_FAULT
 } app_state_t;
 
@@ -56,29 +57,6 @@ static uint32_t operation_started_ms = 0UL;
  */
 static app_state_t tare_return_state =
     APP_STATE_TARE_REQUIRED;
-
-
-typedef enum
-{
-    CALIBRATION_IDLE,
-
-    /*
-     * Waiting for the user to remove the measured load
-     * and confirm the zero condition.
-     */
-    CALIBRATION_WAITING_FOR_ZERO,
-
-    /*
-     * The tare has been completed.
-     * Waiting for the reference mass.
-     */
-    CALIBRATION_WAITING_FOR_MASS
-
-} calibration_state_t;
-
-
-static calibration_state_t calibration_state =
-    CALIBRATION_IDLE;
 
 
 static app_state_t get_idle_application_state(void)
@@ -124,8 +102,6 @@ static void restore_idle_application_state(void)
 static void enter_fault_state(void)
 {
     app_state = APP_STATE_FAULT;
-
-    calibration_state = CALIBRATION_IDLE;
 
     measurement_available = false;
 
@@ -575,8 +551,15 @@ static void clear_stored_tare(void)
 
 static bool calibration_is_active(void)
 {
-    return calibration_state !=
-           CALIBRATION_IDLE;
+    return
+        (app_state ==
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_ZERO_SAMPLING) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_MASS_SAMPLING);
 }
 
 
@@ -585,8 +568,8 @@ static void start_calibration(void)
     measurement_available = false;
     level_indicator_reset();
 
-    calibration_state =
-        CALIBRATION_WAITING_FOR_ZERO;
+    app_state =
+        APP_STATE_CALIBRATION_WAITING_FOR_ZERO;
 
     operation_indicator_set_mode(
         OPERATION_INDICATOR_CALIBRATION_ZERO
@@ -621,30 +604,159 @@ static void start_calibration(void)
 }
 
 
-static void confirm_calibration_zero(void)
+static void cancel_calibration(void)
 {
-    console_newline();
-    CONSOLE_PRINTLN("Performing calibration tare...");
+    if (!calibration_is_active())
+    {
+        console_newline();
+        CONSOLE_PRINTLN(
+            "No calibration is currently active."
+        );
+        console_newline();
+        return;
+    }
 
-    const int32_t previous_tare_offset =
-        scale_get_offset();
+    scale_cancel_sample_collection();
 
-    const bool previous_tare_available =
-        tare_available;
+    measurement_available = false;
 
-    operation_indicator_set_mode(
-        OPERATION_INDICATOR_TARE
+    level_indicator_reset();
+    restore_idle_application_state();
+
+    button_suppress_hold_until_release(
+        &tare_button
     );
 
-    if (!scale_tare())
-    {
-        operation_indicator_show_error(
-            OPERATION_INDICATOR_CALIBRATION_ZERO
-        );
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
 
+    console_discard_input();
+
+    console_newline();
+    CONSOLE_PRINTLN("Calibration cancelled.");
+
+    CONSOLE_PRINTLN(
+        "The active calibration factor "
+        "has not been changed."
+    );
+
+    if (tare_available)
+    {
         CONSOLE_PRINTLN(
-            "ERROR: Calibration tare samples "
-            "could not be read."
+            "Normal measurement resumed."
+        );
+    }
+    else
+    {
+        CONSOLE_PRINTLN(
+            "Tare is still required before "
+            "normal measurement."
+        );
+    }
+
+    console_newline();
+}
+
+
+static bool process_calibration_sampling_input(void)
+{
+    const bool tare_pressed =
+        button_was_pressed(&tare_button);
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    (void)button_was_pressed(
+        &calibration_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    if (tare_pressed)
+    {
+        cancel_calibration();
+        return true;
+    }
+
+    if (!console_input_available())
+    {
+        return false;
+    }
+
+    char command = '\0';
+    const bool command_read =
+        console_read_char(&command);
+
+    console_discard_input();
+
+    if (!command_read)
+    {
+        return false;
+    }
+
+    if ((command == 'q') ||
+        (command == 'Q'))
+    {
+        cancel_calibration();
+        return true;
+    }
+
+    CONSOLE_PRINTLN(
+        "Calibration sampling is in progress. "
+        "Send 'q' to cancel."
+    );
+
+    return false;
+}
+
+
+static void finish_calibration_sampling_with_error(
+    app_state_t retry_state,
+    operation_indicator_mode_t retry_mode
+)
+{
+    scale_cancel_sample_collection();
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    app_state = retry_state;
+
+    operation_indicator_show_error(retry_mode);
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
+}
+
+
+static void start_calibration_zero_sampling(void)
+{
+    console_newline();
+    CONSOLE_PRINTLN(
+        "Collecting calibration tare samples..."
+    );
+
+    CONSOLE_PRINTLN(
+        "Press TARE or send 'q' to cancel calibration."
+    );
+
+    if (!scale_start_sample_collection(
+            TARE_SAMPLES))
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration tare sample "
+            "collection could not be started."
         );
 
         CONSOLE_PRINTLN(
@@ -656,41 +768,45 @@ static void confirm_calibration_zero(void)
             "and confirm again."
         );
 
-        console_newline();
-        console_discard_input();
-        return;
-    }
-
-    const int32_t new_tare_offset =
-        scale_get_offset();
-
-    if (!tare_storage_save(
-            new_tare_offset))
-    {
-        /*
-         * Do not leave RAM and EEPROM using different
-         * tare offsets after a storage failure.
-         */
-        scale_set_offset(
-            previous_tare_offset
-        );
-
-        tare_available =
-            previous_tare_available;
-
-        app_state =
-            get_idle_application_state();
-
-        operation_indicator_show_error(
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
             OPERATION_INDICATOR_CALIBRATION_ZERO
         );
 
+        console_newline();
+        return;
+    }
+
+    operation_started_ms = hal_time_millis();
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_TARE
+    );
+
+    app_state =
+        APP_STATE_CALIBRATION_ZERO_SAMPLING;
+}
+
+
+static void complete_calibration_zero(
+    int32_t candidate_tare_offset
+)
+{
+    /*
+     * Save and verify the candidate before changing the
+     * active offset. Failure therefore leaves both the
+     * previous runtime offset and tare availability
+     * untouched.
+     */
+    if (!tare_storage_save(
+            candidate_tare_offset))
+    {
         CONSOLE_PRINTLN(
             "ERROR: Calibration tare could not be saved."
         );
 
         CONSOLE_PRINTLN(
-            "The previous tare offset has been restored."
+            "The previous tare offset remains active."
         );
 
         CONSOLE_PRINTLN(
@@ -698,29 +814,46 @@ static void confirm_calibration_zero(void)
             "and confirm again."
         );
 
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
+
         console_newline();
-        console_discard_input();
         return;
     }
 
+    scale_set_offset(candidate_tare_offset);
     tare_available = true;
-    app_state = APP_STATE_NORMAL_OPERATION;
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    app_state =
+        APP_STATE_CALIBRATION_WAITING_FOR_MASS;
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_CALIBRATION_MASS
+    );
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
 
     CONSOLE_PRINT("Tare offset: ");
     console_print_int32(
-        new_tare_offset
+        candidate_tare_offset
     );
     console_newline();
 
     CONSOLE_PRINTLN(
         "Calibration tare saved successfully."
-    );
-
-    calibration_state =
-        CALIBRATION_WAITING_FOR_MASS;
-
-    operation_indicator_set_mode(
-        OPERATION_INDICATOR_CALIBRATION_MASS
     );
 
     console_newline();
@@ -744,61 +877,167 @@ static void confirm_calibration_zero(void)
     );
 
     console_newline();
-
-    /*
-     * Ignore commands accumulated while the blocking
-     * calibration tare and EEPROM verification were
-     * running.
-     *
-     * In particular, a second queued 'c' must not
-     * advance immediately to calibration completion
-     * before the reference mass has been placed.
-     */
-    console_discard_input();
 }
 
 
-static void complete_calibration(void)
+static void update_calibration_zero_sampling(void)
+{
+    if (process_calibration_sampling_input())
+    {
+        return;
+    }
+
+    const scale_sample_collection_status_t status =
+        scale_update_sample_collection();
+
+    if (status == SCALE_SAMPLE_COLLECTION_COMPLETE)
+    {
+        int32_t candidate_tare_offset = 0;
+
+        if (!scale_take_sample_average(
+                &candidate_tare_offset))
+        {
+            CONSOLE_PRINTLN(
+                "ERROR: Completed calibration tare "
+                "average could not be obtained."
+            );
+
+            CONSOLE_PRINTLN(
+                "The previous tare offset remains active."
+            );
+
+            finish_calibration_sampling_with_error(
+                APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+                OPERATION_INDICATOR_CALIBRATION_ZERO
+            );
+
+            console_newline();
+            return;
+        }
+
+        complete_calibration_zero(
+            candidate_tare_offset
+        );
+        return;
+    }
+
+    if (status == SCALE_SAMPLE_COLLECTION_ERROR)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration tare samples "
+            "could not be read."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        CONSOLE_PRINTLN(
+            "Keep the empty container in place "
+            "and confirm again."
+        );
+
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
+
+        console_newline();
+        return;
+    }
+
+    if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Invalid calibration tare "
+            "sample collection state."
+        );
+
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
+
+        console_newline();
+        return;
+    }
+
+    const uint32_t now = hal_time_millis();
+
+    if ((uint32_t)(now - operation_started_ms) <
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS)
+    {
+        return;
+    }
+
+    CONSOLE_PRINTLN(
+        "ERROR: Calibration tare sample "
+        "collection timed out."
+    );
+
+    CONSOLE_PRINTLN(
+        "The previous tare offset remains active."
+    );
+
+    finish_calibration_sampling_with_error(
+        APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+        OPERATION_INDICATOR_CALIBRATION_ZERO
+    );
+
+    console_newline();
+}
+
+
+static void start_calibration_mass_sampling(void)
 {
     console_newline();
     CONSOLE_PRINTLN(
         "Collecting calibration samples..."
     );
 
-    float net_counts = 0.0F;
+    CONSOLE_PRINTLN(
+        "Press TARE or send 'q' to cancel calibration."
+    );
 
-    const bool samples_read =
-        scale_read_net_counts(
-            &net_counts,
-            CALIBRATION_SAMPLES
-        );
-
-    /*
-     * The sample collection is blocking. Ignore any
-     * commands received while it was in progress so
-     * they cannot affect the new calibration state
-     * after the operation finishes.
-     */
-    console_discard_input();
-
-    if (!samples_read)
+    if (!scale_start_sample_collection(
+            CALIBRATION_SAMPLES))
     {
         CONSOLE_PRINTLN(
-            "ERROR: Calibration samples "
-            "could not be read."
+            "ERROR: Calibration sample collection "
+            "could not be started."
         );
 
         CONSOLE_PRINTLN(
             "Keep the mass in place and confirm again."
         );
 
-        operation_indicator_show_error(
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
             OPERATION_INDICATOR_CALIBRATION_MASS
         );
 
         console_newline();
         return;
     }
+
+    operation_started_ms = hal_time_millis();
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_CALIBRATION_MASS
+    );
+
+    app_state =
+        APP_STATE_CALIBRATION_MASS_SAMPLING;
+}
+
+
+static void complete_calibration_mass(
+    int32_t average_raw_counts
+)
+{
+    const float net_counts =
+        (float)average_raw_counts -
+        (float)scale_get_offset();
 
     CONSOLE_PRINT("Net ADC counts: ");
     console_print_float(
@@ -826,7 +1065,8 @@ static void complete_calibration(void)
             "Send 'c' to try again or 'q' to cancel."
         );
 
-        operation_indicator_show_error(
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
             OPERATION_INDICATOR_CALIBRATION_MASS
         );
 
@@ -858,7 +1098,8 @@ static void complete_calibration(void)
             "factor is invalid."
         );
 
-        operation_indicator_show_error(
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
             OPERATION_INDICATOR_CALIBRATION_MASS
         );
 
@@ -891,16 +1132,25 @@ static void complete_calibration(void)
             );
         }
 
-        calibration_state =
-            CALIBRATION_IDLE;
-
         measurement_available = false;
 
         level_indicator_reset();
 
+        app_state = get_idle_application_state();
+
         operation_indicator_show_error(
-            OPERATION_INDICATOR_NONE
+            get_idle_operation_mode()
         );
+
+        button_suppress_hold_until_release(
+            &tare_button
+        );
+
+        button_suppress_hold_until_release(
+            &calibration_button
+        );
+
+        console_discard_input();
 
         CONSOLE_PRINTLN(
             "Calibration cancelled."
@@ -910,14 +1160,23 @@ static void complete_calibration(void)
         return;
     }
 
-    calibration_state =
-        CALIBRATION_IDLE;
-
     measurement_available = false;
 
     level_indicator_reset();
 
+    app_state = APP_STATE_NORMAL_OPERATION;
+
     operation_indicator_show_success();
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
 
     console_newline();
     CONSOLE_PRINTLN(
@@ -943,47 +1202,103 @@ static void complete_calibration(void)
 }
 
 
-static void cancel_calibration(void)
+static void update_calibration_mass_sampling(void)
 {
-    if (!calibration_is_active())
+    if (process_calibration_sampling_input())
     {
-        console_newline();
-        CONSOLE_PRINTLN(
-            "No calibration is currently active."
+        return;
+    }
+
+    const scale_sample_collection_status_t status =
+        scale_update_sample_collection();
+
+    if (status == SCALE_SAMPLE_COLLECTION_COMPLETE)
+    {
+        int32_t average_raw_counts = 0;
+
+        if (!scale_take_sample_average(
+                &average_raw_counts))
+        {
+            CONSOLE_PRINTLN(
+                "ERROR: Completed calibration "
+                "average could not be obtained."
+            );
+
+            CONSOLE_PRINTLN(
+                "Keep the mass in place and confirm again."
+            );
+
+            finish_calibration_sampling_with_error(
+                APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+                OPERATION_INDICATOR_CALIBRATION_MASS
+            );
+
+            console_newline();
+            return;
+        }
+
+        complete_calibration_mass(
+            average_raw_counts
         );
+        return;
+    }
+
+    if (status == SCALE_SAMPLE_COLLECTION_ERROR)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration samples "
+            "could not be read."
+        );
+
+        CONSOLE_PRINTLN(
+            "Keep the mass in place and confirm again."
+        );
+
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+            OPERATION_INDICATOR_CALIBRATION_MASS
+        );
+
         console_newline();
         return;
     }
 
-    calibration_state =
-        CALIBRATION_IDLE;
+    if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Invalid calibration "
+            "sample collection state."
+        );
 
-    measurement_available = false;
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+            OPERATION_INDICATOR_CALIBRATION_MASS
+        );
 
-    level_indicator_reset();
-    restore_idle_application_state();
+        console_newline();
+        return;
+    }
 
-    console_newline();
-    CONSOLE_PRINTLN("Calibration cancelled.");
+    const uint32_t now = hal_time_millis();
+
+    if ((uint32_t)(now - operation_started_ms) <
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS)
+    {
+        return;
+    }
 
     CONSOLE_PRINTLN(
-        "The active calibration factor "
-        "has not been changed."
+        "ERROR: Calibration sample collection timed out."
     );
 
-    if (tare_available)
-    {
-        CONSOLE_PRINTLN(
-            "Normal measurement resumed."
-        );
-    }
-    else
-    {
-        CONSOLE_PRINTLN(
-            "Tare is still required before "
-            "normal measurement."
-        );
-    }
+    CONSOLE_PRINTLN(
+        "Keep the mass in place and confirm again."
+    );
+
+    finish_calibration_sampling_with_error(
+        APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+        OPERATION_INDICATOR_CALIBRATION_MASS
+    );
 
     console_newline();
 }
@@ -991,31 +1306,25 @@ static void cancel_calibration(void)
 
 static void process_calibration_confirmation(void)
 {
-    switch (calibration_state)
+    switch (app_state)
     {
-        case CALIBRATION_IDLE:
+        case APP_STATE_TARE_REQUIRED:
+        case APP_STATE_NORMAL_OPERATION:
             start_calibration();
             break;
 
-        case CALIBRATION_WAITING_FOR_ZERO:
-            confirm_calibration_zero();
+        case APP_STATE_CALIBRATION_WAITING_FOR_ZERO:
+            start_calibration_zero_sampling();
             break;
 
-        case CALIBRATION_WAITING_FOR_MASS:
-            complete_calibration();
+        case APP_STATE_CALIBRATION_WAITING_FOR_MASS:
+            start_calibration_mass_sampling();
             break;
 
         default:
-            calibration_state =
-                CALIBRATION_IDLE;
-
-            measurement_available = false;
-
-            level_indicator_reset();
-            restore_idle_application_state();
-
             CONSOLE_PRINTLN(
-                "ERROR: Invalid calibration state."
+                "Calibration confirmation is unavailable "
+                "in the current state."
             );
 
             break;
@@ -1524,8 +1833,18 @@ static bool process_cooperative_base_state(void)
             update_tare_sampling();
             return true;
 
+        case APP_STATE_CALIBRATION_ZERO_SAMPLING:
+            update_calibration_zero_sampling();
+            return true;
+
+        case APP_STATE_CALIBRATION_MASS_SAMPLING:
+            update_calibration_mass_sampling();
+            return true;
+
         case APP_STATE_TARE_REQUIRED:
         case APP_STATE_NORMAL_OPERATION:
+        case APP_STATE_CALIBRATION_WAITING_FOR_ZERO:
+        case APP_STATE_CALIBRATION_WAITING_FOR_MASS:
             return false;
 
         default:
@@ -1567,8 +1886,6 @@ void app_init(void)
     latest_weight_grams = 0.0F;
     measurement_available = false;
     tare_available = false;
-
-    calibration_state = CALIBRATION_IDLE;
 
     last_print_ms = 0UL;
     operation_started_ms = hal_time_millis();
@@ -1637,10 +1954,14 @@ void app_update(void)
     process_console_commands();
 
     /*
-     * A serial 't' command may have started an
-     * incremental tare in this iteration.
+     * A serial command may have started an incremental
+     * tare or calibration collection in this iteration.
      */
-    if (app_state == APP_STATE_TARE_SAMPLING)
+    if ((app_state == APP_STATE_TARE_SAMPLING) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_ZERO_SAMPLING) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_MASS_SAMPLING))
     {
         return;
     }
