@@ -55,6 +55,9 @@ static bool mode_is_blinking(
          OPERATION_INDICATOR_CALIBRATION_MASS) ||
 
         (mode ==
+         OPERATION_INDICATOR_RECOVERY) ||
+
+        (mode ==
          OPERATION_INDICATOR_FAULT) ||
 
         mode_is_temporary(mode);
@@ -98,6 +101,14 @@ static void apply_current_output(void)
                 false,
                 blink_led_on,
                 false
+            );
+            break;
+
+        case OPERATION_INDICATOR_RECOVERY:
+            indicator_leds_set(
+                blink_led_on,
+                false,
+                !blink_led_on
             );
             break;
 
@@ -263,6 +274,12 @@ void operation_indicator_update(void)
     {
         blink_period_ms =
             TARE_REQUIRED_BLINK_PERIOD_MS;
+    }
+    else if (current_mode ==
+             OPERATION_INDICATOR_RECOVERY)
+    {
+        blink_period_ms =
+            FAULT_RECOVERY_INDICATOR_PERIOD_MS;
     }
     else if (mode_is_temporary(current_mode))
     {

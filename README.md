@@ -35,10 +35,11 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Finite 2000 ms health deadline for missing HX711 conversions during normal operation.
 - Cooperative HX711 recovery with 500 ms backoff, a 2000 ms ready deadline and three attempts.
 - Recovery discards inputs, cancels unfinished operations and returns only to a safe boundary state.
+- Distinct recovery indication with the LOW and HIGH LEDs alternating every 250 ms.
 - Responsive UART and button handling during 20-sample operations.
 - Direct AVR implementations for GPIO, Timer1, EEPROM and USART0.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 293 native Unity tests across 12 suites.
+- 295 native Unity tests across 12 suites.
 
 ## Hardware
 
@@ -94,6 +95,7 @@ The current values are provisional and can be changed in [`src/config.h`](src/co
 | Recovery backoff | 500 ms |
 | Recovery ready timeout | 2000 ms |
 | Recovery attempts | 3 |
+| Recovery LED alternation | 250 ms |
 | Tare samples | 20 |
 | Normal weight reads per update | At most 1 |
 | Calibration samples | 20 |
@@ -133,6 +135,8 @@ The state machine applies 20 g of hysteresis around these boundaries after the i
 | Waiting for reference mass | Medium LED blinking |
 | Successful operation | All LEDs flash twice |
 | Operation error | High LED flashes three times |
+| HX711 recovery | Low and high LEDs alternate every 250 ms |
+| Terminal fault | High LED blinks persistently |
 
 While `TARE_REQUIRED` is active, normal level indication is disabled because the firmware does not have a trustworthy operational zero.
 
@@ -462,7 +466,7 @@ Validated test inventory:
 | `native_button` | 11 |
 | `native_hx711` | 18 |
 | `native_level_indicator` | 14 |
-| `native_operation_indicator` | 16 |
+| `native_operation_indicator` | 18 |
 | `native_scale` | 35 |
 | `native_app_fault` | 4 |
 | `native_app` | 65 |
@@ -471,13 +475,13 @@ Validated test inventory:
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **293** |
+| **Total** | **295** |
 
 Validated result:
 
 ```text
 Suites passed: 12/12
-Tests passed:  293/293
+Tests passed:  295/295
 Failures:      0
 Exit code:     0
 ```
@@ -568,7 +572,6 @@ Current limitations include:
 - No EEPROM wear levelling.
 - Thresholds and the reference calibration mass are compile-time constants.
 - No stable-weight detector or advanced outlier rejection.
-- Recovery and terminal faults temporarily share the existing HIGH-LED fault pattern.
 - No hardware watchdog is active yet.
 - No brown-out reset diagnosis.
 - Serial service commands do not require confirmation.

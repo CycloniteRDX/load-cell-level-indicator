@@ -37,6 +37,12 @@ typedef enum
     OPERATION_INDICATOR_CALIBRATION_MASS,
 
     /*
+     * The LOW and HIGH LEDs alternate while the
+     * application is recovering the HX711.
+     */
+    OPERATION_INDICATOR_RECOVERY,
+
+    /*
      * The HIGH LED blinks persistently while the
      * application is in its latched fault state.
      */

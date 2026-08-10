@@ -20,9 +20,9 @@ The post-release documentation correction does not change the firmware used as
 the technical baseline.
 
 This document is the design contract and incremental implementation record.
-Cooperative HX711 recovery and runtime readiness supervision are now implemented
-and covered by native tests. Physical power-cycle validation and the watchdog
-remain pending.
+Cooperative HX711 recovery, runtime readiness supervision and distinct recovery
+and terminal-fault indicators are now implemented and covered by native tests.
+Physical power-cycle validation and the watchdog remain pending.
 
 ---
 
@@ -449,7 +449,7 @@ work begins on the following `app_update()`, preserving the boundary rule from
 
 The three LEDs remain shared between normal level and operation indication.
 
-The proposed patterns are:
+The implemented patterns are:
 
 | Condition | Pattern |
 | --- | --- |
@@ -467,6 +467,9 @@ The recovery pattern is intentionally distinct from:
 - terminal fault: HIGH alone blinks.
 
 Normal level indication never owns the LEDs during recovery or terminal fault.
+The timing is centralized in `FAULT_RECOVERY_INDICATOR_PERIOD_MS`; the
+application selects `OPERATION_INDICATOR_RECOVERY`, while
+`operation_indicator` owns the non-blocking phase and physical LED outputs.
 
 ---
 
@@ -785,7 +788,7 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
-Steps 1 through 5 are now implemented on the feature branch.
+Steps 1 through 6 are now implemented on the feature branch.
 
 ---
 
@@ -800,7 +803,7 @@ Steps 1 through 5 are now implemented on the feature branch.
 - [x] Recovery preserves committed tare and calibration.
 - [x] Interrupted tare/calibration never resumes halfway through.
 - [x] Inputs are not replayed across fault-state transitions.
-- [ ] Recovery and terminal LED patterns are distinct.
+- [x] Recovery and terminal LED patterns are distinct.
 - [ ] Power-down/power-up pass a dedicated physical test.
 - [ ] The watchdog is fed only after complete application iterations.
 - [ ] The watchdog is never fed from an interrupt.
@@ -946,3 +949,32 @@ Six new integral application tests cover:
 The `native_app` suite now contains `65` tests. The complete expected native
 inventory is `293` tests across `12` suites. Recovery and terminal faults still
 share the existing HIGH-LED fault pattern until the dedicated indicator commit.
+
+---
+
+## 33. Recovery and terminal fault indicator result
+
+The watchdog remains disabled.
+
+The shared operation-indicator module now owns a persistent recovery mode:
+
+```text
+recovery backoff / ready wait -> LOW and HIGH alternate every 250 ms
+terminal fault               -> HIGH blinks at the existing 500 ms rate
+```
+
+`app` selects `OPERATION_INDICATOR_RECOVERY` only after the fault policy has
+classified a cause as recoverable. Direct terminal faults select the existing
+fault mode, and exhausting the third recovery attempt replaces the alternating
+pattern immediately with the terminal HIGH-LED pattern.
+
+The pattern is non-blocking, starts with LOW illuminated and uses unsigned
+elapsed-time subtraction across `millis()` overflow. Normal level indication
+remains reset and does not own the shared LEDs in either fault-handling state.
+
+Two new operation-indicator tests cover the exact 250 ms boundary, LOW/HIGH
+alternation, persistent-mode semantics and millisecond overflow. Integral
+application expectations now prove that every recoverable detection selects
+the recovery mode, terminal causes never select it and retry exhaustion changes
+to the terminal mode. The `native_operation_indicator` suite now contains `18`
+tests; the complete expected native inventory is `295` tests across `12` suites.

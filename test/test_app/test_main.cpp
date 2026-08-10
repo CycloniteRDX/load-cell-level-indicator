@@ -268,7 +268,7 @@ static void test_startup_wait_returns_without_loading_configuration(void)
 }
 
 
-static void test_startup_timeout_enters_fault_at_exact_deadline(void)
+static void test_startup_timeout_enters_recovery_at_exact_deadline(void)
 {
     app_init();
 
@@ -279,7 +279,7 @@ static void test_startup_timeout_enters_fault_at_exact_deadline(void)
     app_update();
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -357,7 +357,7 @@ static void test_startup_timeout_handles_millisecond_overflow(void)
     app_update();
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 }
@@ -437,7 +437,7 @@ static void test_valid_stored_configuration_is_loaded_once(void)
 }
 
 
-static void test_runtime_read_error_enters_fault_with_stable_code(void)
+static void test_runtime_read_error_enters_recovery_with_stable_code(void)
 {
     load_configuration_with_tare(-172706);
 
@@ -453,7 +453,7 @@ static void test_runtime_read_error_enters_fault_with_stable_code(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -514,7 +514,7 @@ static void test_runtime_no_data_enters_recovery_at_exact_timeout(void)
     app_update();
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -572,7 +572,7 @@ static void test_runtime_value_wins_at_timeout_and_renews_deadline(void)
     app_update();
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -614,7 +614,7 @@ static void test_runtime_no_data_timeout_handles_millisecond_overflow(void)
     app_update();
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -658,7 +658,7 @@ static void test_runtime_supervision_restarts_after_recovery(void)
     app_update();
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -887,6 +887,11 @@ static void test_failed_power_cycles_exhaust_exactly_three_attempts(void)
 {
     enter_runtime_read_recovery_with_tare(-172706);
 
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_RECOVERY,
+        fake_app_operation_indicator_mode()
+    );
+
     fake_app_set_scale_recover_result(false);
 
     for (uint8_t attempt = 0U;
@@ -906,6 +911,11 @@ static void test_failed_power_cycles_exhaust_exactly_three_attempts(void)
     );
 
     assert_console_contains("Reset required.");
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
 
     fake_app_advance_time_ms(
         FAULT_RECOVERY_BACKOFF_MS
@@ -1553,7 +1563,7 @@ static void test_tare_save_failure_preserves_previous_runtime_offset(void)
 }
 
 
-static void test_tare_read_error_enters_fault_and_preserves_offset(void)
+static void test_tare_read_error_enters_recovery_and_preserves_offset(void)
 {
     load_configuration_with_tare(-172706);
     start_serial_tare();
@@ -1585,7 +1595,7 @@ static void test_tare_read_error_enters_fault_and_preserves_offset(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -1624,7 +1634,7 @@ static void test_tare_timeout_is_exact_and_handles_millisecond_overflow(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -2033,7 +2043,7 @@ static void test_zero_save_failure_preserves_previous_offset_and_allows_retry(vo
 }
 
 
-static void test_zero_read_error_enters_fault_and_preserves_offset(void)
+static void test_zero_read_error_enters_recovery_and_preserves_offset(void)
 {
     load_configuration_with_tare(-172706);
     start_calibration_zero_sampling();
@@ -2055,7 +2065,7 @@ static void test_zero_read_error_enters_fault_and_preserves_offset(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -2092,7 +2102,7 @@ static void test_zero_timeout_is_exact_and_handles_millisecond_overflow(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -2483,7 +2493,7 @@ static void test_calibration_save_failure_restores_previous_factor_and_exits(voi
 }
 
 
-static void test_mass_read_error_enters_fault(void)
+static void test_mass_read_error_enters_recovery(void)
 {
     load_configuration_with_tare(-172706);
     start_calibration_mass_sampling(-1000);
@@ -2500,7 +2510,7 @@ static void test_mass_read_error_enters_fault(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -2540,7 +2550,7 @@ static void test_mass_timeout_is_exact_and_handles_millisecond_overflow(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_FAULT,
+        OPERATION_INDICATOR_RECOVERY,
         fake_app_operation_indicator_mode()
     );
 
@@ -2618,11 +2628,11 @@ int main(void)
     RUN_TEST(test_init_configures_scale_without_polling_or_loading_storage);
     RUN_TEST(test_immediate_scale_initialization_failure_enters_fault);
     RUN_TEST(test_startup_wait_returns_without_loading_configuration);
-    RUN_TEST(test_startup_timeout_enters_fault_at_exact_deadline);
+    RUN_TEST(test_startup_timeout_enters_recovery_at_exact_deadline);
     RUN_TEST(test_ready_scale_wins_when_detected_at_timeout_deadline);
     RUN_TEST(test_startup_timeout_handles_millisecond_overflow);
     RUN_TEST(test_valid_stored_configuration_is_loaded_once);
-    RUN_TEST(test_runtime_read_error_enters_fault_with_stable_code);
+    RUN_TEST(test_runtime_read_error_enters_recovery_with_stable_code);
     RUN_TEST(test_runtime_no_data_is_tolerated_before_timeout);
     RUN_TEST(test_runtime_no_data_enters_recovery_at_exact_timeout);
     RUN_TEST(test_runtime_value_wins_at_timeout_and_renews_deadline);
@@ -2652,7 +2662,7 @@ int main(void)
     RUN_TEST(test_cancelled_tare_restores_tare_required_state);
     RUN_TEST(test_completed_tare_saves_before_applying_and_discards_save_input);
     RUN_TEST(test_tare_save_failure_preserves_previous_runtime_offset);
-    RUN_TEST(test_tare_read_error_enters_fault_and_preserves_offset);
+    RUN_TEST(test_tare_read_error_enters_recovery_and_preserves_offset);
     RUN_TEST(test_tare_timeout_is_exact_and_handles_millisecond_overflow);
     RUN_TEST(test_completed_tare_wins_at_timeout_deadline);
     RUN_TEST(test_tare_start_failure_enters_internal_fault);
@@ -2664,7 +2674,7 @@ int main(void)
     RUN_TEST(test_tare_button_cancels_zero_and_restores_tare_required);
     RUN_TEST(test_completed_zero_saves_before_applying_and_survives_later_cancel);
     RUN_TEST(test_zero_save_failure_preserves_previous_offset_and_allows_retry);
-    RUN_TEST(test_zero_read_error_enters_fault_and_preserves_offset);
+    RUN_TEST(test_zero_read_error_enters_recovery_and_preserves_offset);
     RUN_TEST(test_zero_timeout_is_exact_and_handles_millisecond_overflow);
     RUN_TEST(test_completed_zero_wins_at_timeout_deadline);
     RUN_TEST(test_zero_collection_start_failure_enters_internal_fault);
@@ -2676,7 +2686,7 @@ int main(void)
     RUN_TEST(test_result_completion_consumes_boundary_input_before_retry);
     RUN_TEST(test_invalid_calculated_factor_preserves_previous_factor);
     RUN_TEST(test_calibration_save_failure_restores_previous_factor_and_exits);
-    RUN_TEST(test_mass_read_error_enters_fault);
+    RUN_TEST(test_mass_read_error_enters_recovery);
     RUN_TEST(test_mass_timeout_is_exact_and_handles_millisecond_overflow);
     RUN_TEST(test_completed_mass_wins_at_timeout_deadline);
     RUN_TEST(test_mass_collection_start_failure_enters_internal_fault);

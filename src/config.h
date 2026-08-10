@@ -95,6 +95,16 @@ static const uint8_t
 
 
 /*
+ * Recovery indication.
+ *
+ * LOW and HIGH alternate every 250 ms so recovery is
+ * visually distinct from every normal and fault mode.
+ */
+static const uint32_t
+    FAULT_RECOVERY_INDICATOR_PERIOD_MS = 250UL;
+
+
+/*
  * Slow blinking used while waiting for the user
  * during the calibration workflow.
  */

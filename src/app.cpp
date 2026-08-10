@@ -284,10 +284,6 @@ static void enter_fault_state(
     scale_cancel_sample_collection();
     level_indicator_reset();
 
-    operation_indicator_set_mode(
-        OPERATION_INDICATOR_FAULT
-    );
-
     button_suppress_hold_until_release(
         &tare_button
     );
@@ -311,6 +307,10 @@ static void enter_fault_state(
     if (fault_policy ==
         APP_FAULT_POLICY_RECOVER_SENSOR)
     {
+        operation_indicator_set_mode(
+            OPERATION_INDICATOR_RECOVERY
+        );
+
         app_state =
             APP_STATE_FAULT_RECOVERY_BACKOFF;
 
@@ -1683,6 +1683,10 @@ static void print_runtime_information(void)
 
     CONSOLE_PRINTLN(
         " HIGH blinking = reset-required fault"
+    );
+
+    CONSOLE_PRINTLN(
+        " LOW/HIGH alternating = HX711 recovery"
     );
 
     console_newline();
