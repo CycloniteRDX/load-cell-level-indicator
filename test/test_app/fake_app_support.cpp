@@ -22,6 +22,7 @@ static uint32_t current_time_ms = 0UL;
 
 static bool scale_init_result = true;
 static bool scale_ready = false;
+static bool scale_recover_result = true;
 static scale_read_status_t scale_read_status =
     SCALE_READ_NO_DATA;
 static bool scale_factor_result = true;
@@ -34,6 +35,7 @@ static int32_t scale_sample_average = 0;
 
 static uint32_t scale_init_calls = 0UL;
 static uint32_t scale_ready_calls = 0UL;
+static uint32_t scale_recover_calls = 0UL;
 static uint32_t scale_cancel_calls = 0UL;
 static uint32_t scale_collection_start_calls = 0UL;
 static uint32_t scale_collection_update_calls = 0UL;
@@ -144,6 +146,7 @@ void fake_app_reset(void)
 
     scale_init_result = true;
     scale_ready = false;
+    scale_recover_result = true;
     scale_read_status = SCALE_READ_NO_DATA;
     scale_factor_result = true;
     scale_collection_start_result = true;
@@ -154,6 +157,7 @@ void fake_app_reset(void)
 
     scale_init_calls = 0UL;
     scale_ready_calls = 0UL;
+    scale_recover_calls = 0UL;
     scale_cancel_calls = 0UL;
     scale_collection_start_calls = 0UL;
     scale_collection_update_calls = 0UL;
@@ -237,6 +241,12 @@ void fake_app_set_scale_ready(bool ready)
 }
 
 
+void fake_app_set_scale_recover_result(bool result)
+{
+    scale_recover_result = result;
+}
+
+
 void fake_app_set_scale_read_status(
     scale_read_status_t status
 )
@@ -280,6 +290,12 @@ uint32_t fake_app_scale_init_call_count(void)
 uint32_t fake_app_scale_ready_call_count(void)
 {
     return scale_ready_calls;
+}
+
+
+uint32_t fake_app_scale_recover_call_count(void)
+{
+    return scale_recover_calls;
 }
 
 
@@ -861,6 +877,13 @@ bool scale_is_ready(void)
 {
     ++scale_ready_calls;
     return scale_ready;
+}
+
+
+bool scale_recover(void)
+{
+    ++scale_recover_calls;
+    return scale_recover_result;
 }
 
 

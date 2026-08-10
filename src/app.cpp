@@ -23,6 +23,10 @@ static bool tare_available = false;
 static app_fault_code_t active_fault_code =
     APP_FAULT_NONE;
 
+static uint8_t fault_recovery_attempt_count = 0U;
+static uint32_t fault_recovery_phase_started_ms = 0UL;
+static bool startup_configuration_loaded = false;
+
 static button_t tare_button;
 static button_t calibration_button;
 
@@ -47,7 +51,9 @@ typedef enum
     APP_STATE_CALIBRATION_WAITING_FOR_MASS,
     APP_STATE_CALIBRATION_MASS_SAMPLING,
     APP_STATE_RESULT_PATTERN,
-    APP_STATE_FAULT
+    APP_STATE_FAULT_RECOVERY_BACKOFF,
+    APP_STATE_FAULT_RECOVERY_WAIT_FOR_SCALE,
+    APP_STATE_TERMINAL_FAULT
 } app_state_t;
 
 
@@ -79,6 +85,17 @@ static app_state_t get_idle_application_state(void)
     }
 
     return APP_STATE_TARE_REQUIRED;
+}
+
+
+static bool fault_handling_is_active(void)
+{
+    return
+        (app_state ==
+            APP_STATE_FAULT_RECOVERY_BACKOFF) ||
+        (app_state ==
+            APP_STATE_FAULT_RECOVERY_WAIT_FOR_SCALE) ||
+        (app_state == APP_STATE_TERMINAL_FAULT);
 }
 
 
@@ -181,6 +198,46 @@ static void print_fault_diagnostic(void)
 }
 
 
+static void print_recovery_attempt_schedule(void)
+{
+    CONSOLE_PRINT("Recovery attempt ");
+    console_print_int32(
+        (int32_t)(fault_recovery_attempt_count + 1U)
+    );
+    CONSOLE_PRINT(" of ");
+    console_print_int32(
+        (int32_t)FAULT_RECOVERY_MAX_ATTEMPTS
+    );
+    CONSOLE_PRINT(" in ");
+    console_print_int32(
+        (int32_t)FAULT_RECOVERY_BACKOFF_MS
+    );
+    CONSOLE_PRINTLN(" ms.");
+}
+
+
+static void enter_terminal_fault_state(
+    bool recovery_attempts_exhausted
+)
+{
+    app_state = APP_STATE_TERMINAL_FAULT;
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_FAULT
+    );
+
+    if (recovery_attempts_exhausted)
+    {
+        print_fault_diagnostic();
+        CONSOLE_PRINTLN(
+            "Recovery attempts exhausted."
+        );
+    }
+
+    CONSOLE_PRINTLN("Reset required.");
+}
+
+
 static void enter_fault_state(
     app_fault_code_t fault_code
 )
@@ -188,15 +245,16 @@ static void enter_fault_state(
     active_fault_code =
         app_fault_normalize_code(fault_code);
 
-    if (app_fault_get_policy(
-            active_fault_code) ==
-        APP_FAULT_POLICY_NONE)
+    app_fault_policy_t fault_policy =
+        app_fault_get_policy(active_fault_code);
+
+    if (fault_policy == APP_FAULT_POLICY_NONE)
     {
         active_fault_code =
             APP_FAULT_INTERNAL_STATE;
-    }
 
-    app_state = APP_STATE_FAULT;
+        fault_policy = APP_FAULT_POLICY_TERMINAL;
+    }
 
     measurement_available = false;
 
@@ -223,7 +281,21 @@ static void enter_fault_state(
         "Normal level indication disabled."
     );
 
-    CONSOLE_PRINTLN("Reset required.");
+    fault_recovery_attempt_count = 0U;
+    fault_recovery_phase_started_ms =
+        hal_time_millis();
+
+    if (fault_policy ==
+        APP_FAULT_POLICY_RECOVER_SENSOR)
+    {
+        app_state =
+            APP_STATE_FAULT_RECOVERY_BACKOFF;
+
+        print_recovery_attempt_schedule();
+        return;
+    }
+
+    enter_terminal_fault_state(false);
 }
 
 
@@ -1635,7 +1707,31 @@ static void process_startup_input(void)
 }
 
 
-static void process_fault_input(void)
+static void process_recovery_input(void)
+{
+    consume_busy_buttons();
+
+    if (!console_input_available())
+    {
+        return;
+    }
+
+    char ignored_command = '\0';
+    const bool command_read =
+        console_read_char(&ignored_command);
+
+    console_discard_input();
+
+    if (command_read)
+    {
+        CONSOLE_PRINTLN(
+            "Recovery in progress."
+        );
+    }
+}
+
+
+static void process_terminal_fault_input(void)
 {
     consume_busy_buttons();
 
@@ -1655,6 +1751,131 @@ static void process_fault_input(void)
         print_fault_diagnostic();
         CONSOLE_PRINTLN("Reset required.");
     }
+}
+
+
+static void finish_successful_scale_recovery(void)
+{
+    /*
+     * Reserve the transition iteration and make every
+     * input observed during recovery harmless in the
+     * state selected below.
+     */
+    consume_busy_buttons();
+    console_discard_input();
+
+    fault_recovery_attempt_count = 0U;
+    active_fault_code = APP_FAULT_NONE;
+
+    operation_indicator_clear();
+
+    CONSOLE_PRINTLN("HX711 recovery succeeded.");
+    CONSOLE_PRINTLN(
+        "Previous tare and calibration remain active."
+    );
+
+    if (!startup_configuration_loaded)
+    {
+        app_state =
+            APP_STATE_STARTUP_LOAD_CONFIGURATION;
+
+        CONSOLE_PRINTLN(
+            "Startup configuration will now be loaded."
+        );
+        return;
+    }
+
+    restore_idle_application_state();
+
+    if (tare_available)
+    {
+        CONSOLE_PRINTLN(
+            "Normal measurement resumed."
+        );
+        return;
+    }
+
+    CONSOLE_PRINTLN(
+        "Tare is still required before normal measurement."
+    );
+}
+
+
+static void schedule_next_recovery_attempt(
+    uint32_t now
+)
+{
+    if (fault_recovery_attempt_count >=
+        FAULT_RECOVERY_MAX_ATTEMPTS)
+    {
+        enter_terminal_fault_state(true);
+        return;
+    }
+
+    app_state =
+        APP_STATE_FAULT_RECOVERY_BACKOFF;
+
+    fault_recovery_phase_started_ms = now;
+    print_recovery_attempt_schedule();
+}
+
+
+static void update_fault_recovery_backoff(void)
+{
+    process_recovery_input();
+
+    const uint32_t now = hal_time_millis();
+
+    if ((uint32_t)(
+            now - fault_recovery_phase_started_ms) <
+        FAULT_RECOVERY_BACKOFF_MS)
+    {
+        return;
+    }
+
+    ++fault_recovery_attempt_count;
+
+    if (!scale_recover())
+    {
+        schedule_next_recovery_attempt(now);
+        return;
+    }
+
+    app_state =
+        APP_STATE_FAULT_RECOVERY_WAIT_FOR_SCALE;
+
+    fault_recovery_phase_started_ms = now;
+
+    CONSOLE_PRINTLN(
+        "HX711 power cycle completed. Waiting for a conversion."
+    );
+}
+
+
+static void update_fault_recovery_wait_for_scale(void)
+{
+    process_recovery_input();
+
+    if (scale_is_ready())
+    {
+        finish_successful_scale_recovery();
+        return;
+    }
+
+    const uint32_t now = hal_time_millis();
+
+    if ((uint32_t)(
+            now - fault_recovery_phase_started_ms) <
+        FAULT_RECOVERY_READY_TIMEOUT_MS)
+    {
+        return;
+    }
+
+    CONSOLE_PRINTLN(
+        "HX711 did not become ready after recovery."
+    );
+
+    schedule_next_recovery_attempt(now);
 }
 
 
@@ -1809,6 +2030,8 @@ static void load_startup_configuration(void)
         );
     }
 
+    startup_configuration_loaded = true;
+
     print_runtime_information();
 }
 
@@ -1852,8 +2075,16 @@ static bool process_cooperative_base_state(void)
             load_startup_configuration();
             return true;
 
-        case APP_STATE_FAULT:
-            process_fault_input();
+        case APP_STATE_FAULT_RECOVERY_BACKOFF:
+            update_fault_recovery_backoff();
+            return true;
+
+        case APP_STATE_FAULT_RECOVERY_WAIT_FOR_SCALE:
+            update_fault_recovery_wait_for_scale();
+            return true;
+
+        case APP_STATE_TERMINAL_FAULT:
+            process_terminal_fault_input();
             return true;
 
         case APP_STATE_TARE_SAMPLING:
@@ -1916,6 +2147,9 @@ void app_init(void)
     measurement_available = false;
     tare_available = false;
     active_fault_code = APP_FAULT_NONE;
+    fault_recovery_attempt_count = 0U;
+    fault_recovery_phase_started_ms = 0UL;
+    startup_configuration_loaded = false;
 
     last_print_ms = 0UL;
     operation_started_ms = hal_time_millis();
@@ -1967,6 +2201,11 @@ void app_update(void)
 
     process_console_commands();
 
+    if (fault_handling_is_active())
+    {
+        return;
+    }
+
     /*
      * A serial command may have started an incremental
      * tare or calibration collection in this iteration.
@@ -2014,6 +2253,11 @@ void app_update(void)
      */
     process_calibration_button();
 
+    if (fault_handling_is_active())
+    {
+        return;
+    }
+
     if (calibration_is_active())
     {
         return;
@@ -2043,6 +2287,11 @@ void app_update(void)
         {
             return;
         }
+
+        if (fault_handling_is_active())
+        {
+            return;
+        }
     }
 
     if (!tare_available)
@@ -2053,7 +2302,7 @@ void app_update(void)
 
     update_weight_measurement();
 
-    if (app_state == APP_STATE_FAULT)
+    if (fault_handling_is_active())
     {
         return;
     }

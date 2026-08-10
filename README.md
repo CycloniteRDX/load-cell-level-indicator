@@ -32,11 +32,12 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Status-rich scale reads that distinguish no data from driver failure.
 - Bounded HX711 power-cycle primitive that preserves active tare and calibration.
 - Stable application fault codes with explicit recovery or terminal policy.
-- Safe latched fallback while cooperative recovery states are being implemented.
+- Cooperative HX711 recovery with 500 ms backoff, a 2000 ms ready deadline and three attempts.
+- Recovery discards inputs, cancels unfinished operations and returns only to a safe boundary state.
 - Responsive UART and button handling during 20-sample operations.
 - Direct AVR implementations for GPIO, Timer1, EEPROM and USART0.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 277 native Unity tests across 12 suites.
+- 287 native Unity tests across 12 suites.
 
 ## Hardware
 
@@ -88,6 +89,9 @@ The current values are provisional and can be changed in [`src/config.h`](src/co
 | Weight output period | 500 ms |
 | HX711 startup timeout | 2000 ms |
 | Multi-sample operation timeout | 5000 ms |
+| Recovery backoff | 500 ms |
+| Recovery ready timeout | 2000 ms |
+| Recovery attempts | 3 |
 | Tare samples | 20 |
 | Normal weight reads per update | At most 1 |
 | Calibration samples | 20 |
@@ -181,11 +185,13 @@ After reset, the production firmware:
 3. Initializes Timer1, USART0, buttons and LEDs.
 4. Initializes the HX711.
 5. Returns from initialization and polls HX711 readiness from `app_update()`.
-6. Records fault `02` and enters the safe latched fallback if the first conversion is not ready within 2000 ms.
-7. Loads a valid calibration factor from EEPROM, or uses the compiled default factor.
-8. Loads and validates the persistent tare record.
-9. Applies the stored offset and enters normal measurement when the tare is valid.
-10. Enters `TARE_REQUIRED` when the tare record is absent, invalid or corrupt.
+6. Records fault `02` and starts bounded cooperative recovery if the first conversion is not ready within 2000 ms.
+7. Power-cycles the HX711 after each 500 ms backoff and waits cooperatively for a conversion for at most 2000 ms.
+8. Retries at most three times, then enters a terminal reset-required fault if the sensor does not recover.
+9. Loads a valid calibration factor from EEPROM, or uses the compiled default factor, after a successful startup recovery.
+10. Loads and validates the persistent tare record.
+11. Applies the stored offset and enters normal measurement when the tare is valid.
+12. Enters `TARE_REQUIRED` when the tare record is absent, invalid or corrupt.
 
 The firmware does **not** automatically tare during startup.
 
@@ -457,19 +463,19 @@ Validated test inventory:
 | `native_operation_indicator` | 16 |
 | `native_scale` | 35 |
 | `native_app_fault` | 4 |
-| `native_app` | 49 |
+| `native_app` | 59 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **277** |
+| **Total** | **287** |
 
 Validated result:
 
 ```text
 Suites passed: 12/12
-Tests passed:  277/277
+Tests passed:  287/287
 Failures:      0
 Exit code:     0
 ```
@@ -560,9 +566,9 @@ Current limitations include:
 - No EEPROM wear levelling.
 - Thresholds and the reference calibration mass are compile-time constants.
 - No stable-weight detector or advanced outlier rejection.
-- Recoverable sensor faults are classified explicitly but still use a safe
-  latched fallback until the cooperative retry states are implemented.
-- No automatic HX711 recovery or watchdog is active yet.
+- Runtime `SCALE_READ_NO_DATA` is not yet supervised by a finite health deadline.
+- Recovery and terminal faults temporarily share the existing HIGH-LED fault pattern.
+- No hardware watchdog is active yet.
 - No brown-out reset diagnosis.
 - Serial service commands do not require confirmation.
 - EEPROM operations and console transmission remain bounded synchronous operations.

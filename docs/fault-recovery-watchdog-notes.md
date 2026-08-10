@@ -19,8 +19,9 @@ a89ea34 — merge: integrate non-blocking application
 The post-release documentation correction does not change the firmware used as
 the technical baseline.
 
-This document is a design contract. It does not claim that recovery or the
-watchdog have already been implemented or physically validated.
+This document is the design contract and incremental implementation record.
+Cooperative HX711 recovery is now implemented and covered by native tests. Its
+physical power-cycle validation and the watchdog remain pending.
 
 ---
 
@@ -777,7 +778,7 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
-Steps 1 through 3 are now implemented on the feature branch.
+Steps 1 through 4 are now implemented on the feature branch.
 
 ---
 
@@ -788,10 +789,10 @@ Steps 1 through 3 are now implemented on the feature branch.
 - [x] Normal level output is disabled immediately on system fault.
 - [x] Scale no-data and read-error results are distinguishable.
 - [ ] Runtime readiness has a finite cooperative deadline.
-- [ ] HX711 recovery has bounded backoff, timeout and retry count.
-- [ ] Recovery preserves committed tare and calibration.
-- [ ] Interrupted tare/calibration never resumes halfway through.
-- [ ] Inputs are not replayed across fault-state transitions.
+- [x] HX711 recovery has bounded backoff, timeout and retry count.
+- [x] Recovery preserves committed tare and calibration.
+- [x] Interrupted tare/calibration never resumes halfway through.
+- [x] Inputs are not replayed across fault-state transitions.
 - [ ] Recovery and terminal LED patterns are distinct.
 - [ ] Power-down/power-up pass a dedicated physical test.
 - [ ] The watchdog is fed only after complete application iterations.
@@ -853,3 +854,50 @@ numeric values normalize to fault `08` and therefore fail safely.
 Until the next commit adds cooperative backoff and ready-wait states, both
 policies deliberately share the existing latched fallback. This intermediate
 state is safe and fully diagnosed, but it is not yet automatic recovery.
+
+---
+
+## 31. Cooperative HX711 recovery result
+
+The watchdog remains disabled, and runtime readiness supervision is still a
+separate next commit.
+
+Recoverable sensor faults now enter two explicit cooperative states:
+
+```text
+APP_STATE_FAULT_RECOVERY_BACKOFF
+APP_STATE_FAULT_RECOVERY_WAIT_FOR_SCALE
+```
+
+The application waits `500 ms` before each attempt, calls the bounded
+`scale_recover()` power cycle once, and then polls `scale_is_ready()` at most
+once per `app_update()`. A conversion ready at the exact `2000 ms` deadline
+wins over the timeout. Failed power cycles and ready timeouts consume one
+attempt each; the third failure enters `APP_STATE_TERMINAL_FAULT` while
+retaining the original fault code.
+
+A successful startup recovery proceeds to the configuration-loading boundary
+on the following update. A successful runtime recovery returns to
+`APP_STATE_NORMAL_OPERATION` only when a valid tare was already active;
+otherwise it returns to `APP_STATE_TARE_REQUIRED`. Interrupted tare and
+calibration collections are cancelled and never resumed halfway through.
+
+Buttons remain sampled and hold-suppressed during recovery. UART input is
+consumed and discarded, and the transition update is reserved so no command or
+button action crosses into the recovered state. Committed tare and calibration
+values are never rewritten by recovery.
+
+Ten new integral application tests cover:
+
+- exact backoff and ready deadlines;
+- unsigned-time overflow;
+- exactly three failed attempts before terminal fault;
+- startup and runtime recovery destinations;
+- recovery with and without a valid tare;
+- input discard and hold suppression;
+- preservation of committed tare and calibration;
+- cancellation of interrupted tare and calibration workflows.
+
+The `native_app` suite now contains `59` tests. The complete expected native
+inventory is `287` tests across `12` suites. Recovery and terminal faults still
+share the existing HIGH-LED fault pattern until the dedicated indicator commit.

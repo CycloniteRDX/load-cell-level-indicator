@@ -68,6 +68,23 @@ static const uint32_t
 
 
 /*
+ * Cooperative HX711 recovery policy.
+ *
+ * Every attempt starts only after a finite backoff.
+ * A successful power cycle must then produce a ready
+ * conversion before the ready timeout expires.
+ */
+static const uint32_t
+    FAULT_RECOVERY_BACKOFF_MS = 500UL;
+
+static const uint32_t
+    FAULT_RECOVERY_READY_TIMEOUT_MS = 2000UL;
+
+static const uint8_t
+    FAULT_RECOVERY_MAX_ATTEMPTS = 3U;
+
+
+/*
  * Slow blinking used while waiting for the user
  * during the calibration workflow.
  */

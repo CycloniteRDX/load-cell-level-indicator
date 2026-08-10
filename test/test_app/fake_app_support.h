@@ -17,6 +17,7 @@ void fake_app_advance_time_ms(uint32_t elapsed_ms);
 
 void fake_app_set_scale_init_result(bool result);
 void fake_app_set_scale_ready(bool ready);
+void fake_app_set_scale_recover_result(bool result);
 void fake_app_set_scale_read_status(
     scale_read_status_t status
 );
@@ -33,6 +34,7 @@ void fake_app_set_scale_sample_average(
 
 uint32_t fake_app_scale_init_call_count(void);
 uint32_t fake_app_scale_ready_call_count(void);
+uint32_t fake_app_scale_recover_call_count(void);
 uint32_t fake_app_scale_cancel_call_count(void);
 uint32_t fake_app_scale_collection_start_call_count(void);
 uint32_t fake_app_scale_collection_update_call_count(void);
