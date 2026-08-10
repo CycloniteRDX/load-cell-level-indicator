@@ -42,7 +42,8 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Responsive UART and button handling during 20-sample operations.
 - Direct AVR implementations for GPIO, Timer1, EEPROM, USART0 and watchdog control.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 301 native Unity tests across 12 suites.
+- Dedicated direct-AVR and Arduino-reference watchdog hardware-validation builds.
+- 307 native Unity tests across 13 suites.
 
 ## Hardware
 
@@ -425,6 +426,26 @@ The Arduino entry-point reference build is:
 pio run -e nanoatmega328new_arduino
 ```
 
+The two intentional-stall validation builds are:
+
+```powershell
+pio run -e nanoatmega328new_watchdog_validation
+pio run -e nanoatmega328new_arduino_watchdog_validation
+```
+
+These environments define `WATCHDOG_HARDWARE_VALIDATION` and include the
+otherwise excluded `watchdog_validation.c` module. The two production
+environments do neither.
+
+After uploading a validation build, first release D4 and D8. Press both buttons
+together to stop the main execution path before its next watchdog kick. The
+two-second watchdog must reset the MCU. The trigger starts disarmed after every
+reset and cannot fire again until both buttons have been observed released, so
+keeping both pressed through the reset does not create a repeated-reset loop.
+
+Do not use a validation environment for normal operation. Re-upload
+`nanoatmega328new` after the physical test.
+
 ## Upload
 
 Close any active serial monitor before uploading, because only one process can own the COM port.
@@ -470,6 +491,7 @@ pio test -e native_tare_storage
 pio test -e native_calibration_storage
 pio test -e native_console
 pio test -e native_time_delay
+pio test -e native_watchdog_validation
 ```
 
 Validated test inventory:
@@ -482,19 +504,20 @@ Validated test inventory:
 | `native_operation_indicator` | 18 |
 | `native_scale` | 35 |
 | `native_app_fault` | 5 |
-| `native_app` | 69 |
+| `native_app` | 70 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **300** |
+| `native_watchdog_validation` | 6 |
+| **Total** | **307** |
 
 Validated result:
 
 ```text
-Suites passed: 12/12
-Tests passed:  300/300
+Suites passed: 13/13
+Tests passed:  307/307
 Failures:      0
 Exit code:     0
 ```

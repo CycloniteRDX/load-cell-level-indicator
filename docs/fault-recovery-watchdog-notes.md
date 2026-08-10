@@ -21,8 +21,9 @@ the technical baseline.
 
 This document is the design contract and incremental implementation record.
 Cooperative HX711 recovery, runtime readiness supervision, distinct recovery
-and terminal-fault indicators, and the AVR watchdog HAL are now implemented.
-Physical HX711 power-cycle and watchdog validation remain pending.
+and terminal-fault indicators, the AVR watchdog HAL and dedicated watchdog
+hardware-validation builds are now implemented. Physical HX711 power-cycle and
+watchdog validation remain pending.
 
 ---
 
@@ -703,6 +704,15 @@ Native tests shall cover at least:
 - the main feed rule is verified by code review and target test;
 - both AVR target environments compile.
 
+The dedicated hardware-validation trigger also has native logic tests proving
+that it:
+
+- starts disarmed;
+- cannot trigger while both buttons remain held across reset;
+- arms only after both buttons have been observed released;
+- requests a stall only when both buttons are later pressed together;
+- returns to the disarmed state when reinitialized.
+
 Hardware watchdog registers are not meaningfully proven by a native fake.
 
 ---
@@ -755,8 +765,33 @@ procedure is executed.
 
 ## 26. Physical watchdog validation
 
-A dedicated test build shall intentionally stop returning from the main
-execution path without feeding the watchdog.
+Two dedicated test environments intentionally stop returning from the main
+execution path without feeding the watchdog:
+
+```text
+nanoatmega328new_watchdog_validation
+nanoatmega328new_arduino_watchdog_validation
+```
+
+Both define `WATCHDOG_HARDWARE_VALIDATION`. The production environments exclude
+the trigger module and do not define that macro.
+
+The validation trigger is deliberately manual and one-shot per release cycle:
+
+1. after startup, release both D4 and D8 so the trigger can arm;
+2. press D4 and D8 together;
+3. the current `app_update()` completes;
+4. the validation hook prints its diagnostic and enters an intentional loop;
+5. execution never reaches the following `hal_watchdog_kick()`;
+6. the hardware watchdog must reset the ATmega328P near its two-second period;
+7. after reset, the trigger starts disarmed and cannot fire again while both
+   buttons remain pressed;
+8. release both buttons before repeating the test.
+
+Interrupts remain enabled during the intentional loop. This allows serial
+transmission and the project timebase to continue while proving specifically
+that loss of progress through the main execution path is sufficient to stop
+watchdog feeding.
 
 It shall verify:
 
@@ -769,6 +804,7 @@ It shall verify:
 - direct AVR and Arduino-reference entry points use the same feed rule.
 
 The intentional stall hook must not be enabled in the production environment.
+After testing, the direct AVR production build must be uploaded again.
 
 ---
 
@@ -791,7 +827,7 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
-Steps 1 through 8 are now implemented on the feature branch.
+Steps 1 through 9 are now implemented on the feature branch.
 
 ---
 
@@ -1062,3 +1098,34 @@ HAL query and simultaneous reporting of every supported cause bit. The
 inventory is `301` tests across `12` suites. Native tests do not claim to prove
 AVR register timing, the real two-second period or bootloader preservation of
 `MCUSR`; those remain gates for the dedicated hardware-validation build.
+
+---
+
+## 36. Watchdog hardware-validation build result
+
+The direct AVR and Arduino-reference validation environments now reuse their
+respective ordinary entry points with one compile-time-only hook inserted
+between:
+
+```text
+app_update()
+validation trigger / intentional stall
+hal_watchdog_kick()
+```
+
+`watchdog_validation.c` contains only the deterministic arming rule. It is
+excluded from both production environments and included explicitly by the two
+validation environments. The entry points print the validation-build warning,
+sample the active-low D4 and D8 inputs and enter the deliberate infinite loop
+only after the trigger requests it.
+
+The release-before-press rule prevents an automatic reset loop even when the
+user keeps both buttons pressed through the watchdog reset. It also prevents a
+board powered up with both buttons held from stalling before the operator has
+seen a normal startup.
+
+Six new native tests cover null-state safety, held-at-startup behaviour,
+one-button states, explicit arming, the simultaneous-press requirement and
+reinitialization. The expected native inventory is now `307` tests across `13`
+suites. Native tests prove only trigger logic; the real reset interval, safe
+restart and bootloader handling of `MCUSR` still require the physical procedure.
