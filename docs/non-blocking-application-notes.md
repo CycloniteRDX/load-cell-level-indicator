@@ -8,7 +8,7 @@ Development branch:
 feature/non-blocking-application
 ```
 
-Planned tag:
+Release tag:
 
 ```text
 v1.2-non-blocking-application
@@ -869,6 +869,36 @@ and is not silently marked complete by this milestone.
 
 ---
 
+## Completed validation
+
+The final branch was validated on 2026-08-10.
+
+```text
+Native suites:       11/11
+Native tests:        269/269
+Native failures:     0
+Runner exit code:    0
+
+Direct AVR SRAM:     217 bytes
+Direct AVR Flash:    16898 bytes
+Arduino SRAM:        226 bytes
+Arduino Flash:       17194 bytes
+
+Physical scenarios:  10/10 PASS
+```
+
+The physical suite confirmed cancellation between samples, result-state input
+suppression, startup timeout handling, responsiveness at 10 SPS, and persistent
+tare and calibration recovery after power loss.
+
+The detailed record is:
+
+```text
+docs/v1.2-non-blocking-application-validation.md
+```
+
+---
+
 ## Implementation sequence
 
 The milestone should be divided into reviewable commits:
@@ -909,10 +939,10 @@ commit must retain a clear single purpose.
 - [x] Temporary result patterns are represented by an application state.
 - [x] Startup failures enter a cooperative latched fault state.
 - [x] Runtime tare and calibration rollback guarantees are preserved.
-- [ ] All native tests pass, including scale and application transition tests.
-- [ ] Direct AVR and Arduino reference firmware builds pass.
-- [ ] Flash and SRAM usage are recorded.
-- [ ] Physical cancellation and responsiveness are validated at 10 SPS.
-- [ ] Power-loss restoration of the final tare and calibration still works.
-- [ ] Validation results and any remaining limitations are documented.
-- [ ] The milestone is merged and tagged only after physical validation.
+- [x] All native tests pass, including scale and application transition tests.
+- [x] Direct AVR and Arduino reference firmware builds pass.
+- [x] Flash and SRAM usage are recorded.
+- [x] Physical cancellation and responsiveness are validated at 10 SPS.
+- [x] Power-loss restoration of the final tare and calibration still works.
+- [x] Validation results and any remaining limitations are documented.
+- [x] The milestone was merged and tagged only after physical validation.
