@@ -56,6 +56,16 @@ static const uint32_t SCALE_STARTUP_TIMEOUT_MS =
 
 
 /*
+ * Maximum time that normal operation may receive only
+ * SCALE_READ_NO_DATA results. Every valid measurement
+ * starts a fresh window. States that intentionally do
+ * not consume normal measurements do not use it.
+ */
+static const uint32_t
+    SCALE_RUNTIME_READY_TIMEOUT_MS = 2000UL;
+
+
+/*
  * Maximum total time allowed for one incremental
  * multi-sample HX711 collection.
  *

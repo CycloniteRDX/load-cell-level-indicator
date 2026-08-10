@@ -468,6 +468,234 @@ static void test_runtime_read_error_enters_fault_with_stable_code(void)
 }
 
 
+static void test_runtime_no_data_is_tolerated_before_timeout(void)
+{
+    load_configuration_with_tare(-172706);
+
+    fake_app_set_scale_read_status(
+        SCALE_READ_NO_DATA
+    );
+
+    fake_app_advance_time_ms(
+        SCALE_RUNTIME_READY_TIMEOUT_MS - 1UL
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_weight_read_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_recover_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_runtime_no_data_enters_recovery_at_exact_timeout(void)
+{
+    load_configuration_with_tare(-172706);
+
+    fake_app_set_scale_read_status(
+        SCALE_READ_NO_DATA
+    );
+
+    fake_app_advance_time_ms(
+        SCALE_RUNTIME_READY_TIMEOUT_MS
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_cancel_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_recover_call_count()
+    );
+
+    assert_console_contains(
+        "FAULT 03: HX711 runtime conversion timeout."
+    );
+}
+
+
+static void test_runtime_value_wins_at_timeout_and_renews_deadline(void)
+{
+    load_configuration_with_tare(-172706);
+
+    fake_app_set_scale_read_status(
+        SCALE_READ_VALUE
+    );
+
+    fake_app_advance_time_ms(
+        SCALE_RUNTIME_READY_TIMEOUT_MS
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+
+    fake_app_set_scale_read_status(
+        SCALE_READ_NO_DATA
+    );
+
+    fake_app_advance_time_ms(
+        SCALE_RUNTIME_READY_TIMEOUT_MS - 1UL
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+
+    fake_app_advance_time_ms(1UL);
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        3UL,
+        fake_app_scale_weight_read_call_count()
+    );
+
+    assert_console_contains(
+        "FAULT 03: HX711 runtime conversion timeout."
+    );
+}
+
+
+static void test_runtime_no_data_timeout_handles_millisecond_overflow(void)
+{
+    fake_app_set_time_ms(
+        UINT32_MAX - 1000UL
+    );
+
+    load_configuration_with_tare(-172706);
+
+    fake_app_set_scale_read_status(
+        SCALE_READ_NO_DATA
+    );
+
+    fake_app_advance_time_ms(
+        SCALE_RUNTIME_READY_TIMEOUT_MS - 1UL
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+
+    fake_app_advance_time_ms(1UL);
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "FAULT 03: HX711 runtime conversion timeout."
+    );
+}
+
+
+static void test_runtime_supervision_restarts_after_recovery(void)
+{
+    enter_runtime_read_recovery_with_tare(-172706);
+
+    start_recovery_power_cycle();
+
+    fake_app_set_scale_ready(true);
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+
+    fake_app_set_scale_ready(false);
+    fake_app_set_scale_read_status(
+        SCALE_READ_NO_DATA
+    );
+
+    fake_app_advance_time_ms(
+        SCALE_RUNTIME_READY_TIMEOUT_MS - 1UL
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_NONE,
+        fake_app_operation_indicator_mode()
+    );
+
+    fake_app_advance_time_ms(1UL);
+    app_update();
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "FAULT 03: HX711 runtime conversion timeout."
+    );
+}
+
+
+static void test_runtime_timeout_is_inactive_during_calibration_wait(void)
+{
+    load_configuration_with_tare(-172706);
+    start_calibration_waiting_for_zero();
+
+    fake_app_advance_time_ms(
+        SCALE_RUNTIME_READY_TIMEOUT_MS
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_weight_read_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_recover_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_ZERO,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
 static void test_missing_tare_selects_tare_required_and_disables_measurement(void)
 {
     load_configuration();
@@ -2395,6 +2623,12 @@ int main(void)
     RUN_TEST(test_startup_timeout_handles_millisecond_overflow);
     RUN_TEST(test_valid_stored_configuration_is_loaded_once);
     RUN_TEST(test_runtime_read_error_enters_fault_with_stable_code);
+    RUN_TEST(test_runtime_no_data_is_tolerated_before_timeout);
+    RUN_TEST(test_runtime_no_data_enters_recovery_at_exact_timeout);
+    RUN_TEST(test_runtime_value_wins_at_timeout_and_renews_deadline);
+    RUN_TEST(test_runtime_no_data_timeout_handles_millisecond_overflow);
+    RUN_TEST(test_runtime_supervision_restarts_after_recovery);
+    RUN_TEST(test_runtime_timeout_is_inactive_during_calibration_wait);
     RUN_TEST(test_missing_tare_selects_tare_required_and_disables_measurement);
     RUN_TEST(test_invalid_active_calibration_factor_enters_fault_before_tare_load);
     RUN_TEST(test_startup_commands_and_presses_are_consumed);

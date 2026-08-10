@@ -32,12 +32,13 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Status-rich scale reads that distinguish no data from driver failure.
 - Bounded HX711 power-cycle primitive that preserves active tare and calibration.
 - Stable application fault codes with explicit recovery or terminal policy.
+- Finite 2000 ms health deadline for missing HX711 conversions during normal operation.
 - Cooperative HX711 recovery with 500 ms backoff, a 2000 ms ready deadline and three attempts.
 - Recovery discards inputs, cancels unfinished operations and returns only to a safe boundary state.
 - Responsive UART and button handling during 20-sample operations.
 - Direct AVR implementations for GPIO, Timer1, EEPROM and USART0.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 287 native Unity tests across 12 suites.
+- 293 native Unity tests across 12 suites.
 
 ## Hardware
 
@@ -88,6 +89,7 @@ The current values are provisional and can be changed in [`src/config.h`](src/co
 | Calibration-start hold | 3000 ms |
 | Weight output period | 500 ms |
 | HX711 startup timeout | 2000 ms |
+| HX711 runtime no-data timeout | 2000 ms |
 | Multi-sample operation timeout | 5000 ms |
 | Recovery backoff | 500 ms |
 | Recovery ready timeout | 2000 ms |
@@ -463,19 +465,19 @@ Validated test inventory:
 | `native_operation_indicator` | 16 |
 | `native_scale` | 35 |
 | `native_app_fault` | 4 |
-| `native_app` | 59 |
+| `native_app` | 65 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **287** |
+| **Total** | **293** |
 
 Validated result:
 
 ```text
 Suites passed: 12/12
-Tests passed:  287/287
+Tests passed:  293/293
 Failures:      0
 Exit code:     0
 ```
@@ -566,7 +568,6 @@ Current limitations include:
 - No EEPROM wear levelling.
 - Thresholds and the reference calibration mass are compile-time constants.
 - No stable-weight detector or advanced outlier rejection.
-- Runtime `SCALE_READ_NO_DATA` is not yet supervised by a finite health deadline.
 - Recovery and terminal faults temporarily share the existing HIGH-LED fault pattern.
 - No hardware watchdog is active yet.
 - No brown-out reset diagnosis.

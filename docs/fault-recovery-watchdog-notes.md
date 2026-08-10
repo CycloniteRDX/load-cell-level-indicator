@@ -20,8 +20,9 @@ The post-release documentation correction does not change the firmware used as
 the technical baseline.
 
 This document is the design contract and incremental implementation record.
-Cooperative HX711 recovery is now implemented and covered by native tests. Its
-physical power-cycle validation and the watchdog remain pending.
+Cooperative HX711 recovery and runtime readiness supervision are now implemented
+and covered by native tests. Physical power-cycle validation and the watchdog
+remain pending.
 
 ---
 
@@ -367,17 +368,23 @@ merely to produce longer messages.
 
 ## 12. Runtime readiness supervision
 
-Normal operation currently waits indefinitely when `scale_try_read_weight()`
-keeps reporting no new conversion. `v1.3` shall track the last successful or
-known-ready sensor activity.
+Normal operation now tracks the last successful sensor activity. Every entry
+into `APP_STATE_NORMAL_OPERATION` starts a fresh health window, and every
+`SCALE_READ_VALUE` renews it. `SCALE_READ_NO_DATA` remains an ordinary
+non-blocking result while less than `2000 ms` has elapsed.
 
 At 10 SPS a healthy conversion normally arrives about every 100 ms. A 2000 ms
 deadline therefore provides substantial margin without confusing an ordinary
 sampling interval with a fault.
 
-The deadline is active only in states that expect conversions. User-controlled
-waiting states must not time out merely because the application deliberately
-does not consume a ready conversion.
+At the exact deadline, a valid value wins because the result is evaluated before
+the elapsed-time check. Otherwise, `NO_DATA` records
+`APP_FAULT_HX711_RUNTIME_TIMEOUT` and enters the existing recovery FSM. Unsigned
+subtraction keeps the comparison correct across `millis()` overflow.
+
+The deadline is active only in normal operation. Startup, recovery, tare,
+calibration, result patterns and `TARE_REQUIRED` use their own timing policy or
+deliberately consume no normal measurements.
 
 ---
 
@@ -778,7 +785,7 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
-Steps 1 through 4 are now implemented on the feature branch.
+Steps 1 through 5 are now implemented on the feature branch.
 
 ---
 
@@ -788,7 +795,7 @@ Steps 1 through 4 are now implemented on the feature branch.
 - [x] Each code has one recovery or terminal policy.
 - [x] Normal level output is disabled immediately on system fault.
 - [x] Scale no-data and read-error results are distinguishable.
-- [ ] Runtime readiness has a finite cooperative deadline.
+- [x] Runtime readiness has a finite cooperative deadline.
 - [x] HX711 recovery has bounded backoff, timeout and retry count.
 - [x] Recovery preserves committed tare and calibration.
 - [x] Interrupted tare/calibration never resumes halfway through.
@@ -900,4 +907,42 @@ Ten new integral application tests cover:
 
 The `native_app` suite now contains `59` tests. The complete expected native
 inventory is `287` tests across `12` suites. Recovery and terminal faults still
+share the existing HIGH-LED fault pattern until the dedicated indicator commit.
+
+---
+
+## 32. Runtime HX711 readiness supervision result
+
+The watchdog remains disabled.
+
+Normal operation now owns a finite sensor-health window:
+
+```text
+enter normal operation -> start 2000 ms window
+SCALE_READ_VALUE       -> accept value and restart window
+SCALE_READ_NO_DATA     -> keep polling before the deadline
+SCALE_READ_NO_DATA     -> fault 03 at the deadline
+SCALE_READ_ERROR       -> fault 04 immediately
+```
+
+The window is restarted whenever the application returns safely to normal
+operation, including after a successful recovery. Time spent intentionally in
+startup, recovery, tare, calibration, `TARE_REQUIRED` or a temporary result
+pattern never counts as missing runtime sensor activity.
+
+At the exact deadline a valid value wins and renews the window. Elapsed time is
+computed with unsigned subtraction, so supervision remains correct when the
+32-bit millisecond counter wraps.
+
+Six new integral application tests cover:
+
+- ordinary `NO_DATA` immediately before the deadline;
+- fault `03` at the exact deadline;
+- a valid value winning at the deadline and renewing the window;
+- unsigned-time overflow;
+- a fresh window after successful recovery;
+- supervision remaining inactive during a user-controlled calibration wait.
+
+The `native_app` suite now contains `65` tests. The complete expected native
+inventory is `293` tests across `12` suites. Recovery and terminal faults still
 share the existing HIGH-LED fault pattern until the dedicated indicator commit.

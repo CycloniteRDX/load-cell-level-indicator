@@ -27,6 +27,8 @@ static uint8_t fault_recovery_attempt_count = 0U;
 static uint32_t fault_recovery_phase_started_ms = 0UL;
 static bool startup_configuration_loaded = false;
 
+static uint32_t scale_runtime_activity_ms = 0UL;
+
 static button_t tare_button;
 static button_t calibration_button;
 
@@ -77,6 +79,20 @@ static app_state_t state_after_result =
     APP_STATE_TARE_REQUIRED;
 
 
+static void enter_normal_operation_state(void)
+{
+    app_state = APP_STATE_NORMAL_OPERATION;
+
+    /*
+     * A state transition into normal operation starts a
+     * fresh sensor-health window. Time deliberately spent
+     * in startup, recovery, tare, calibration or a result
+     * pattern must not count as missing runtime activity.
+     */
+    scale_runtime_activity_ms = hal_time_millis();
+}
+
+
 static app_state_t get_idle_application_state(void)
 {
     if (tare_available)
@@ -113,7 +129,14 @@ get_idle_operation_mode(void)
 
 static void restore_idle_application_state(void)
 {
-    app_state = get_idle_application_state();
+    if (tare_available)
+    {
+        enter_normal_operation_state();
+    }
+    else
+    {
+        app_state = APP_STATE_TARE_REQUIRED;
+    }
 
     const operation_indicator_mode_t idle_mode =
         get_idle_operation_mode();
@@ -338,7 +361,15 @@ static void start_success_result_pattern(
 
 static void restore_tare_return_state(void)
 {
-    app_state = tare_return_state;
+    if (tare_return_state ==
+        APP_STATE_NORMAL_OPERATION)
+    {
+        enter_normal_operation_state();
+    }
+    else
+    {
+        app_state = tare_return_state;
+    }
 
     const operation_indicator_mode_t return_mode =
         get_operation_mode_for_idle_state(
@@ -532,7 +563,7 @@ static void complete_tare(
     scale_set_offset(candidate_tare_offset);
 
     tare_available = true;
-    app_state = APP_STATE_NORMAL_OPERATION;
+    enter_normal_operation_state();
 
     measurement_available = false;
     level_indicator_reset();
@@ -1533,6 +1564,19 @@ static void update_weight_measurement(void)
 
     if (read_status == SCALE_READ_NO_DATA)
     {
+        const uint32_t now = hal_time_millis();
+
+        if ((uint32_t)(
+                now - scale_runtime_activity_ms) <
+            SCALE_RUNTIME_READY_TIMEOUT_MS)
+        {
+            return;
+        }
+
+        enter_fault_state(
+            APP_FAULT_HX711_RUNTIME_TIMEOUT
+        );
+
         return;
     }
 
@@ -1547,6 +1591,7 @@ static void update_weight_measurement(void)
 
     latest_weight_grams = weight_grams;
     measurement_available = true;
+    scale_runtime_activity_ms = hal_time_millis();
 
     level_indicator_update(latest_weight_grams);
 }
@@ -1916,6 +1961,13 @@ static void process_result_pattern(void)
      * so input sampled at the completion boundary cannot
      * be reinterpreted under the restored state.
      */
+    if (state_after_result ==
+        APP_STATE_NORMAL_OPERATION)
+    {
+        enter_normal_operation_state();
+        return;
+    }
+
     app_state = state_after_result;
 }
 
@@ -1980,7 +2032,7 @@ static void load_startup_configuration(void)
         console_discard_input();
 
         tare_available = true;
-        app_state = APP_STATE_NORMAL_OPERATION;
+        enter_normal_operation_state();
 
         operation_indicator_clear();
 
@@ -2150,6 +2202,7 @@ void app_init(void)
     fault_recovery_attempt_count = 0U;
     fault_recovery_phase_started_ms = 0UL;
     startup_configuration_loaded = false;
+    scale_runtime_activity_ms = 0UL;
 
     last_print_ms = 0UL;
     operation_started_ms = hal_time_millis();
