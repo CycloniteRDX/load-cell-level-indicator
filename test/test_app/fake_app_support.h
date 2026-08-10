@@ -6,6 +6,7 @@
 
 #include "operation_indicator.h"
 #include "scale.h"
+#include "storage_load_status.h"
 
 
 void fake_app_reset(void);
@@ -48,6 +49,10 @@ void fake_app_set_calibration_record(
     float calibration_factor
 );
 
+void fake_app_set_calibration_load_status(
+    storage_load_status_t status
+);
+
 void fake_app_set_scale_factor_result(bool result);
 void fake_app_set_calibration_save_result(bool result);
 
@@ -62,6 +67,10 @@ float fake_app_scale_factor_when_calibration_was_saved(void);
 void fake_app_set_tare_record(
     bool available,
     int32_t tare_offset
+);
+
+void fake_app_set_tare_load_status(
+    storage_load_status_t status
 );
 
 uint32_t fake_app_tare_load_call_count(void);

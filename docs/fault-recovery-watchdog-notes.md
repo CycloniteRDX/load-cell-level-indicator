@@ -178,7 +178,8 @@ typedef enum
     APP_FAULT_SAMPLE_COLLECTION_TIMEOUT = 5,
     APP_FAULT_SAMPLE_COLLECTION_STATE = 6,
     APP_FAULT_INVALID_ACTIVE_CALIBRATION = 7,
-    APP_FAULT_INTERNAL_STATE = 8
+    APP_FAULT_INTERNAL_STATE = 8,
+    APP_FAULT_PERSISTENT_STORAGE_ACCESS = 9
 } app_fault_code_t;
 ```
 
@@ -197,6 +198,7 @@ must not be renumbered if a later release adds another cause.
 | Impossible collector status | app invariant | Terminal internal fault |
 | Invalid active calibration factor | scale/app validation | Terminal configuration fault |
 | Impossible application state | app invariant | Terminal internal fault |
+| Persistent storage access failure | storage/app boundary | Terminal storage fault |
 
 An exhausted retry budget is not required to replace the original cause with a
 new cause. Diagnostics should retain the original code and additionally report
@@ -218,7 +220,7 @@ Several existing failures already have safe transactional behaviour:
 These conditions shall not automatically enter terminal fault. The application
 can keep the previous committed configuration or require a new tare.
 
-Persistent-record loading should eventually distinguish:
+Persistent-record loading now distinguishes:
 
 ```text
 valid
@@ -232,6 +234,7 @@ The safe startup policy remains:
 - missing/invalid calibration: use the compile-time default and print a clear
   diagnostic;
 - missing/invalid tare: disable normal level indication and require tare;
+- storage access failure: terminal fault with reset required;
 - invalid compile-time or active calibration: terminal fault.
 
 The status-rich storage API may be introduced in a separate reviewable commit
@@ -788,7 +791,7 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
-Steps 1 through 6 are now implemented on the feature branch.
+Steps 1 through 7 are now implemented on the feature branch.
 
 ---
 
@@ -804,6 +807,7 @@ Steps 1 through 6 are now implemented on the feature branch.
 - [x] Interrupted tare/calibration never resumes halfway through.
 - [x] Inputs are not replayed across fault-state transitions.
 - [x] Recovery and terminal LED patterns are distinct.
+- [x] Persistent loads distinguish absent, corrupt and access-failure states.
 - [ ] Power-down/power-up pass a dedicated physical test.
 - [ ] The watchdog is fed only after complete application iterations.
 - [ ] The watchdog is never fed from an interrupt.
@@ -978,3 +982,39 @@ application expectations now prove that every recoverable detection selects
 the recovery mode, terminal causes never select it and retry exhaustion changes
 to the terminal mode. The `native_operation_indicator` suite now contains `18`
 tests; the complete expected native inventory is `295` tests across `12` suites.
+
+---
+
+## 34. Persistent configuration load-status result
+
+The watchdog remains disabled.
+
+Calibration and tare storage now share one explicit load contract:
+
+```text
+STORAGE_LOAD_VALID        -> decoded value is returned
+STORAGE_LOAD_ABSENT       -> erased or deliberately cleared record
+STORAGE_LOAD_INVALID      -> bytes read, but magic/version/CRC/value is invalid
+STORAGE_LOAD_ACCESS_ERROR -> capacity or read operation failed
+```
+
+The output argument is modified only for `STORAGE_LOAD_VALID`. Erased magic
+bytes (`0xFF`) and deliberately cleared magic bytes (`0x00`) are classified as
+absent; partial or otherwise malformed identifiers remain invalid rather than
+being mistaken for an intentional clear.
+
+Startup applies the status according to the existing safe policy:
+
+- absent calibration uses the compile-time default with an explicit message;
+- corrupt calibration also uses the default, but reports corruption;
+- absent tare enters `TARE_REQUIRED` with the first-start message;
+- corrupt tare enters `TARE_REQUIRED` with a corruption diagnostic;
+- a real access failure for either record enters terminal `FAULT 09` and does
+  not continue applying a partial startup configuration.
+
+Four new integral application tests cover corrupt and access-error outcomes for
+both records. One application-fault test fixes code `09` and its terminal
+policy. Existing storage tests now assert all four statuses while continuing to
+prove that non-valid loads preserve their output arguments. The `native_app`
+suite now contains `69` tests, `native_app_fault` contains `5`, and the complete
+expected native inventory is `300` tests across `12` suites.

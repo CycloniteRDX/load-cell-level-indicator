@@ -210,6 +210,12 @@ static void print_fault_diagnostic(void)
             );
             break;
 
+        case APP_FAULT_PERSISTENT_STORAGE_ACCESS:
+            CONSOLE_PRINTLN(
+                "Persistent storage access failed."
+            );
+            break;
+
         case APP_FAULT_INTERNAL_STATE:
         case APP_FAULT_NONE:
         default:
@@ -1981,26 +1987,55 @@ static void load_startup_configuration(void)
     float calibration_factor =
         DEFAULT_CALIBRATION_FACTOR;
 
-    const bool stored_calibration_loaded =
+    const storage_load_status_t
+        calibration_load_status =
         calibration_storage_load(
             &calibration_factor
         );
 
-    if (stored_calibration_loaded)
+    switch (calibration_load_status)
     {
-        CONSOLE_PRINTLN(
-            "Stored calibration loaded from EEPROM."
-        );
-    }
-    else
-    {
-        CONSOLE_PRINTLN(
-            "No valid stored calibration found."
-        );
+        case STORAGE_LOAD_VALID:
+            CONSOLE_PRINTLN(
+                "Stored calibration loaded from EEPROM."
+            );
+            break;
 
-        CONSOLE_PRINTLN(
-            "Using default calibration factor."
-        );
+        case STORAGE_LOAD_ABSENT:
+            CONSOLE_PRINTLN(
+                "No stored calibration found."
+            );
+
+            CONSOLE_PRINTLN(
+                "Using default calibration factor."
+            );
+            break;
+
+        case STORAGE_LOAD_INVALID:
+            CONSOLE_PRINTLN(
+                "Stored calibration is invalid or corrupt."
+            );
+
+            CONSOLE_PRINTLN(
+                "Using default calibration factor."
+            );
+            break;
+
+        case STORAGE_LOAD_ACCESS_ERROR:
+            CONSOLE_PRINTLN(
+                "ERROR: Calibration storage could not be read."
+            );
+
+            enter_fault_state(
+                APP_FAULT_PERSISTENT_STORAGE_ACCESS
+            );
+            return;
+
+        default:
+            enter_fault_state(
+                APP_FAULT_INTERNAL_STATE
+            );
+            return;
     }
 
     if (!scale_set_calibration_factor(
@@ -2021,8 +2056,35 @@ static void load_startup_configuration(void)
 
     int32_t stored_tare_offset = 0;
 
-    if (tare_storage_load(
-            &stored_tare_offset))
+    const storage_load_status_t tare_load_status =
+        tare_storage_load(
+            &stored_tare_offset
+        );
+
+    if (tare_load_status ==
+        STORAGE_LOAD_ACCESS_ERROR)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Tare storage could not be read."
+        );
+
+        enter_fault_state(
+            APP_FAULT_PERSISTENT_STORAGE_ACCESS
+        );
+        return;
+    }
+
+    if ((tare_load_status != STORAGE_LOAD_VALID) &&
+        (tare_load_status != STORAGE_LOAD_ABSENT) &&
+        (tare_load_status != STORAGE_LOAD_INVALID))
+    {
+        enter_fault_state(
+            APP_FAULT_INTERNAL_STATE
+        );
+        return;
+    }
+
+    if (tare_load_status == STORAGE_LOAD_VALID)
     {
         scale_set_offset(
             stored_tare_offset
@@ -2069,9 +2131,18 @@ static void load_startup_configuration(void)
             OPERATION_INDICATOR_TARE_REQUIRED
         );
 
-        CONSOLE_PRINTLN(
-            "No valid tare offset is stored."
-        );
+        if (tare_load_status == STORAGE_LOAD_ABSENT)
+        {
+            CONSOLE_PRINTLN(
+                "No stored tare offset found."
+            );
+        }
+        else
+        {
+            CONSOLE_PRINTLN(
+                "Stored tare offset is invalid or corrupt."
+            );
+        }
 
         CONSOLE_PRINTLN(
             "Normal level indication is disabled."

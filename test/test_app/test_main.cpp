@@ -437,6 +437,78 @@ static void test_valid_stored_configuration_is_loaded_once(void)
 }
 
 
+static void test_invalid_calibration_uses_default_with_corruption_diagnostic(void)
+{
+    fake_app_set_calibration_load_status(
+        STORAGE_LOAD_INVALID
+    );
+
+    load_configuration();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_factor_set_call_count()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        DEFAULT_CALIBRATION_FACTOR,
+        fake_app_last_scale_factor()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_TARE_REQUIRED,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "Stored calibration is invalid or corrupt."
+    );
+
+    assert_console_contains(
+        "Using default calibration factor."
+    );
+}
+
+
+static void test_calibration_storage_access_error_enters_terminal_fault(void)
+{
+    fake_app_set_calibration_load_status(
+        STORAGE_LOAD_ACCESS_ERROR
+    );
+
+    load_configuration();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_calibration_load_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_tare_load_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_factor_set_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "ERROR: Calibration storage could not be read."
+    );
+
+    assert_console_contains(
+        "FAULT 09: Persistent storage access failed."
+    );
+}
+
+
 static void test_runtime_read_error_enters_recovery_with_stable_code(void)
 {
     load_configuration_with_tare(-172706);
@@ -720,6 +792,80 @@ static void test_missing_tare_selects_tare_required_and_disables_measurement(voi
 
     assert_console_contains(
         "Normal level indication is disabled."
+    );
+
+    assert_console_contains(
+        "No stored calibration found."
+    );
+
+    assert_console_contains(
+        "No stored tare offset found."
+    );
+}
+
+
+static void test_invalid_tare_selects_tare_required_with_corruption_diagnostic(void)
+{
+    fake_app_set_tare_load_status(
+        STORAGE_LOAD_INVALID
+    );
+
+    load_configuration();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_offset_set_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_TARE_REQUIRED,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "Stored tare offset is invalid or corrupt."
+    );
+
+    assert_console_contains(
+        "Normal level indication is disabled."
+    );
+}
+
+
+static void test_tare_storage_access_error_enters_terminal_fault(void)
+{
+    fake_app_set_tare_load_status(
+        STORAGE_LOAD_ACCESS_ERROR
+    );
+
+    load_configuration();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_factor_set_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_tare_load_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_offset_set_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "ERROR: Tare storage could not be read."
+    );
+
+    assert_console_contains(
+        "FAULT 09: Persistent storage access failed."
     );
 }
 
@@ -2632,6 +2778,8 @@ int main(void)
     RUN_TEST(test_ready_scale_wins_when_detected_at_timeout_deadline);
     RUN_TEST(test_startup_timeout_handles_millisecond_overflow);
     RUN_TEST(test_valid_stored_configuration_is_loaded_once);
+    RUN_TEST(test_invalid_calibration_uses_default_with_corruption_diagnostic);
+    RUN_TEST(test_calibration_storage_access_error_enters_terminal_fault);
     RUN_TEST(test_runtime_read_error_enters_recovery_with_stable_code);
     RUN_TEST(test_runtime_no_data_is_tolerated_before_timeout);
     RUN_TEST(test_runtime_no_data_enters_recovery_at_exact_timeout);
@@ -2640,6 +2788,8 @@ int main(void)
     RUN_TEST(test_runtime_supervision_restarts_after_recovery);
     RUN_TEST(test_runtime_timeout_is_inactive_during_calibration_wait);
     RUN_TEST(test_missing_tare_selects_tare_required_and_disables_measurement);
+    RUN_TEST(test_invalid_tare_selects_tare_required_with_corruption_diagnostic);
+    RUN_TEST(test_tare_storage_access_error_enters_terminal_fault);
     RUN_TEST(test_invalid_active_calibration_factor_enters_fault_before_tare_load);
     RUN_TEST(test_startup_commands_and_presses_are_consumed);
     RUN_TEST(test_input_received_during_configuration_is_not_executed_later);

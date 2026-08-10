@@ -24,6 +24,7 @@ static void test_fault_codes_keep_stable_numeric_values(void)
     TEST_ASSERT_EQUAL_INT(6, APP_FAULT_SAMPLE_COLLECTION_STATE);
     TEST_ASSERT_EQUAL_INT(7, APP_FAULT_INVALID_ACTIVE_CALIBRATION);
     TEST_ASSERT_EQUAL_INT(8, APP_FAULT_INTERNAL_STATE);
+    TEST_ASSERT_EQUAL_INT(9, APP_FAULT_PERSISTENT_STORAGE_ACCESS);
 }
 
 
@@ -113,6 +114,24 @@ static void test_none_and_unknown_values_fail_safely(void)
 }
 
 
+static void test_persistent_storage_access_fault_is_terminal(void)
+{
+    TEST_ASSERT_EQUAL_INT(
+        APP_FAULT_PERSISTENT_STORAGE_ACCESS,
+        app_fault_normalize_code(
+            APP_FAULT_PERSISTENT_STORAGE_ACCESS
+        )
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        APP_FAULT_POLICY_TERMINAL,
+        app_fault_get_policy(
+            APP_FAULT_PERSISTENT_STORAGE_ACCESS
+        )
+    );
+}
+
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -121,6 +140,7 @@ int main(void)
     RUN_TEST(test_sensor_faults_have_recovery_policy);
     RUN_TEST(test_internal_and_configuration_faults_are_terminal);
     RUN_TEST(test_none_and_unknown_values_fail_safely);
+    RUN_TEST(test_persistent_storage_access_fault_is_terminal);
 
     return UNITY_END();
 }

@@ -15,6 +15,32 @@ static const size_t TARE_MAGIC_SIZE =
     4U;
 
 
+static bool record_is_absent(
+    const uint8_t *record_bytes
+)
+{
+    bool magic_is_erased = true;
+    bool magic_is_cleared = true;
+
+    for (size_t index = 0U;
+         index < TARE_MAGIC_SIZE;
+         ++index)
+    {
+        if (record_bytes[index] != 0xFFU)
+        {
+            magic_is_erased = false;
+        }
+
+        if (record_bytes[index] != 0x00U)
+        {
+            magic_is_cleared = false;
+        }
+    }
+
+    return magic_is_erased || magic_is_cleared;
+}
+
+
 static bool storage_has_enough_space(void)
 {
     const size_t capacity =
@@ -31,18 +57,18 @@ static bool storage_has_enough_space(void)
 }
 
 
-bool tare_storage_load(
+storage_load_status_t tare_storage_load(
     int32_t *tare_offset
 )
 {
     if (tare_offset == nullptr)
     {
-        return false;
+        return STORAGE_LOAD_ACCESS_ERROR;
     }
 
     if (!storage_has_enough_space())
     {
-        return false;
+        return STORAGE_LOAD_ACCESS_ERROR;
     }
 
     uint8_t record_bytes[TARE_RECORD_SIZE] = {};
@@ -52,7 +78,12 @@ bool tare_storage_load(
             record_bytes,
             TARE_RECORD_SIZE))
     {
-        return false;
+        return STORAGE_LOAD_ACCESS_ERROR;
+    }
+
+    if (record_is_absent(record_bytes))
+    {
+        return STORAGE_LOAD_ABSENT;
     }
 
     int32_t decoded_offset = 0;
@@ -62,12 +93,12 @@ bool tare_storage_load(
             TARE_RECORD_SIZE,
             &decoded_offset))
     {
-        return false;
+        return STORAGE_LOAD_INVALID;
     }
 
     *tare_offset = decoded_offset;
 
-    return true;
+    return STORAGE_LOAD_VALID;
 }
 
 

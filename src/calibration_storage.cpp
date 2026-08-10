@@ -14,6 +14,32 @@
 static const size_t CALIBRATION_MAGIC_SIZE = 4U;
 
 
+static bool record_is_absent(
+    const uint8_t *record_bytes
+)
+{
+    bool magic_is_erased = true;
+    bool magic_is_cleared = true;
+
+    for (size_t index = 0U;
+         index < CALIBRATION_MAGIC_SIZE;
+         ++index)
+    {
+        if (record_bytes[index] != 0xFFU)
+        {
+            magic_is_erased = false;
+        }
+
+        if (record_bytes[index] != 0x00U)
+        {
+            magic_is_cleared = false;
+        }
+    }
+
+    return magic_is_erased || magic_is_cleared;
+}
+
+
 static bool storage_has_enough_space(void)
 {
     const size_t capacity =
@@ -30,18 +56,18 @@ static bool storage_has_enough_space(void)
 }
 
 
-bool calibration_storage_load(
+storage_load_status_t calibration_storage_load(
     float *calibration_factor
 )
 {
     if (calibration_factor == nullptr)
     {
-        return false;
+        return STORAGE_LOAD_ACCESS_ERROR;
     }
 
     if (!storage_has_enough_space())
     {
-        return false;
+        return STORAGE_LOAD_ACCESS_ERROR;
     }
 
     uint8_t record_bytes[CALIBRATION_RECORD_SIZE] = {};
@@ -51,7 +77,12 @@ bool calibration_storage_load(
             record_bytes,
             CALIBRATION_RECORD_SIZE))
     {
-        return false;
+        return STORAGE_LOAD_ACCESS_ERROR;
+    }
+
+    if (record_is_absent(record_bytes))
+    {
+        return STORAGE_LOAD_ABSENT;
     }
 
     float decoded_factor = 0.0F;
@@ -61,12 +92,12 @@ bool calibration_storage_load(
             CALIBRATION_RECORD_SIZE,
             &decoded_factor))
     {
-        return false;
+        return STORAGE_LOAD_INVALID;
     }
 
     *calibration_factor = decoded_factor;
 
-    return true;
+    return STORAGE_LOAD_VALID;
 }
 
 

@@ -49,7 +49,8 @@ static int32_t active_scale_offset = 0;
 static uint32_t scale_factor_set_calls = 0UL;
 static uint32_t scale_offset_set_calls = 0UL;
 
-static bool calibration_record_available = false;
+static storage_load_status_t calibration_load_status =
+    STORAGE_LOAD_ABSENT;
 static float stored_calibration_factor = 0.0F;
 static uint32_t calibration_load_calls = 0UL;
 static bool calibration_save_result = true;
@@ -58,7 +59,8 @@ static float last_saved_calibration_factor = 0.0F;
 static float scale_factor_when_calibration_was_saved =
     0.0F;
 
-static bool tare_record_available = false;
+static storage_load_status_t tare_load_status =
+    STORAGE_LOAD_ABSENT;
 static int32_t stored_tare_offset = 0;
 static uint32_t tare_load_calls = 0UL;
 static bool tare_save_result = true;
@@ -171,7 +173,7 @@ void fake_app_reset(void)
     scale_factor_set_calls = 0UL;
     scale_offset_set_calls = 0UL;
 
-    calibration_record_available = false;
+    calibration_load_status = STORAGE_LOAD_ABSENT;
     stored_calibration_factor = 0.0F;
     calibration_load_calls = 0UL;
     calibration_save_result = true;
@@ -180,7 +182,7 @@ void fake_app_reset(void)
     scale_factor_when_calibration_was_saved =
         0.0F;
 
-    tare_record_available = false;
+    tare_load_status = STORAGE_LOAD_ABSENT;
     stored_tare_offset = 0;
     tare_load_calls = 0UL;
     tare_save_result = true;
@@ -340,8 +342,19 @@ void fake_app_set_calibration_record(
     float calibration_factor
 )
 {
-    calibration_record_available = available;
+    calibration_load_status = available
+        ? STORAGE_LOAD_VALID
+        : STORAGE_LOAD_ABSENT;
+
     stored_calibration_factor = calibration_factor;
+}
+
+
+void fake_app_set_calibration_load_status(
+    storage_load_status_t status
+)
+{
+    calibration_load_status = status;
 }
 
 
@@ -398,8 +411,19 @@ void fake_app_set_tare_record(
     int32_t tare_offset
 )
 {
-    tare_record_available = available;
+    tare_load_status = available
+        ? STORAGE_LOAD_VALID
+        : STORAGE_LOAD_ABSENT;
+
     stored_tare_offset = tare_offset;
+}
+
+
+void fake_app_set_tare_load_status(
+    storage_load_status_t status
+)
+{
+    tare_load_status = status;
 }
 
 
@@ -992,24 +1016,21 @@ float scale_get_calibration_factor(void)
 }
 
 
-bool calibration_storage_load(
+storage_load_status_t calibration_storage_load(
     float *calibration_factor
 )
 {
     ++calibration_load_calls;
 
-    if (!calibration_record_available)
-    {
-        return false;
-    }
-
-    if (calibration_factor != NULL)
+    if ((calibration_load_status ==
+            STORAGE_LOAD_VALID) &&
+        (calibration_factor != NULL))
     {
         *calibration_factor =
             stored_calibration_factor;
     }
 
-    return true;
+    return calibration_load_status;
 }
 
 
@@ -1043,7 +1064,9 @@ bool calibration_storage_clear(void)
 }
 
 
-bool tare_storage_load(int32_t *tare_offset)
+storage_load_status_t tare_storage_load(
+    int32_t *tare_offset
+)
 {
     ++tare_load_calls;
 
@@ -1056,17 +1079,13 @@ bool tare_storage_load(int32_t *tare_offset)
         queue_command_during_tare_load = false;
     }
 
-    if (!tare_record_available)
-    {
-        return false;
-    }
-
-    if (tare_offset != NULL)
+    if ((tare_load_status == STORAGE_LOAD_VALID) &&
+        (tare_offset != NULL))
     {
         *tare_offset = stored_tare_offset;
     }
 
-    return true;
+    return tare_load_status;
 }
 
 

@@ -681,7 +681,8 @@ static void test_storage_load_reads_valid_record(
 
     float loaded_factor = 0.0F;
 
-    TEST_ASSERT_TRUE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_VALID,
         calibration_storage_load(
             &loaded_factor
         )
@@ -717,7 +718,8 @@ static void test_storage_load_rejects_null_output_without_reading(
     void
 )
 {
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ACCESS_ERROR,
         calibration_storage_load(nullptr)
     );
 
@@ -738,7 +740,8 @@ static void test_storage_load_rejects_insufficient_capacity_without_reading(
 
     float loaded_factor = 123.0F;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ACCESS_ERROR,
         calibration_storage_load(
             &loaded_factor
         )
@@ -764,7 +767,8 @@ static void test_storage_load_preserves_output_after_read_failure(
 
     float loaded_factor = 123.0F;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ACCESS_ERROR,
         calibration_storage_load(
             &loaded_factor
         )
@@ -782,7 +786,7 @@ static void test_storage_load_preserves_output_after_read_failure(
 }
 
 
-static void test_storage_load_rejects_erased_storage_and_preserves_output(
+static void test_storage_load_reports_absent_for_erased_storage(
     void
 )
 {
@@ -790,7 +794,8 @@ static void test_storage_load_rejects_erased_storage_and_preserves_output(
 
     float loaded_factor = 123.0F;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ABSENT,
         calibration_storage_load(
             &loaded_factor
         )
@@ -803,7 +808,7 @@ static void test_storage_load_rejects_erased_storage_and_preserves_output(
 }
 
 
-static void test_storage_load_rejects_corrupted_record_and_preserves_output(
+static void test_storage_load_reports_invalid_for_corrupted_record(
     void
 )
 {
@@ -827,7 +832,8 @@ static void test_storage_load_rejects_corrupted_record_and_preserves_output(
 
     float loaded_factor = 123.0F;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_INVALID,
         calibration_storage_load(
             &loaded_factor
         )
@@ -906,7 +912,8 @@ static void test_storage_save_and_load_preserve_negative_factor(
 
     float loaded_factor = 0.0F;
 
-    TEST_ASSERT_TRUE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_VALID,
         calibration_storage_load(
             &loaded_factor
         )
@@ -1222,7 +1229,7 @@ static void test_storage_clear_rejects_unmodified_magic(
 }
 
 
-static void test_storage_load_fails_after_successful_clear(
+static void test_storage_load_reports_absent_after_successful_clear(
     void
 )
 {
@@ -1240,7 +1247,8 @@ static void test_storage_load_fails_after_successful_clear(
 
     float loaded_factor = 123.0F;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ABSENT,
         calibration_storage_load(
             &loaded_factor
         )
@@ -1361,11 +1369,11 @@ int main(
     );
 
     RUN_TEST(
-        test_storage_load_rejects_erased_storage_and_preserves_output
+        test_storage_load_reports_absent_for_erased_storage
     );
 
     RUN_TEST(
-        test_storage_load_rejects_corrupted_record_and_preserves_output
+        test_storage_load_reports_invalid_for_corrupted_record
     );
 
     RUN_TEST(
@@ -1421,7 +1429,7 @@ int main(
     );
 
     RUN_TEST(
-        test_storage_load_fails_after_successful_clear
+        test_storage_load_reports_absent_after_successful_clear
     );
 
     return UNITY_END();

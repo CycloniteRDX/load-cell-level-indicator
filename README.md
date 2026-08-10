@@ -18,6 +18,7 @@ The project began as a small Arduino learning exercise and was progressively evo
 - In-place calibration using a known reference mass.
 - Persistent calibration factor stored in the ATmega328P EEPROM.
 - Independent, versioned and CRC-protected calibration and tare records.
+- Persistent loads distinguish valid, absent, corrupt and access-error outcomes.
 - Four logical level states represented by three LEDs:
   - `VERY_LOW`
   - `LOW`
@@ -39,7 +40,7 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Responsive UART and button handling during 20-sample operations.
 - Direct AVR implementations for GPIO, Timer1, EEPROM and USART0.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 295 native Unity tests across 12 suites.
+- 300 native Unity tests across 12 suites.
 
 ## Hardware
 
@@ -194,10 +195,12 @@ After reset, the production firmware:
 6. Records fault `02` and starts bounded cooperative recovery if the first conversion is not ready within 2000 ms.
 7. Power-cycles the HX711 after each 500 ms backoff and waits cooperatively for a conversion for at most 2000 ms.
 8. Retries at most three times, then enters a terminal reset-required fault if the sensor does not recover.
-9. Loads a valid calibration factor from EEPROM, or uses the compiled default factor, after a successful startup recovery.
-10. Loads and validates the persistent tare record.
-11. Applies the stored offset and enters normal measurement when the tare is valid.
-12. Enters `TARE_REQUIRED` when the tare record is absent, invalid or corrupt.
+9. Loads and classifies the persistent calibration record after a successful startup recovery.
+10. Uses a valid stored calibration, or the compiled default when the record is absent or corrupt.
+11. Loads and classifies the persistent tare record.
+12. Applies the stored offset and enters normal measurement when the tare is valid.
+13. Enters `TARE_REQUIRED` when the tare record is absent or corrupt.
+14. Enters terminal `FAULT 09` when either record cannot be read from persistent storage.
 
 The firmware does **not** automatically tare during startup.
 
@@ -468,20 +471,20 @@ Validated test inventory:
 | `native_level_indicator` | 14 |
 | `native_operation_indicator` | 18 |
 | `native_scale` | 35 |
-| `native_app_fault` | 4 |
-| `native_app` | 65 |
+| `native_app_fault` | 5 |
+| `native_app` | 69 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **295** |
+| **Total** | **300** |
 
 Validated result:
 
 ```text
 Suites passed: 12/12
-Tests passed:  295/295
+Tests passed:  300/300
 Failures:      0
 Exit code:     0
 ```

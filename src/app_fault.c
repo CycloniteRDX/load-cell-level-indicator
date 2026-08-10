@@ -16,6 +16,7 @@ app_fault_code_t app_fault_normalize_code(
         case APP_FAULT_SAMPLE_COLLECTION_STATE:
         case APP_FAULT_INVALID_ACTIVE_CALIBRATION:
         case APP_FAULT_INTERNAL_STATE:
+        case APP_FAULT_PERSISTENT_STORAGE_ACCESS:
             return fault_code;
 
         default:
@@ -43,6 +44,7 @@ app_fault_policy_t app_fault_get_policy(
         case APP_FAULT_SAMPLE_COLLECTION_STATE:
         case APP_FAULT_INVALID_ACTIVE_CALIBRATION:
         case APP_FAULT_INTERNAL_STATE:
+        case APP_FAULT_PERSISTENT_STORAGE_ACCESS:
         default:
             return APP_FAULT_POLICY_TERMINAL;
     }

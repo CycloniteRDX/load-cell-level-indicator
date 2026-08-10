@@ -169,7 +169,8 @@ static void test_load_reads_valid_record_from_tare_region(
 
     int32_t loaded_offset = 0;
 
-    TEST_ASSERT_TRUE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_VALID,
         tare_storage_load(
             &loaded_offset
         )
@@ -205,7 +206,8 @@ static void test_load_rejects_null_output_without_io(
     void
 )
 {
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ACCESS_ERROR,
         tare_storage_load(nullptr)
     );
 
@@ -231,7 +233,8 @@ static void test_load_rejects_insufficient_capacity_without_io(
 
     int32_t loaded_offset = 456;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ACCESS_ERROR,
         tare_storage_load(
             &loaded_offset
         )
@@ -261,7 +264,8 @@ static void test_load_preserves_output_after_read_failure(
 
     int32_t loaded_offset = -789;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ACCESS_ERROR,
         tare_storage_load(
             &loaded_offset
         )
@@ -274,13 +278,14 @@ static void test_load_preserves_output_after_read_failure(
 }
 
 
-static void test_load_rejects_erased_storage_and_preserves_output(
+static void test_load_reports_absent_for_erased_storage(
     void
 )
 {
     int32_t loaded_offset = 1234;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ABSENT,
         tare_storage_load(
             &loaded_offset
         )
@@ -293,7 +298,7 @@ static void test_load_rejects_erased_storage_and_preserves_output(
 }
 
 
-static void test_load_rejects_corrupted_record_and_preserves_output(
+static void test_load_reports_invalid_for_corrupted_record(
     void
 )
 {
@@ -316,7 +321,8 @@ static void test_load_rejects_corrupted_record_and_preserves_output(
 
     int32_t loaded_offset = -4321;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_INVALID,
         tare_storage_load(
             &loaded_offset
         )
@@ -407,7 +413,8 @@ static void test_save_and_load_preserve_negative_offset(
 
     int32_t loaded_offset = 0;
 
-    TEST_ASSERT_TRUE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_VALID,
         tare_storage_load(
             &loaded_offset
         )
@@ -430,7 +437,8 @@ static void test_save_and_load_preserve_int32_boundaries(
 
     int32_t loaded_offset = 0;
 
-    TEST_ASSERT_TRUE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_VALID,
         tare_storage_load(
             &loaded_offset
         )
@@ -449,7 +457,8 @@ static void test_save_and_load_preserve_int32_boundaries(
 
     loaded_offset = 0;
 
-    TEST_ASSERT_TRUE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_VALID,
         tare_storage_load(
             &loaded_offset
         )
@@ -769,7 +778,7 @@ static void test_clear_rejects_unmodified_magic(
 }
 
 
-static void test_load_fails_after_successful_clear(
+static void test_load_reports_absent_after_successful_clear(
     void
 )
 {
@@ -783,7 +792,8 @@ static void test_load_fails_after_successful_clear(
 
     int32_t loaded_offset = 2468;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL_INT(
+        STORAGE_LOAD_ABSENT,
         tare_storage_load(
             &loaded_offset
         )
@@ -827,11 +837,11 @@ int main(
     );
 
     RUN_TEST(
-        test_load_rejects_erased_storage_and_preserves_output
+        test_load_reports_absent_for_erased_storage
     );
 
     RUN_TEST(
-        test_load_rejects_corrupted_record_and_preserves_output
+        test_load_reports_invalid_for_corrupted_record
     );
 
     RUN_TEST(
@@ -887,7 +897,7 @@ int main(
     );
 
     RUN_TEST(
-        test_load_fails_after_successful_clear
+        test_load_reports_absent_after_successful_clear
     );
 
     return UNITY_END();
