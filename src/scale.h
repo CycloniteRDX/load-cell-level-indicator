@@ -5,12 +5,30 @@
 #include <stdint.h>
 
 
+typedef enum
+{
+    SCALE_SAMPLE_COLLECTION_IDLE,
+    SCALE_SAMPLE_COLLECTION_IN_PROGRESS,
+    SCALE_SAMPLE_COLLECTION_COMPLETE,
+    SCALE_SAMPLE_COLLECTION_ERROR
+} scale_sample_collection_status_t;
+
+
 /*
  * Initializes the load-cell measurement system.
  *
- * Returns true when the HX711 is detected and ready.
+ * This function only configures the HX711. It does not
+ * wait for the first conversion to become ready.
+ *
+ * Returns true when the device was configured.
  */
 bool scale_init(void);
+
+
+/*
+ * Returns true when the HX711 has a conversion ready.
+ */
+bool scale_is_ready(void);
 
 
 /*
@@ -37,34 +55,50 @@ void scale_set_offset(
 
 
 /*
- * Sets the current load as the zero reference.
+ * Starts an incremental raw-sample collection.
  *
- * Returns true when all tare samples were collected
- * and the new offset was applied.
+ * Returns false when sample_count is zero or the
+ * previous collection has not returned to idle.
  */
-bool scale_tare(void);
-
-
-/*
- * Attempts to obtain a new weight measurement.
- *
- * Returns true when a new measurement was available.
- * The result is written to weight_grams.
- */
-bool scale_read_weight(float *weight_grams);
-
-
-/*
- * Reads averaged raw ADC counts after subtracting
- * the current tare offset.
- *
- * This operation is blocking while the requested
- * samples are collected.
- */
-bool scale_read_net_counts(
-    float *net_counts,
-    uint8_t samples
+bool scale_start_sample_collection(
+    uint8_t sample_count
 );
+
+
+/*
+ * Advances an incremental collection by at most one
+ * ready HX711 conversion and returns its current state.
+ */
+scale_sample_collection_status_t
+scale_update_sample_collection(void);
+
+
+/*
+ * Copies the completed integer average and returns the
+ * collector to idle.
+ *
+ * Returns false when average_raw is null or no complete
+ * result is available.
+ */
+bool scale_take_sample_average(
+    int32_t *average_raw
+);
+
+
+/*
+ * Discards any partial, completed or failed collection
+ * and returns the collector to idle.
+ */
+void scale_cancel_sample_collection(void);
+
+
+/*
+ * Attempts to obtain exactly one new weight measurement.
+ *
+ * Returns immediately when no conversion is ready.
+ * The result is written only when a read succeeds.
+ */
+bool scale_try_read_weight(float *weight_grams);
 
 
 /*

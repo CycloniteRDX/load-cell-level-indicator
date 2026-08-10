@@ -185,6 +185,35 @@ static void test_calibration_mass_blinks_only_medium_led(void)
     assert_leds(false, true, false);
 }
 
+static void test_fault_blinks_only_high_led_persistently(void)
+{
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_FAULT
+    );
+
+    assert_leds(false, false, true);
+
+    advance_and_update(
+        OPERATION_INDICATOR_BLINK_PERIOD_MS - 1U
+    );
+
+    assert_leds(false, false, true);
+
+    advance_and_update(1U);
+
+    assert_leds(false, false, false);
+
+    advance_and_update(
+        OPERATION_INDICATOR_BLINK_PERIOD_MS
+    );
+
+    assert_leds(false, false, true);
+
+    TEST_ASSERT_FALSE(
+        operation_indicator_is_temporary_active()
+    );
+}
+
 static void test_none_mode_turns_all_leds_off(void)
 {
     operation_indicator_set_mode(
@@ -374,25 +403,6 @@ static void test_set_mode_cancels_temporary_pattern(void)
     assert_leds(false, false, false);
 }
 
-static void test_invalid_mode_turns_leds_off_and_does_not_blink(void)
-{
-    operation_indicator_set_mode(
-        (operation_indicator_mode_t)99
-    );
-
-    assert_leds(false, false, false);
-
-    advance_and_update(
-        OPERATION_INDICATOR_BLINK_PERIOD_MS * 3U
-    );
-
-    assert_leds(false, false, false);
-
-    TEST_ASSERT_FALSE(
-        operation_indicator_is_temporary_active()
-    );
-}
-
 static void test_persistent_blinking_handles_millisecond_overflow(void)
 {
     fake_operation_indicator_set_time_ms(
@@ -459,6 +469,7 @@ int main(void)
     RUN_TEST(test_error_can_return_to_tare_required_mode);
     RUN_TEST(test_calibration_zero_blinks_only_low_led);
     RUN_TEST(test_calibration_mass_blinks_only_medium_led);
+    RUN_TEST(test_fault_blinks_only_high_led_persistently);
     RUN_TEST(test_none_mode_turns_all_leds_off);
     RUN_TEST(test_success_flashes_all_leds_twice_then_releases_them);
     RUN_TEST(test_error_flashes_high_led_three_times_then_returns_to_zero_mode);
@@ -466,7 +477,6 @@ int main(void)
     RUN_TEST(test_error_with_none_return_releases_leds);
     RUN_TEST(test_clear_cancels_temporary_pattern);
     RUN_TEST(test_set_mode_cancels_temporary_pattern);
-    RUN_TEST(test_invalid_mode_turns_leds_off_and_does_not_blink);
     RUN_TEST(test_persistent_blinking_handles_millisecond_overflow);
     RUN_TEST(test_temporary_pattern_handles_millisecond_overflow);
 

@@ -2377,3 +2377,217 @@ The completed milestone is tagged:
 ```text
 v1.1-safe-startup-tare
 ```
+
+## Cooperative application state machine — v1.2
+
+The remaining multi-second application stalls have been removed from HX711
+startup, operational tare and calibration sampling.
+
+The application now coordinates all long-lived work through one explicit state
+type:
+
+```text
+APP_STATE_STARTUP_WAIT_FOR_SCALE
+APP_STATE_STARTUP_LOAD_CONFIGURATION
+APP_STATE_TARE_REQUIRED
+APP_STATE_NORMAL_OPERATION
+APP_STATE_TARE_SAMPLING
+APP_STATE_CALIBRATION_WAITING_FOR_ZERO
+APP_STATE_CALIBRATION_ZERO_SAMPLING
+APP_STATE_CALIBRATION_WAITING_FOR_MASS
+APP_STATE_CALIBRATION_MASS_SAMPLING
+APP_STATE_RESULT_PATTERN
+APP_STATE_FAULT
+```
+
+The execution model remains a bare-metal cooperative superloop:
+
+```cpp
+while (true)
+{
+    app_update();
+}
+```
+
+Each update performs a bounded state-machine step, reads at most one
+already-ready HX711 conversion and returns. No RTOS, dynamic allocation or heap
+storage was introduced.
+
+### Incremental scale collection
+
+The scale module now owns a reusable collector with four states:
+
+```text
+IDLE
+IN_PROGRESS
+COMPLETE
+ERROR
+```
+
+The application uses:
+
+```cpp
+scale_start_sample_collection(sample_count);
+scale_update_sample_collection();
+scale_take_sample_average(&average_raw);
+scale_cancel_sample_collection();
+```
+
+The collector does not apply tare or calibration changes. It only produces a
+raw integer average. The application applies a candidate value after the
+required EEPROM save and read-back verification succeeds.
+
+The former blocking interfaces were removed:
+
+```text
+scale_tare()
+scale_read_net_counts()
+scale_read_weight()
+```
+
+Normal operation uses `scale_try_read_weight()` for exactly one ready sample.
+
+### Cooperative startup and fault state
+
+`scale_init()` now configures the HX711 without waiting for its first
+conversion. `app_update()` polls readiness and loads configuration exactly
+once.
+
+If the HX711 does not become ready within 2000 ms:
+
+```text
+APP_STATE_STARTUP_WAIT_FOR_SCALE
+    -> APP_STATE_FAULT
+```
+
+The superloop continues running. Only the HIGH LED blinks and UART input
+receives:
+
+```text
+FAULT: Reset required.
+```
+
+The fault is deliberately latched until reset in this milestone.
+
+### Non-blocking tare and calibration
+
+Operational tare, calibration zero and calibration mass each collect 20
+samples incrementally. At the current real rate of approximately 10 SPS, the
+two-second operation no longer prevents input processing between samples.
+
+All multi-sample operations have a 5000 ms total timeout. Elapsed-time checks
+use unsigned subtraction and remain correct across millisecond-counter
+overflow.
+
+Cancellation is checked before acquiring the next sample. Serial `q` or a new
+D4 press can therefore stop an operation without waiting for the remaining
+conversions.
+
+The persistence boundaries remain transactional:
+
+```text
+collect candidate
+    -> save and verify candidate
+    -> apply candidate only after success
+```
+
+An incomplete or failed tare preserves the previous offset. An incomplete or
+failed mass phase preserves the previous calibration factor. A completed
+calibration-zero phase persists its new tare independently, even if the later
+mass phase is cancelled.
+
+### Result and input policy
+
+Temporary success and error feedback now owns the application through:
+
+```text
+APP_STATE_RESULT_PATTERN
+```
+
+UART bytes received during the pattern receive:
+
+```text
+Result indication is active.
+```
+
+and are discarded. D4 and D8 presses born during the pattern are suppressed
+until stable release. Neither serial nor physical input can execute later in a
+different state.
+
+During sample collection, only cancellation is accepted. Other commands
+receive an immediate state-specific response and are discarded.
+
+### Native regression
+
+The complete final inventory is:
+
+```text
+native_button:                       11
+native_hx711:                        18
+native_level_indicator:              14
+native_operation_indicator:          16
+native_scale:                        32
+native_app:                          48
+native_tare_record:                  20
+native_tare_storage:                 21
+native_calibration_storage:          40
+native_console:                      43
+native_time_delay:                    6
+
+Total:                              269
+Failures:                             0
+Suites:                           11/11
+```
+
+The official PlatformIO runner returned exit code 0.
+
+### Memory usage
+
+Direct AVR production:
+
+```text
+RAM:   217 bytes
+Flash: 16898 bytes
+```
+
+Arduino reference:
+
+```text
+RAM:   226 bytes
+Flash: 17194 bytes
+```
+
+### Physical validation
+
+Ten hardware scenarios passed on the Nano, real HX711, load cell, buttons and
+LEDs. They covered:
+
+- Recovery of stored tare and factor.
+- Forced startup timeout without freezing the superloop.
+- Serial and physical cancellation between samples.
+- Button suppression until release.
+- Completed tare and calibration persistence after power loss.
+- Cancellation on both calibration sampling phases.
+- Missing reference-mass rejection and retry.
+- Input suppression during result patterns.
+- Responsiveness throughout 20-sample operations at 10 SPS.
+
+Physical HX711 power-down and power-up validation remains a separate pending
+item and is not implied by this release.
+
+Detailed records:
+
+```text
+docs/non-blocking-application-notes.md
+docs/v1.2-non-blocking-application-validation.md
+docs/v1.2-release-notes.md
+```
+
+The completed milestone is tagged:
+
+```text
+v1.2-non-blocking-application
+```
+
+The next educational step is Lesson 20 in the separate study repository. The
+next planned production milestone is fault handling and watchdog policy.

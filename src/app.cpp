@@ -25,27 +25,57 @@ static button_t calibration_button;
 static uint32_t last_print_ms = 0;
 
 
+/*
+ * Cooperative application states.
+ *
+ * Every long-lived application condition, including a
+ * temporary result pattern, has an explicit state.
+ */
 typedef enum
 {
-    CALIBRATION_IDLE,
-
-    /*
-     * Waiting for the user to remove the measured load
-     * and confirm the zero condition.
-     */
-    CALIBRATION_WAITING_FOR_ZERO,
-
-    /*
-     * The tare has been completed.
-     * Waiting for the reference mass.
-     */
-    CALIBRATION_WAITING_FOR_MASS
-
-} calibration_state_t;
+    APP_STATE_STARTUP_WAIT_FOR_SCALE,
+    APP_STATE_STARTUP_LOAD_CONFIGURATION,
+    APP_STATE_TARE_REQUIRED,
+    APP_STATE_NORMAL_OPERATION,
+    APP_STATE_TARE_SAMPLING,
+    APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+    APP_STATE_CALIBRATION_ZERO_SAMPLING,
+    APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+    APP_STATE_CALIBRATION_MASS_SAMPLING,
+    APP_STATE_RESULT_PATTERN,
+    APP_STATE_FAULT
+} app_state_t;
 
 
-static calibration_state_t calibration_state =
-    CALIBRATION_IDLE;
+static app_state_t app_state =
+    APP_STATE_STARTUP_WAIT_FOR_SCALE;
+
+static uint32_t operation_started_ms = 0UL;
+
+/*
+ * Idle state to restore if an operational tare is
+ * cancelled or fails.
+ */
+static app_state_t tare_return_state =
+    APP_STATE_TARE_REQUIRED;
+
+/*
+ * State entered after a finite success or error
+ * indication releases the shared LEDs.
+ */
+static app_state_t state_after_result =
+    APP_STATE_TARE_REQUIRED;
+
+
+static app_state_t get_idle_application_state(void)
+{
+    if (tare_available)
+    {
+        return APP_STATE_NORMAL_OPERATION;
+    }
+
+    return APP_STATE_TARE_REQUIRED;
+}
 
 
 static operation_indicator_mode_t
@@ -60,8 +90,10 @@ get_idle_operation_mode(void)
 }
 
 
-static void restore_idle_operation_mode(void)
+static void restore_idle_application_state(void)
 {
+    app_state = get_idle_application_state();
+
     const operation_indicator_mode_t idle_mode =
         get_idle_operation_mode();
 
@@ -75,34 +107,327 @@ static void restore_idle_operation_mode(void)
 }
 
 
-static bool perform_tare(void)
+static void enter_fault_state(void)
 {
-    console_newline();
-    CONSOLE_PRINTLN("Taring...");
-    CONSOLE_PRINTLN("Leave only the empty platform or container.");
+    app_state = APP_STATE_FAULT;
 
-    const int32_t previous_tare_offset =
-        scale_get_offset();
+    measurement_available = false;
 
-    const bool previous_tare_available =
-        tare_available;
+    scale_cancel_sample_collection();
+    level_indicator_reset();
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_FAULT
+    );
+}
+
+
+static operation_indicator_mode_t
+get_operation_mode_for_idle_state(
+    app_state_t idle_state
+)
+{
+    if (idle_state == APP_STATE_NORMAL_OPERATION)
+    {
+        return OPERATION_INDICATOR_NONE;
+    }
+
+    return OPERATION_INDICATOR_TARE_REQUIRED;
+}
+
+
+static void start_error_result_pattern(
+    app_state_t next_state,
+    operation_indicator_mode_t next_mode
+)
+{
+    state_after_result = next_state;
+    app_state = APP_STATE_RESULT_PATTERN;
+
+    operation_indicator_show_error(next_mode);
+}
+
+
+static void start_success_result_pattern(
+    app_state_t next_state
+)
+{
+    state_after_result = next_state;
+    app_state = APP_STATE_RESULT_PATTERN;
+
+    operation_indicator_show_success();
+}
+
+
+static void restore_tare_return_state(void)
+{
+    app_state = tare_return_state;
 
     const operation_indicator_mode_t return_mode =
-        get_idle_operation_mode();
+        get_operation_mode_for_idle_state(
+            tare_return_state
+        );
+
+    if (return_mode == OPERATION_INDICATOR_NONE)
+    {
+        operation_indicator_clear();
+        return;
+    }
+
+    operation_indicator_set_mode(return_mode);
+}
+
+
+static void finish_tare_with_error(void)
+{
+    scale_cancel_sample_collection();
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    start_error_result_pattern(
+        tare_return_state,
+        get_operation_mode_for_idle_state(
+            tare_return_state
+        )
+    );
+
+    /*
+     * Input received while the bounded failure handling
+     * was running must not become an idle-state action.
+     */
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
+}
+
+
+static void cancel_tare(void)
+{
+    scale_cancel_sample_collection();
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    restore_tare_return_state();
+
+    console_discard_input();
+
+    console_newline();
+    CONSOLE_PRINTLN("Tare cancelled.");
+
+    CONSOLE_PRINTLN(
+        "The previous tare offset remains active."
+    );
+
+    console_newline();
+}
+
+
+static void start_tare(void)
+{
+    tare_return_state =
+        get_idle_application_state();
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    console_newline();
+    CONSOLE_PRINTLN("Taring...");
+    CONSOLE_PRINTLN(
+        "Leave only the empty platform or container."
+    );
+
+    CONSOLE_PRINTLN(
+        "Press TARE again or send 'q' to cancel."
+    );
+
+    if (!scale_start_sample_collection(
+            TARE_SAMPLES))
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Tare sample collection could not be started."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        finish_tare_with_error();
+        console_newline();
+        return;
+    }
+
+    operation_started_ms = hal_time_millis();
 
     operation_indicator_set_mode(
         OPERATION_INDICATOR_TARE
     );
 
-    if (!scale_tare())
-    {
-        measurement_available = false;
-        level_indicator_reset();
+    app_state = APP_STATE_TARE_SAMPLING;
+}
 
-        operation_indicator_show_error(
-            return_mode
+
+static bool process_tare_sampling_input(void)
+{
+    const bool tare_pressed =
+        button_was_pressed(&tare_button);
+
+    /*
+     * Suppress both a debounced press and a candidate
+     * press that has not completed its debounce interval.
+     * The initiating D4 hold also remains harmless until
+     * the user releases it.
+     */
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    (void)button_was_pressed(
+        &calibration_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    if (tare_pressed)
+    {
+        cancel_tare();
+        return true;
+    }
+
+    if (!console_input_available())
+    {
+        return false;
+    }
+
+    char command = '\0';
+    const bool command_read =
+        console_read_char(&command);
+
+    console_discard_input();
+
+    if (!command_read)
+    {
+        return false;
+    }
+
+    if ((command == 'q') ||
+        (command == 'Q'))
+    {
+        cancel_tare();
+        return true;
+    }
+
+    CONSOLE_PRINTLN(
+        "Tare is in progress. Send 'q' to cancel."
+    );
+
+    return false;
+}
+
+
+static void complete_tare(
+    int32_t candidate_tare_offset
+)
+{
+    /*
+     * Persist and verify the candidate before changing
+     * the active runtime offset. A failed save therefore
+     * needs no RAM rollback.
+     */
+    if (!tare_storage_save(
+            candidate_tare_offset))
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: New tare offset could not be saved."
         );
 
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        finish_tare_with_error();
+        console_newline();
+        return;
+    }
+
+    scale_set_offset(candidate_tare_offset);
+
+    tare_available = true;
+    app_state = APP_STATE_NORMAL_OPERATION;
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    operation_indicator_clear();
+
+    /*
+     * Do not reinterpret input received during the
+     * bounded EEPROM save and verification step.
+     */
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
+
+    CONSOLE_PRINT("New tare offset: ");
+    console_print_int32(candidate_tare_offset);
+    console_newline();
+
+    CONSOLE_PRINTLN("Tare completed and saved.");
+    console_newline();
+}
+
+
+static void update_tare_sampling(void)
+{
+    if (process_tare_sampling_input())
+    {
+        return;
+    }
+
+    const scale_sample_collection_status_t status =
+        scale_update_sample_collection();
+
+    if (status == SCALE_SAMPLE_COLLECTION_COMPLETE)
+    {
+        int32_t candidate_tare_offset = 0;
+
+        if (!scale_take_sample_average(
+                &candidate_tare_offset))
+        {
+            CONSOLE_PRINTLN(
+                "ERROR: Completed tare average could not be obtained."
+            );
+
+            CONSOLE_PRINTLN(
+                "The previous tare offset remains active."
+            );
+
+            finish_tare_with_error();
+            console_newline();
+            return;
+        }
+
+        complete_tare(candidate_tare_offset);
+        return;
+    }
+
+    if (status == SCALE_SAMPLE_COLLECTION_ERROR)
+    {
         CONSOLE_PRINTLN(
             "ERROR: Tare samples could not be read."
         );
@@ -111,80 +436,44 @@ static bool perform_tare(void)
             "The previous tare offset remains active."
         );
 
+        finish_tare_with_error();
         console_newline();
-        console_discard_input();
-
-        return false;
+        return;
     }
 
-    const int32_t new_tare_offset =
-        scale_get_offset();
-
-    if (!tare_storage_save(
-            new_tare_offset))
+    if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
     {
-        scale_set_offset(
-            previous_tare_offset
-        );
-
-        tare_available =
-            previous_tare_available;
-
-        measurement_available = false;
-        level_indicator_reset();
-
-        operation_indicator_show_error(
-            return_mode
+        CONSOLE_PRINTLN(
+            "ERROR: Invalid tare sample collection state."
         );
 
         CONSOLE_PRINTLN(
-            "ERROR: New tare offset could not be saved."
+            "The previous tare offset remains active."
         );
 
-        CONSOLE_PRINTLN(
-            "The previous tare offset has been restored."
-        );
-
+        finish_tare_with_error();
         console_newline();
-        console_discard_input();
-
-        return false;
+        return;
     }
 
-    tare_available = true;
+    const uint32_t now = hal_time_millis();
 
-    operation_indicator_clear();
+    if ((uint32_t)(now - operation_started_ms) <
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS)
+    {
+        return;
+    }
 
-    CONSOLE_PRINT("New tare offset: ");
-    console_print_int32(
-        scale_get_offset()
+    CONSOLE_PRINTLN(
+        "ERROR: Tare sample collection timed out."
     );
+
+    CONSOLE_PRINTLN(
+        "The previous tare offset remains active."
+    );
+
+    finish_tare_with_error();
     console_newline();
-
-    /*
-     * The previous measurement is no longer valid
-     * because the tare offset has changed.
-     */
-    measurement_available = false;
-    level_indicator_reset();
-
-    CONSOLE_PRINTLN("Tare completed and saved.");
-    console_newline();
-
-    /*
-     * scale_tare() blocks the application loop, but
-     * USART reception continues through its interrupt.
-     *
-     * Discard commands received while the tare was in
-     * progress so they are not executed afterwards.
-     *
-     * This makes serial input consistent with physical
-     * button presses, which are not processed while the
-     * application is blocked.
-     */
-    console_discard_input();
-
-    return true;
 }
 
 
@@ -261,6 +550,7 @@ static void clear_stored_tare(void)
      * measured and saved.
      */
     tare_available = false;
+    app_state = APP_STATE_TARE_REQUIRED;
     measurement_available = false;
 
     level_indicator_reset();
@@ -291,8 +581,15 @@ static void clear_stored_tare(void)
 
 static bool calibration_is_active(void)
 {
-    return calibration_state !=
-           CALIBRATION_IDLE;
+    return
+        (app_state ==
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_ZERO_SAMPLING) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_MASS_SAMPLING);
 }
 
 
@@ -301,8 +598,8 @@ static void start_calibration(void)
     measurement_available = false;
     level_indicator_reset();
 
-    calibration_state =
-        CALIBRATION_WAITING_FOR_ZERO;
+    app_state =
+        APP_STATE_CALIBRATION_WAITING_FOR_ZERO;
 
     operation_indicator_set_mode(
         OPERATION_INDICATOR_CALIBRATION_ZERO
@@ -337,30 +634,160 @@ static void start_calibration(void)
 }
 
 
-static void confirm_calibration_zero(void)
+static void cancel_calibration(void)
 {
-    console_newline();
-    CONSOLE_PRINTLN("Performing calibration tare...");
+    if (!calibration_is_active())
+    {
+        console_newline();
+        CONSOLE_PRINTLN(
+            "No calibration is currently active."
+        );
+        console_newline();
+        return;
+    }
 
-    const int32_t previous_tare_offset =
-        scale_get_offset();
+    scale_cancel_sample_collection();
 
-    const bool previous_tare_available =
-        tare_available;
+    measurement_available = false;
 
-    operation_indicator_set_mode(
-        OPERATION_INDICATOR_TARE
+    level_indicator_reset();
+    restore_idle_application_state();
+
+    button_suppress_hold_until_release(
+        &tare_button
     );
 
-    if (!scale_tare())
-    {
-        operation_indicator_show_error(
-            OPERATION_INDICATOR_CALIBRATION_ZERO
-        );
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
 
+    console_discard_input();
+
+    console_newline();
+    CONSOLE_PRINTLN("Calibration cancelled.");
+
+    CONSOLE_PRINTLN(
+        "The active calibration factor "
+        "has not been changed."
+    );
+
+    if (tare_available)
+    {
         CONSOLE_PRINTLN(
-            "ERROR: Calibration tare samples "
-            "could not be read."
+            "Normal measurement resumed."
+        );
+    }
+    else
+    {
+        CONSOLE_PRINTLN(
+            "Tare is still required before "
+            "normal measurement."
+        );
+    }
+
+    console_newline();
+}
+
+
+static bool process_calibration_sampling_input(void)
+{
+    const bool tare_pressed =
+        button_was_pressed(&tare_button);
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    (void)button_was_pressed(
+        &calibration_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    if (tare_pressed)
+    {
+        cancel_calibration();
+        return true;
+    }
+
+    if (!console_input_available())
+    {
+        return false;
+    }
+
+    char command = '\0';
+    const bool command_read =
+        console_read_char(&command);
+
+    console_discard_input();
+
+    if (!command_read)
+    {
+        return false;
+    }
+
+    if ((command == 'q') ||
+        (command == 'Q'))
+    {
+        cancel_calibration();
+        return true;
+    }
+
+    CONSOLE_PRINTLN(
+        "Calibration sampling is in progress. "
+        "Send 'q' to cancel."
+    );
+
+    return false;
+}
+
+
+static void finish_calibration_sampling_with_error(
+    app_state_t retry_state,
+    operation_indicator_mode_t retry_mode
+)
+{
+    scale_cancel_sample_collection();
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    start_error_result_pattern(
+        retry_state,
+        retry_mode
+    );
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
+}
+
+
+static void start_calibration_zero_sampling(void)
+{
+    console_newline();
+    CONSOLE_PRINTLN(
+        "Collecting calibration tare samples..."
+    );
+
+    CONSOLE_PRINTLN(
+        "Press TARE or send 'q' to cancel calibration."
+    );
+
+    if (!scale_start_sample_collection(
+            TARE_SAMPLES))
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration tare sample "
+            "collection could not be started."
         );
 
         CONSOLE_PRINTLN(
@@ -372,38 +799,45 @@ static void confirm_calibration_zero(void)
             "and confirm again."
         );
 
-        console_newline();
-        console_discard_input();
-        return;
-    }
-
-    const int32_t new_tare_offset =
-        scale_get_offset();
-
-    if (!tare_storage_save(
-            new_tare_offset))
-    {
-        /*
-         * Do not leave RAM and EEPROM using different
-         * tare offsets after a storage failure.
-         */
-        scale_set_offset(
-            previous_tare_offset
-        );
-
-        tare_available =
-            previous_tare_available;
-
-        operation_indicator_show_error(
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
             OPERATION_INDICATOR_CALIBRATION_ZERO
         );
 
+        console_newline();
+        return;
+    }
+
+    operation_started_ms = hal_time_millis();
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_TARE
+    );
+
+    app_state =
+        APP_STATE_CALIBRATION_ZERO_SAMPLING;
+}
+
+
+static void complete_calibration_zero(
+    int32_t candidate_tare_offset
+)
+{
+    /*
+     * Save and verify the candidate before changing the
+     * active offset. Failure therefore leaves both the
+     * previous runtime offset and tare availability
+     * untouched.
+     */
+    if (!tare_storage_save(
+            candidate_tare_offset))
+    {
         CONSOLE_PRINTLN(
             "ERROR: Calibration tare could not be saved."
         );
 
         CONSOLE_PRINTLN(
-            "The previous tare offset has been restored."
+            "The previous tare offset remains active."
         );
 
         CONSOLE_PRINTLN(
@@ -411,28 +845,46 @@ static void confirm_calibration_zero(void)
             "and confirm again."
         );
 
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
+
         console_newline();
-        console_discard_input();
         return;
     }
 
+    scale_set_offset(candidate_tare_offset);
     tare_available = true;
+
+    measurement_available = false;
+    level_indicator_reset();
+
+    app_state =
+        APP_STATE_CALIBRATION_WAITING_FOR_MASS;
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_CALIBRATION_MASS
+    );
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
 
     CONSOLE_PRINT("Tare offset: ");
     console_print_int32(
-        new_tare_offset
+        candidate_tare_offset
     );
     console_newline();
 
     CONSOLE_PRINTLN(
         "Calibration tare saved successfully."
-    );
-
-    calibration_state =
-        CALIBRATION_WAITING_FOR_MASS;
-
-    operation_indicator_set_mode(
-        OPERATION_INDICATOR_CALIBRATION_MASS
     );
 
     console_newline();
@@ -456,61 +908,167 @@ static void confirm_calibration_zero(void)
     );
 
     console_newline();
-
-    /*
-     * Ignore commands accumulated while the blocking
-     * calibration tare and EEPROM verification were
-     * running.
-     *
-     * In particular, a second queued 'c' must not
-     * advance immediately to calibration completion
-     * before the reference mass has been placed.
-     */
-    console_discard_input();
 }
 
 
-static void complete_calibration(void)
+static void update_calibration_zero_sampling(void)
+{
+    if (process_calibration_sampling_input())
+    {
+        return;
+    }
+
+    const scale_sample_collection_status_t status =
+        scale_update_sample_collection();
+
+    if (status == SCALE_SAMPLE_COLLECTION_COMPLETE)
+    {
+        int32_t candidate_tare_offset = 0;
+
+        if (!scale_take_sample_average(
+                &candidate_tare_offset))
+        {
+            CONSOLE_PRINTLN(
+                "ERROR: Completed calibration tare "
+                "average could not be obtained."
+            );
+
+            CONSOLE_PRINTLN(
+                "The previous tare offset remains active."
+            );
+
+            finish_calibration_sampling_with_error(
+                APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+                OPERATION_INDICATOR_CALIBRATION_ZERO
+            );
+
+            console_newline();
+            return;
+        }
+
+        complete_calibration_zero(
+            candidate_tare_offset
+        );
+        return;
+    }
+
+    if (status == SCALE_SAMPLE_COLLECTION_ERROR)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration tare samples "
+            "could not be read."
+        );
+
+        CONSOLE_PRINTLN(
+            "The previous tare offset remains active."
+        );
+
+        CONSOLE_PRINTLN(
+            "Keep the empty container in place "
+            "and confirm again."
+        );
+
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
+
+        console_newline();
+        return;
+    }
+
+    if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Invalid calibration tare "
+            "sample collection state."
+        );
+
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+            OPERATION_INDICATOR_CALIBRATION_ZERO
+        );
+
+        console_newline();
+        return;
+    }
+
+    const uint32_t now = hal_time_millis();
+
+    if ((uint32_t)(now - operation_started_ms) <
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS)
+    {
+        return;
+    }
+
+    CONSOLE_PRINTLN(
+        "ERROR: Calibration tare sample "
+        "collection timed out."
+    );
+
+    CONSOLE_PRINTLN(
+        "The previous tare offset remains active."
+    );
+
+    finish_calibration_sampling_with_error(
+        APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
+        OPERATION_INDICATOR_CALIBRATION_ZERO
+    );
+
+    console_newline();
+}
+
+
+static void start_calibration_mass_sampling(void)
 {
     console_newline();
     CONSOLE_PRINTLN(
         "Collecting calibration samples..."
     );
 
-    float net_counts = 0.0F;
+    CONSOLE_PRINTLN(
+        "Press TARE or send 'q' to cancel calibration."
+    );
 
-    const bool samples_read =
-        scale_read_net_counts(
-            &net_counts,
-            CALIBRATION_SAMPLES
-        );
-
-    /*
-     * The sample collection is blocking. Ignore any
-     * commands received while it was in progress so
-     * they cannot affect the new calibration state
-     * after the operation finishes.
-     */
-    console_discard_input();
-
-    if (!samples_read)
+    if (!scale_start_sample_collection(
+            CALIBRATION_SAMPLES))
     {
         CONSOLE_PRINTLN(
-            "ERROR: Calibration samples "
-            "could not be read."
+            "ERROR: Calibration sample collection "
+            "could not be started."
         );
 
         CONSOLE_PRINTLN(
             "Keep the mass in place and confirm again."
         );
 
-        operation_indicator_show_error(
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
             OPERATION_INDICATOR_CALIBRATION_MASS
         );
 
         console_newline();
         return;
     }
+
+    operation_started_ms = hal_time_millis();
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_CALIBRATION_MASS
+    );
+
+    app_state =
+        APP_STATE_CALIBRATION_MASS_SAMPLING;
+}
+
+
+static void complete_calibration_mass(
+    int32_t average_raw_counts
+)
+{
+    const float net_counts =
+        (float)average_raw_counts -
+        (float)scale_get_offset();
 
     CONSOLE_PRINT("Net ADC counts: ");
     console_print_float(
@@ -538,7 +1096,8 @@ static void complete_calibration(void)
             "Send 'c' to try again or 'q' to cancel."
         );
 
-        operation_indicator_show_error(
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
             OPERATION_INDICATOR_CALIBRATION_MASS
         );
 
@@ -570,7 +1129,8 @@ static void complete_calibration(void)
             "factor is invalid."
         );
 
-        operation_indicator_show_error(
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
             OPERATION_INDICATOR_CALIBRATION_MASS
         );
 
@@ -603,16 +1163,24 @@ static void complete_calibration(void)
             );
         }
 
-        calibration_state =
-            CALIBRATION_IDLE;
-
         measurement_available = false;
 
         level_indicator_reset();
 
-        operation_indicator_show_error(
-            OPERATION_INDICATOR_NONE
+        start_error_result_pattern(
+            get_idle_application_state(),
+            get_idle_operation_mode()
         );
+
+        button_suppress_hold_until_release(
+            &tare_button
+        );
+
+        button_suppress_hold_until_release(
+            &calibration_button
+        );
+
+        console_discard_input();
 
         CONSOLE_PRINTLN(
             "Calibration cancelled."
@@ -622,14 +1190,23 @@ static void complete_calibration(void)
         return;
     }
 
-    calibration_state =
-        CALIBRATION_IDLE;
-
     measurement_available = false;
 
     level_indicator_reset();
 
-    operation_indicator_show_success();
+    start_success_result_pattern(
+        APP_STATE_NORMAL_OPERATION
+    );
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
 
     console_newline();
     CONSOLE_PRINTLN(
@@ -655,47 +1232,103 @@ static void complete_calibration(void)
 }
 
 
-static void cancel_calibration(void)
+static void update_calibration_mass_sampling(void)
 {
-    if (!calibration_is_active())
+    if (process_calibration_sampling_input())
     {
-        console_newline();
-        CONSOLE_PRINTLN(
-            "No calibration is currently active."
+        return;
+    }
+
+    const scale_sample_collection_status_t status =
+        scale_update_sample_collection();
+
+    if (status == SCALE_SAMPLE_COLLECTION_COMPLETE)
+    {
+        int32_t average_raw_counts = 0;
+
+        if (!scale_take_sample_average(
+                &average_raw_counts))
+        {
+            CONSOLE_PRINTLN(
+                "ERROR: Completed calibration "
+                "average could not be obtained."
+            );
+
+            CONSOLE_PRINTLN(
+                "Keep the mass in place and confirm again."
+            );
+
+            finish_calibration_sampling_with_error(
+                APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+                OPERATION_INDICATOR_CALIBRATION_MASS
+            );
+
+            console_newline();
+            return;
+        }
+
+        complete_calibration_mass(
+            average_raw_counts
         );
+        return;
+    }
+
+    if (status == SCALE_SAMPLE_COLLECTION_ERROR)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Calibration samples "
+            "could not be read."
+        );
+
+        CONSOLE_PRINTLN(
+            "Keep the mass in place and confirm again."
+        );
+
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+            OPERATION_INDICATOR_CALIBRATION_MASS
+        );
+
         console_newline();
         return;
     }
 
-    calibration_state =
-        CALIBRATION_IDLE;
+    if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: Invalid calibration "
+            "sample collection state."
+        );
 
-    measurement_available = false;
+        finish_calibration_sampling_with_error(
+            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+            OPERATION_INDICATOR_CALIBRATION_MASS
+        );
 
-    level_indicator_reset();
-    restore_idle_operation_mode();
+        console_newline();
+        return;
+    }
 
-    console_newline();
-    CONSOLE_PRINTLN("Calibration cancelled.");
+    const uint32_t now = hal_time_millis();
+
+    if ((uint32_t)(now - operation_started_ms) <
+        SCALE_SAMPLE_COLLECTION_TIMEOUT_MS)
+    {
+        return;
+    }
 
     CONSOLE_PRINTLN(
-        "The active calibration factor "
-        "has not been changed."
+        "ERROR: Calibration sample collection timed out."
     );
 
-    if (tare_available)
-    {
-        CONSOLE_PRINTLN(
-            "Normal measurement resumed."
-        );
-    }
-    else
-    {
-        CONSOLE_PRINTLN(
-            "Tare is still required before "
-            "normal measurement."
-        );
-    }
+    CONSOLE_PRINTLN(
+        "Keep the mass in place and confirm again."
+    );
+
+    finish_calibration_sampling_with_error(
+        APP_STATE_CALIBRATION_WAITING_FOR_MASS,
+        OPERATION_INDICATOR_CALIBRATION_MASS
+    );
 
     console_newline();
 }
@@ -703,31 +1336,25 @@ static void cancel_calibration(void)
 
 static void process_calibration_confirmation(void)
 {
-    switch (calibration_state)
+    switch (app_state)
     {
-        case CALIBRATION_IDLE:
+        case APP_STATE_TARE_REQUIRED:
+        case APP_STATE_NORMAL_OPERATION:
             start_calibration();
             break;
 
-        case CALIBRATION_WAITING_FOR_ZERO:
-            confirm_calibration_zero();
+        case APP_STATE_CALIBRATION_WAITING_FOR_ZERO:
+            start_calibration_zero_sampling();
             break;
 
-        case CALIBRATION_WAITING_FOR_MASS:
-            complete_calibration();
+        case APP_STATE_CALIBRATION_WAITING_FOR_MASS:
+            start_calibration_mass_sampling();
             break;
 
         default:
-            calibration_state =
-                CALIBRATION_IDLE;
-
-            measurement_available = false;
-
-            level_indicator_reset();
-            restore_idle_operation_mode();
-
             CONSOLE_PRINTLN(
-                "ERROR: Invalid calibration state."
+                "Calibration confirmation is unavailable "
+                "in the current state."
             );
 
             break;
@@ -804,7 +1431,7 @@ static void process_console_commands(void)
             }
             else
             {
-                perform_tare();
+                start_tare();
             }
 
             break;
@@ -865,7 +1492,9 @@ static void process_console_commands(void)
             CONSOLE_PRINTLN("Available commands:");
             CONSOLE_PRINTLN("  t = tare");
             CONSOLE_PRINTLN("  c = start/confirm calibration");
-            CONSOLE_PRINTLN("  q = cancel calibration");
+            CONSOLE_PRINTLN(
+                "  q = cancel current tare/calibration"
+            );
             CONSOLE_PRINTLN("  s = save active calibration");
             CONSOLE_PRINTLN("  x = clear stored calibration");
             CONSOLE_PRINTLN("  z = clear stored tare");
@@ -878,7 +1507,7 @@ static void update_weight_measurement(void)
 {
     float weight_grams = 0.0F;
 
-    if (!scale_read_weight(&weight_grams))
+    if (!scale_try_read_weight(&weight_grams))
     {
         return;
     }
@@ -921,47 +1550,197 @@ static void print_weight_periodically(void)
 }
 
 
-void app_init(void)
+static void print_runtime_information(void)
 {
-
-    /*
-     * Initialize the active time backend before any
-     * module reads the project millisecond counter.
-     */
-    hal_time_init();
-
-    console_init(CONSOLE_BAUD_RATE);
-
-    button_init(
-        &tare_button,
-        TARE_BUTTON_PIN,
-        BUTTON_DEBOUNCE_MS
+    console_newline();
+    CONSOLE_PRINTLN("Controls:");
+    CONSOLE_PRINTLN(
+        "  Hold button on D4 for 3 s = tare"
     );
-    button_init(
-        &calibration_button,
-        CALIBRATION_BUTTON_PIN,
-        BUTTON_DEBOUNCE_MS
+    CONSOLE_PRINTLN(
+        "  Serial command 't'    = tare"
+    );
+    CONSOLE_PRINTLN(
+        "  Serial command 's'    = save calibration"
+    );
+    CONSOLE_PRINTLN(
+        "  Serial command 'x'    = clear calibration"
+    );
+    CONSOLE_PRINTLN(
+        "  Serial command 'z'    = clear tare"
+    );
+    CONSOLE_PRINTLN(
+        "  Serial command 'c'    = calibrate/confirm"
     );
 
-    indicator_leds_init();
-    level_indicator_init();
-    operation_indicator_init();
+    CONSOLE_PRINTLN(
+        "  Serial command 'q'    = cancel current tare/calibration"
+    );
+
+    CONSOLE_PRINTLN(
+        " Hold button on D8 for 3 s = start calibration"
+    );
+
+    CONSOLE_PRINTLN(
+        " Press button on D8 = confirm calibration step"
+    );
+
+    CONSOLE_PRINTLN("LED operation status:");
+
+    CONSOLE_PRINTLN(
+        " All LEDs on = tare in progress"
+    );
+
+    CONSOLE_PRINTLN(
+        " All LEDs blinking slowly = tare required"
+    );
+
+    CONSOLE_PRINTLN(
+        " LOW blinking = waiting for empty platform"
+    );
+
+    CONSOLE_PRINTLN(
+        " MEDIUM blinking = waiting for reference mass"
+    );
+
+    CONSOLE_PRINTLN(
+        " HIGH blinking = reset-required fault"
+    );
 
     console_newline();
+    CONSOLE_PRINTLN("Provisional levels:");
+
     CONSOLE_PRINTLN(
-        "=== Load cell level indicator ==="
+        " VERY_LOW: below 100 g, LOW LED blinking"
     );
 
-    if (!scale_init())
-    {
-        CONSOLE_PRINTLN("ERROR: HX711 not found.");
+    CONSOLE_PRINTLN(
+        " LOW: 100 to 500 g, LOW LED steady"
+    );
 
-        while (true)
+    CONSOLE_PRINTLN(
+        " MEDIUM: 500 to 1000 g"
+    );
+
+    CONSOLE_PRINTLN(
+        " HIGH: above 1000 g"
+    );
+}
+
+
+static void consume_busy_buttons(void)
+{
+    /*
+     * Sample both debouncers, but never let a press that
+     * began in this state become a later hold event.
+     *
+     * Suppression is unconditional so a button already
+     * held during initialization is covered as well.
+     */
+    (void)button_was_pressed(&tare_button);
+    (void)button_was_pressed(&calibration_button);
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+}
+
+
+static void process_startup_input(void)
+{
+    consume_busy_buttons();
+
+    if (!console_input_available())
+    {
+        return;
+    }
+
+    char ignored_command = '\0';
+    const bool command_read =
+        console_read_char(&ignored_command);
+
+    console_discard_input();
+
+    if (command_read)
+    {
+        CONSOLE_PRINTLN(
+            "Startup is not complete."
+        );
+    }
+}
+
+
+static void process_fault_input(void)
+{
+    consume_busy_buttons();
+
+    if (!console_input_available())
+    {
+        return;
+    }
+
+    char ignored_command = '\0';
+    const bool command_read =
+        console_read_char(&ignored_command);
+
+    console_discard_input();
+
+    if (command_read)
+    {
+        CONSOLE_PRINTLN(
+            "FAULT: Reset required."
+        );
+    }
+}
+
+
+static void process_result_pattern(void)
+{
+    /*
+     * The result indication owns the shared LEDs and the
+     * application state until completion. Sample both
+     * buttons on every iteration and prevent any press
+     * begun here from becoming a later hold action.
+     */
+    consume_busy_buttons();
+
+    if (console_input_available())
+    {
+        char ignored_command = '\0';
+        const bool command_read =
+            console_read_char(&ignored_command);
+
+        console_discard_input();
+
+        if (command_read)
         {
-            hal_time_delay_ms(1000UL);
+            CONSOLE_PRINTLN(
+                "Result indication is active."
+            );
         }
     }
 
+    if (operation_indicator_is_temporary_active())
+    {
+        return;
+    }
+
+    /*
+     * Reserve this whole iteration for leaving the busy
+     * state. Normal work begins on the next app_update(),
+     * so input sampled at the completion boundary cannot
+     * be reinterpreted under the restored state.
+     */
+    app_state = state_after_result;
+}
+
+
+static void load_startup_configuration(void)
+{
     float calibration_factor =
         DEFAULT_CALIBRATION_FACTOR;
 
@@ -994,12 +1773,9 @@ void app_init(void)
             "ERROR: Invalid calibration factor."
         );
 
-        while (true)
-        {
-            hal_time_delay_ms(1000UL);
-        }
+        enter_fault_state();
+        return;
     }
-
 
     CONSOLE_PRINT("Calibration factor: ");
     console_print_float(
@@ -1017,7 +1793,17 @@ void app_init(void)
             stored_tare_offset
         );
 
+        /*
+         * Do not carry input received during the bounded
+         * configuration step into normal operation.
+         */
+        consume_busy_buttons();
+        console_discard_input();
+
         tare_available = true;
+        app_state = APP_STATE_NORMAL_OPERATION;
+
+        operation_indicator_clear();
 
         CONSOLE_PRINT("Stored tare offset loaded: ");
         console_print_int32(
@@ -1031,7 +1817,16 @@ void app_init(void)
     }
     else
     {
+        /*
+         * Do not reinterpret startup input as a tare or
+         * calibration request after this transition.
+         */
+        consume_busy_buttons();
+        console_discard_input();
+
         tare_available = false;
+        app_state = APP_STATE_TARE_REQUIRED;
+
         measurement_available = false;
         level_indicator_reset();
 
@@ -1056,74 +1851,147 @@ void app_init(void)
         );
     }
 
+    print_runtime_information();
+}
+
+
+static void update_startup_wait_for_scale(void)
+{
+    process_startup_input();
+
+    if (scale_is_ready())
+    {
+        app_state =
+            APP_STATE_STARTUP_LOAD_CONFIGURATION;
+
+        return;
+    }
+
+    const uint32_t now = hal_time_millis();
+
+    if ((uint32_t)(now - operation_started_ms) <
+        SCALE_STARTUP_TIMEOUT_MS)
+    {
+        return;
+    }
+
+    CONSOLE_PRINTLN(
+        "ERROR: HX711 startup timed out."
+    );
+
+    enter_fault_state();
+}
+
+
+static bool process_cooperative_base_state(void)
+{
+    switch (app_state)
+    {
+        case APP_STATE_STARTUP_WAIT_FOR_SCALE:
+            update_startup_wait_for_scale();
+            return true;
+
+        case APP_STATE_STARTUP_LOAD_CONFIGURATION:
+            process_startup_input();
+            load_startup_configuration();
+            return true;
+
+        case APP_STATE_FAULT:
+            process_fault_input();
+            return true;
+
+        case APP_STATE_TARE_SAMPLING:
+            update_tare_sampling();
+            return true;
+
+        case APP_STATE_CALIBRATION_ZERO_SAMPLING:
+            update_calibration_zero_sampling();
+            return true;
+
+        case APP_STATE_CALIBRATION_MASS_SAMPLING:
+            update_calibration_mass_sampling();
+            return true;
+
+        case APP_STATE_RESULT_PATTERN:
+            process_result_pattern();
+            return true;
+
+        case APP_STATE_TARE_REQUIRED:
+        case APP_STATE_NORMAL_OPERATION:
+        case APP_STATE_CALIBRATION_WAITING_FOR_ZERO:
+        case APP_STATE_CALIBRATION_WAITING_FOR_MASS:
+            return false;
+
+        default:
+            CONSOLE_PRINTLN(
+                "ERROR: Invalid application state."
+            );
+
+            enter_fault_state();
+            return true;
+    }
+}
+
+
+void app_init(void)
+{
+    /*
+     * Initialize the active time backend before any
+     * module reads the project millisecond counter.
+     */
+    hal_time_init();
+
+    console_init(CONSOLE_BAUD_RATE);
+
+    button_init(
+        &tare_button,
+        TARE_BUTTON_PIN,
+        BUTTON_DEBOUNCE_MS
+    );
+    button_init(
+        &calibration_button,
+        CALIBRATION_BUTTON_PIN,
+        BUTTON_DEBOUNCE_MS
+    );
+
+    indicator_leds_init();
+    level_indicator_init();
+    operation_indicator_init();
+
+    latest_weight_grams = 0.0F;
+    measurement_available = false;
+    tare_available = false;
+
+    last_print_ms = 0UL;
+    operation_started_ms = hal_time_millis();
+
+    tare_return_state =
+        APP_STATE_TARE_REQUIRED;
+
+    state_after_result =
+        APP_STATE_TARE_REQUIRED;
+
+    app_state = APP_STATE_STARTUP_WAIT_FOR_SCALE;
+
     console_newline();
-    CONSOLE_PRINTLN("Controls:");
     CONSOLE_PRINTLN(
-        "  Hold button on D4 for 3 s = tare"
-    );
-    CONSOLE_PRINTLN(
-        "  Serial command 't'    = tare"
-    );
-    CONSOLE_PRINTLN(
-        "  Serial command 's'    = save calibration"
-    );
-    CONSOLE_PRINTLN(
-        "  Serial command 'x'    = clear calibration"
-    );
-    CONSOLE_PRINTLN(
-        "  Serial command 'z'    = clear tare"
-    );
-    CONSOLE_PRINTLN(
-        "  Serial command 'c'    = calibrate/confirm"
+        "=== Load cell level indicator ==="
     );
 
-    CONSOLE_PRINTLN(
-        "  Serial command 'q'    = cancel calibration"
-    );
+    if (!scale_init())
+    {
+        CONSOLE_PRINTLN(
+            "ERROR: HX711 initialization failed."
+        );
+
+        enter_fault_state();
+        return;
+    }
+
+    operation_started_ms = hal_time_millis();
 
     CONSOLE_PRINTLN(
-        " Hold button on D8 for 3 s = start calibration"
-    );
-
-    CONSOLE_PRINTLN(
-        " Press button on D8 = confirm calibration step"
-    );
-
-    CONSOLE_PRINTLN("LED operation status:");
-
-    CONSOLE_PRINTLN(
-        " All LEDs on = tare in progress"
-    );
-
-    CONSOLE_PRINTLN(
-        " All LEDs blinking slowly = tare required"
-    );
-
-    CONSOLE_PRINTLN(
-        " LOW blinking = waiting for empty platform"
-    );
-
-    CONSOLE_PRINTLN(
-        " MEDIUM blinking = waiting for reference mass"
-    );
-
-    console_newline();
-    CONSOLE_PRINTLN("Provisional levels:");
-
-    CONSOLE_PRINTLN(
-        " VERY_LOW: below 100 g, LOW LED blinking"
-    );
-
-    CONSOLE_PRINTLN(
-        " LOW: 100 to 500 g, LOW LED steady"
-    );
-
-    CONSOLE_PRINTLN(
-        " MEDIUM: 500 to 1000 g"
-    );
-
-    CONSOLE_PRINTLN(
-        " HIGH: above 1000 g"
+        "Waiting for the first HX711 conversion..."
     );
 }
 
@@ -1136,29 +2004,26 @@ void app_update(void)
     operation_indicator_update();
 
     /*
-     * While a finite success or error pattern is being
-     * displayed, normal operation remains paused.
+     * Startup and fault handling keep the superloop
+     * cooperative but do not permit operational work.
      */
-    if (operation_indicator_is_temporary_active())
+    if (process_cooperative_base_state())
     {
-        /*
-         * Physical buttons are not processed while a
-         * finite success or error pattern is active.
-         *
-         * Discard serial input as well so both input
-         * mechanisms follow the same busy-state policy.
-         */
-        console_discard_input();
         return;
     }
 
     process_console_commands();
 
     /*
-     * A console command may have started a temporary
-     * success or error pattern.
+     * A serial command may have started an incremental
+     * tare or calibration collection in this iteration.
      */
-    if (operation_indicator_is_temporary_active())
+    if ((app_state == APP_STATE_TARE_SAMPLING) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_ZERO_SAMPLING) ||
+        (app_state ==
+            APP_STATE_CALIBRATION_MASS_SAMPLING) ||
+        (app_state == APP_STATE_RESULT_PATTERN))
     {
         return;
     }
@@ -1214,9 +2079,14 @@ void app_update(void)
             &tare_button,
             TARE_START_HOLD_MS))
     {
-        perform_tare();
+        start_tare();
 
-        if (operation_indicator_is_temporary_active())
+        if (app_state == APP_STATE_RESULT_PATTERN)
+        {
+            return;
+        }
+
+        if (app_state == APP_STATE_TARE_SAMPLING)
         {
             return;
         }

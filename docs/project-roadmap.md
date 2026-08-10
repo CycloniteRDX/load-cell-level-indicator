@@ -5,7 +5,7 @@
 This document is the active continuation plan for the project after:
 
 ```text
-v1.1-safe-startup-tare
+v1.2-non-blocking-application
 ```
 
 It is intentionally separate from [`project-seed.md`](project-seed.md).
@@ -32,7 +32,7 @@ When development is resumed after a long pause, read:
 The current stable release is:
 
 ```text
-v1.1-safe-startup-tare
+v1.2-non-blocking-application
 ```
 
 The release contains:
@@ -48,15 +48,19 @@ The release contains:
 - Immediate serial service tare.
 - Independent calibration and tare clear commands.
 - Physical and serial calibration.
+- Cooperative startup, tare and calibration states.
+- At most one ready HX711 conversion per application update.
+- Explicit busy-state and result-state input policies.
+- Latched cooperative startup fault instead of a permanent wait loop.
 - Four logical level states represented by three LEDs.
-- 225 native tests with zero failures.
+- 269 native tests across 11 suites with zero failures.
 - Complete release and physical-validation documentation.
 
 Production memory usage at the stable baseline:
 
 ```text
-Static SRAM: 195 bytes
-Flash:       13566 bytes
+Static SRAM: 217 bytes
+Flash:       16898 bytes
 ```
 
 The stable tag must never be moved or recreated.
@@ -177,7 +181,7 @@ Exercises and solutions belong to the lesson that provides their context.
 `reference/README.md` is a transversal index that points to the detailed
 explanations inside the lessons.
 
-The completed educational path was built progressively from the stable tags:
+The production milestones available to the educational track are:
 
 ```text
 v0.1-minimal-functional
@@ -198,12 +202,13 @@ v0.15-remove-arduino-delay
 v0.16-direct-avr-entrypoint
 v1.0-functional-prototype
 v1.1-safe-startup-tare
+v1.2-non-blocking-application
 ```
 
 Do not create a lesson for planned firmware. Add the next lesson only after its
 production milestone has been implemented, tested, integrated and tagged. The
-next educational addition will therefore be Lesson 20 after
-`v1.2-non-blocking-application` is stable.
+next educational addition is Lesson 20, based on the now-stable
+`v1.2-non-blocking-application` release.
 
 ## Educational method
 
@@ -297,50 +302,60 @@ docs/v1.1-safe-startup-tare-validation.md
 docs/v1.1-release-notes.md
 ```
 
+## v1.2: non-blocking application operations
+
+Completed tag:
+
+```text
+v1.2-non-blocking-application
+```
+
+Development branch:
+
+```text
+feature/non-blocking-application
+```
+
+The milestone introduced:
+
+- Cooperative HX711 startup readiness polling.
+- A latched fault state after a 2000 ms startup timeout.
+- An incremental scale collector with at most one ready read per update.
+- Non-blocking 20-sample operational tare.
+- Non-blocking zero and reference-mass calibration phases.
+- Cancellation before the next sample from UART or D4.
+- A 5000 ms total timeout for multi-sample operations.
+- Explicit result-pattern ownership and input suppression until release.
+- Immediate state-specific responses for rejected UART commands.
+- Transactional tare and calibration persistence guarantees preserved.
+- 269 passing native tests across 11 suites.
+- Ten passing physical validation scenarios at the real 10 SPS rate.
+
+Validated memory usage:
+
+```text
+Direct AVR production:
+SRAM:  217 bytes
+Flash: 16898 bytes
+
+Arduino reference:
+SRAM:  226 bytes
+Flash: 17194 bytes
+```
+
+Detailed records:
+
+```text
+docs/non-blocking-application-notes.md
+docs/v1.2-non-blocking-application-validation.md
+docs/v1.2-release-notes.md
+```
+
 ---
 
 # Next and later firmware milestones
 
 The names and ordering below are provisional. They should remain smaller than a single large redesign.
-
-## v1.2: non-blocking application operations
-
-Convert blocking operations into explicit application states.
-
-Candidates:
-
-- Startup wait.
-- Startup decision flow.
-- Tare sample collection.
-- Calibration sample collection.
-- Temporary success and error patterns.
-- Some permanent error loops.
-
-Possible state structure:
-
-```text
-STARTUP
-    |
-    +--> LOAD_CONFIGURATION
-    +--> TARE_REQUIRED
-    +--> NORMAL_OPERATION
-    +--> TARING
-    +--> CALIBRATION_ZERO
-    +--> CALIBRATION_REFERENCE
-    +--> RESULT_PATTERN
-    +--> FAULT
-```
-
-Objectives:
-
-- Buttons remain responsive.
-- UART input policy is explicit.
-- Indicators continue updating.
-- LoRa can later coexist without being starved.
-- Long operations can time out or be cancelled cleanly.
-- No hidden commands remain queued for later execution.
-
-Do not combine this milestone with watchdog or filtering changes.
 
 ## v1.3: fault handling and watchdog
 
@@ -578,8 +593,8 @@ Read:
 README.md
 docs/project-seed.md
 docs/project-roadmap.md
-docs/v1.1-release-notes.md
-docs/v1.1-safe-startup-tare-validation.md
+docs/v1.2-release-notes.md
+docs/v1.2-non-blocking-application-validation.md
 ```
 
 Then read the notes for the most recent completed milestone.
@@ -591,20 +606,20 @@ pio run -e nanoatmega328new
 .\scripts\run-native-tests.ps1
 ```
 
-Expected baseline at `v1.1-safe-startup-tare`:
+Expected baseline at `v1.2-non-blocking-application`:
 
 ```text
 production build: SUCCESS
-native suites:    10/10
-tests:            225
+native suites:    11/11
+tests:            269
 failures:         0
 ```
 
 Validated production memory:
 
 ```text
-SRAM:  195 bytes
-Flash: 13566 bytes
+SRAM:  217 bytes
+Flash: 16898 bytes
 ```
 
 ## Identify the active objective
@@ -650,16 +665,15 @@ from the first incomplete milestone without restarting the project.
 Current recommended order:
 
 ```text
-1. Implement v1.2 non-blocking application operations
-2. Add Lesson 20 to the study repository after v1.2 is stable
-3. Add fault handling and watchdog
-4. Improve measurement robustness
-5. Validate 24 V power and output hardware
-6. Build the final mechanical installation
-7. Design a custom PCB
-8. Evaluate alternative ADC backends
-9. Add LoRa
-10. Reorganize the source tree only when growth justifies it
+1. Add Lesson 20 to the study repository for stable v1.2
+2. Add fault handling and watchdog
+3. Improve measurement robustness
+4. Validate 24 V power and output hardware
+5. Build the final mechanical installation
+6. Design a custom PCB
+7. Evaluate alternative ADC backends
+8. Add LoRa
+9. Reorganize the source tree only when growth justifies it
 ```
 
 The educational and production tracks may progres

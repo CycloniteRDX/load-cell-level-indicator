@@ -7,9 +7,6 @@
 #include "scale.h"
 
 
-static const uint32_t
-    EXPECTED_INITIAL_READY_TIMEOUT_MS = 2000U;
-
 static const float
     FLOAT_COMPARISON_TOLERANCE = 0.0000001F;
 
@@ -23,6 +20,7 @@ static const int32_t
 void setUp(void)
 {
     fake_hx711_driver_reset();
+    scale_cancel_sample_collection();
 }
 
 
@@ -50,6 +48,27 @@ static void push_constant_readings(
 }
 
 
+static void
+push_successful_readings_before_error(
+    uint8_t successful_reading_count,
+    int32_t raw_value,
+    hx711_status_t error_status
+)
+{
+    push_constant_readings(
+        successful_reading_count,
+        raw_value
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            error_status,
+            0
+        )
+    );
+}
+
+
 static void establish_non_default_scale_state(void)
 {
     TEST_ASSERT_TRUE(scale_init());
@@ -60,12 +79,9 @@ static void establish_non_default_scale_state(void)
         )
     );
 
-    push_constant_readings(
-        TARE_SAMPLES,
+    scale_set_offset(
         ESTABLISHED_TARE_OFFSET
     );
-
-    TEST_ASSERT_TRUE(scale_tare());
 
     TEST_ASSERT_EQUAL_INT32(
         ESTABLISHED_TARE_OFFSET,
@@ -93,7 +109,7 @@ static void assert_calibration_factor_is(
 
 
 static void
-test_scale_init_uses_configured_pins_and_timeout(
+test_scale_init_uses_configured_pins_without_waiting(
     void
 )
 {
@@ -115,13 +131,8 @@ test_scale_init_uses_configured_pins_and_timeout(
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        1U,
+        0U,
         fake_hx711_driver_get_wait_ready_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        EXPECTED_INITIAL_READY_TIMEOUT_MS,
-        fake_hx711_driver_get_last_timeout_ms()
     );
 }
 
@@ -150,29 +161,34 @@ test_scale_init_failure_skips_wait_ready(
 
 
 static void
-test_scale_init_returns_false_after_ready_timeout(
+test_scale_is_ready_forwards_current_ready_state(
     void
 )
 {
-    fake_hx711_driver_set_wait_ready_status(
-        HX711_STATUS_TIMEOUT
-    );
+    TEST_ASSERT_TRUE(scale_init());
 
-    TEST_ASSERT_FALSE(scale_init());
+    fake_hx711_driver_reset();
+    fake_hx711_driver_set_ready(false);
+
+    TEST_ASSERT_FALSE(scale_is_ready());
+
+    fake_hx711_driver_set_ready(true);
+
+    TEST_ASSERT_TRUE(scale_is_ready());
 
     TEST_ASSERT_EQUAL_UINT32(
-        1U,
-        fake_hx711_driver_get_init_call_count()
+        2U,
+        fake_hx711_driver_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        1U,
+        0U,
         fake_hx711_driver_get_wait_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        EXPECTED_INITIAL_READY_TIMEOUT_MS,
-        fake_hx711_driver_get_last_timeout_ms()
+        0U,
+        fake_hx711_driver_get_read_raw_call_count()
     );
 }
 
@@ -223,42 +239,651 @@ test_hx711_init_failure_preserves_scale_state(
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        1U,
+        0U,
         fake_hx711_driver_get_wait_ready_call_count()
     );
 }
 
 
 static void
-test_ready_timeout_preserves_scale_state(
+test_failed_reinitialization_preserves_collector_progress(
     void
 )
 {
-    establish_non_default_scale_state();
+    TEST_ASSERT_TRUE(scale_init());
 
-    fake_hx711_driver_set_wait_ready_status(
-        HX711_STATUS_TIMEOUT
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(2U)
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            100
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS,
+        scale_update_sample_collection()
+    );
+
+    fake_hx711_driver_set_init_status(
+        HX711_STATUS_INVALID_ARGUMENT
     );
 
     TEST_ASSERT_FALSE(scale_init());
 
+    TEST_ASSERT_FALSE(
+        scale_start_sample_collection(1U)
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            300
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_COMPLETE,
+        scale_update_sample_collection()
+    );
+
+    int32_t average_raw = 0;
+
+    TEST_ASSERT_TRUE(
+        scale_take_sample_average(&average_raw)
+    );
+
     TEST_ASSERT_EQUAL_INT32(
-        ESTABLISHED_TARE_OFFSET,
+        200,
+        average_raw
+    );
+}
+
+
+static void
+test_successful_reinitialization_discards_collector_progress(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(2U)
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            100
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS,
+        scale_update_sample_collection()
+    );
+
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    scale_cancel_sample_collection();
+}
+
+
+static void
+test_collector_rejects_zero_samples_and_idle_result_take(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_FALSE(
+        scale_start_sample_collection(0U)
+    );
+
+    const int32_t sentinel = 123456;
+    int32_t average_raw = sentinel;
+
+    TEST_ASSERT_FALSE(
+        scale_take_sample_average(&average_raw)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        sentinel,
+        average_raw
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hx711_driver_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hx711_driver_get_read_raw_call_count()
+    );
+}
+
+
+static void
+test_not_ready_update_keeps_collection_in_progress(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    fake_hx711_driver_set_ready(false);
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS,
+        scale_update_sample_collection()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hx711_driver_get_read_raw_call_count()
+    );
+
+    fake_hx711_driver_set_ready(true);
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            4321
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_COMPLETE,
+        scale_update_sample_collection()
+    );
+
+    int32_t average_raw = 0;
+
+    TEST_ASSERT_TRUE(
+        scale_take_sample_average(&average_raw)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        4321,
+        average_raw
+    );
+}
+
+
+static void
+test_each_update_reads_at_most_one_sample_and_truncates_average(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    const int32_t readings[] = {
+        -9,
+        -8,
+        -7,
+        -6
+    };
+
+    for (uint8_t index = 0U;
+         index < 4U;
+         ++index)
+    {
+        TEST_ASSERT_TRUE(
+            fake_hx711_driver_push_reading(
+                HX711_STATUS_OK,
+                readings[index]
+            )
+        );
+    }
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(4U)
+    );
+
+    for (uint8_t update_index = 0U;
+         update_index < 4U;
+         ++update_index)
+    {
+        const scale_sample_collection_status_t
+            expected_status =
+                (update_index == 3U)
+                    ? SCALE_SAMPLE_COLLECTION_COMPLETE
+                    : SCALE_SAMPLE_COLLECTION_IN_PROGRESS;
+
+        TEST_ASSERT_EQUAL(
+            expected_status,
+            scale_update_sample_collection()
+        );
+
+        TEST_ASSERT_EQUAL_UINT32(
+            (uint32_t)update_index + 1U,
+            fake_hx711_driver_get_read_raw_call_count()
+        );
+    }
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_COMPLETE,
+        scale_update_sample_collection()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        4U,
+        fake_hx711_driver_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        4U,
+        fake_hx711_driver_get_read_raw_call_count()
+    );
+
+    int32_t average_raw = 0;
+
+    TEST_ASSERT_TRUE(
+        scale_take_sample_average(&average_raw)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        -7,
+        average_raw
+    );
+}
+
+
+static void
+test_new_collection_requires_idle_collector(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    TEST_ASSERT_FALSE(
+        scale_start_sample_collection(1U)
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            250
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_COMPLETE,
+        scale_update_sample_collection()
+    );
+
+    TEST_ASSERT_FALSE(
+        scale_start_sample_collection(1U)
+    );
+
+    int32_t average_raw = 0;
+
+    TEST_ASSERT_TRUE(
+        scale_take_sample_average(&average_raw)
+    );
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    scale_cancel_sample_collection();
+}
+
+
+static void
+test_completed_result_rejects_null_output_and_remains_available(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            -765
+        )
+    );
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_COMPLETE,
+        scale_update_sample_collection()
+    );
+
+    TEST_ASSERT_FALSE(
+        scale_take_sample_average(NULL)
+    );
+
+    TEST_ASSERT_FALSE(
+        scale_start_sample_collection(1U)
+    );
+
+    int32_t average_raw = 0;
+
+    TEST_ASSERT_TRUE(
+        scale_take_sample_average(&average_raw)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        -765,
+        average_raw
+    );
+}
+
+
+static void
+test_read_errors_are_sticky_at_first_middle_and_final_sample(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_TRUE(
+        scale_set_calibration_factor(
+            VALID_CALIBRATION_FACTOR
+        )
+    );
+
+    scale_set_offset(ESTABLISHED_TARE_OFFSET);
+
+    const uint8_t successful_before_error[] = {
+        0U,
+        2U,
+        4U
+    };
+
+    for (uint8_t scenario = 0U;
+         scenario < 3U;
+         ++scenario)
+    {
+        fake_hx711_driver_reset();
+        scale_cancel_sample_collection();
+
+        push_successful_readings_before_error(
+            successful_before_error[scenario],
+            5000,
+            HX711_STATUS_TIMEOUT
+        );
+
+        TEST_ASSERT_TRUE(
+            scale_start_sample_collection(5U)
+        );
+
+        for (uint8_t successful = 0U;
+             successful <
+                successful_before_error[scenario];
+             ++successful)
+        {
+            TEST_ASSERT_EQUAL(
+                SCALE_SAMPLE_COLLECTION_IN_PROGRESS,
+                scale_update_sample_collection()
+            );
+        }
+
+        TEST_ASSERT_EQUAL(
+            SCALE_SAMPLE_COLLECTION_ERROR,
+            scale_update_sample_collection()
+        );
+
+        const uint32_t read_count_after_error =
+            (uint32_t)
+                successful_before_error[scenario] +
+            1U;
+
+        TEST_ASSERT_EQUAL_UINT32(
+            read_count_after_error,
+            fake_hx711_driver_get_read_raw_call_count()
+        );
+
+        TEST_ASSERT_EQUAL(
+            SCALE_SAMPLE_COLLECTION_ERROR,
+            scale_update_sample_collection()
+        );
+
+        TEST_ASSERT_EQUAL_UINT32(
+            read_count_after_error,
+            fake_hx711_driver_get_read_raw_call_count()
+        );
+
+        TEST_ASSERT_FALSE(
+            scale_start_sample_collection(1U)
+        );
+
+        TEST_ASSERT_EQUAL_INT32(
+            ESTABLISHED_TARE_OFFSET,
+            scale_get_offset()
+        );
+
+        assert_calibration_factor_is(
+            VALID_CALIBRATION_FACTOR
+        );
+
+        scale_cancel_sample_collection();
+    }
+}
+
+
+static void
+test_cancellation_returns_partial_complete_and_error_to_idle(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(2U)
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            100
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS,
+        scale_update_sample_collection()
+    );
+
+    scale_cancel_sample_collection();
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            200
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_COMPLETE,
+        scale_update_sample_collection()
+    );
+
+    scale_cancel_sample_collection();
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_TIMEOUT,
+            0
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_ERROR,
+        scale_update_sample_collection()
+    );
+
+    scale_cancel_sample_collection();
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    scale_cancel_sample_collection();
+}
+
+
+static void
+test_collector_returns_raw_average_without_applying_tare(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    scale_set_offset(1000);
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            1200
+        )
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            1300
+        )
+    );
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(2U)
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS,
+        scale_update_sample_collection()
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_COMPLETE,
+        scale_update_sample_collection()
+    );
+
+    int32_t average_raw = 0;
+
+    TEST_ASSERT_TRUE(
+        scale_take_sample_average(&average_raw)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        1250,
+        average_raw
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        1000,
         scale_get_offset()
     );
+}
 
-    assert_calibration_factor_is(
-        VALID_CALIBRATION_FACTOR
+
+static void
+test_positive_hx711_limit_collector_does_not_overflow(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    const uint8_t sample_count = UINT8_MAX;
+    const int32_t maximum_hx711_value = 8388607;
+
+    push_constant_readings(
+        sample_count,
+        maximum_hx711_value
     );
 
-    TEST_ASSERT_EQUAL_UINT32(
-        2U,
-        fake_hx711_driver_get_init_call_count()
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(sample_count)
     );
 
-    TEST_ASSERT_EQUAL_UINT32(
-        2U,
-        fake_hx711_driver_get_wait_ready_call_count()
+    for (uint16_t sample = 0U;
+         sample < sample_count;
+         ++sample)
+    {
+        scale_update_sample_collection();
+    }
+
+    int32_t average_raw = 0;
+
+    TEST_ASSERT_TRUE(
+        scale_take_sample_average(&average_raw)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        maximum_hx711_value,
+        average_raw
+    );
+}
+
+
+static void
+test_negative_hx711_limit_collector_does_not_overflow(
+    void
+)
+{
+    TEST_ASSERT_TRUE(scale_init());
+
+    const uint8_t sample_count = UINT8_MAX;
+    const int32_t minimum_hx711_value = -8388608;
+
+    push_constant_readings(
+        sample_count,
+        minimum_hx711_value
+    );
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(sample_count)
+    );
+
+    for (uint16_t sample = 0U;
+         sample < sample_count;
+         ++sample)
+    {
+        scale_update_sample_collection();
+    }
+
+    int32_t average_raw = 0;
+
+    TEST_ASSERT_TRUE(
+        scale_take_sample_average(&average_raw)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        minimum_hx711_value,
+        average_raw
     );
 }
 
@@ -474,39 +1099,6 @@ test_scale_set_offset_accepts_int32_boundaries(
 
 
 static void
-test_restored_offset_is_used_by_net_count_reading(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    scale_set_offset(1000);
-
-    TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
-            1250
-        )
-    );
-
-    float net_counts = 0.0F;
-
-    TEST_ASSERT_TRUE(
-        scale_read_net_counts(
-            &net_counts,
-            1U
-        )
-    );
-
-    TEST_ASSERT_FLOAT_WITHIN(
-        FLOAT_COMPARISON_TOLERANCE,
-        250.0F,
-        net_counts
-    );
-}
-
-
-static void
 test_restored_offset_is_used_by_weight_reading(
     void
 )
@@ -529,7 +1121,7 @@ test_restored_offset_is_used_by_weight_reading(
     float weight_grams = 0.0F;
 
     TEST_ASSERT_TRUE(
-        scale_read_weight(
+        scale_try_read_weight(
             &weight_grams
         )
     );
@@ -538,589 +1130,6 @@ test_restored_offset_is_used_by_weight_reading(
         FLOAT_COMPARISON_TOLERANCE,
         20.0F,
         weight_grams
-    );
-}
-
-
-static void establish_tare_offset(
-    int32_t tare_value
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    push_constant_readings(
-        TARE_SAMPLES,
-        tare_value
-    );
-
-    TEST_ASSERT_TRUE(scale_tare());
-
-    TEST_ASSERT_EQUAL_INT32(
-        tare_value,
-        scale_get_offset()
-    );
-}
-
-
-static void
-push_successful_readings_before_error(
-    uint8_t successful_reading_count,
-    int32_t raw_value,
-    hx711_status_t error_status
-)
-{
-    push_constant_readings(
-        successful_reading_count,
-        raw_value
-    );
-
-    TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            error_status,
-            0
-        )
-    );
-}
-
-
-static void
-assert_net_count_output_unchanged_after_failure(
-    float expected_sentinel,
-    uint8_t samples
-)
-{
-    float net_counts = expected_sentinel;
-
-    TEST_ASSERT_FALSE(
-        scale_read_net_counts(
-            &net_counts,
-            samples
-        )
-    );
-
-    TEST_ASSERT_FLOAT_WITHIN(
-        FLOAT_COMPARISON_TOLERANCE,
-        expected_sentinel,
-        net_counts
-    );
-}
-
-
-static void
-test_successful_tare_averages_all_samples(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    for (uint8_t sample = 0U;
-         sample < (TARE_SAMPLES / 2U);
-         ++sample)
-    {
-        TEST_ASSERT_TRUE(
-            fake_hx711_driver_push_reading(
-                HX711_STATUS_OK,
-                1200
-            )
-        );
-
-        TEST_ASSERT_TRUE(
-            fake_hx711_driver_push_reading(
-                HX711_STATUS_OK,
-                -800
-            )
-        );
-    }
-
-    TEST_ASSERT_TRUE(scale_tare());
-
-    TEST_ASSERT_EQUAL_INT32(
-        200,
-        scale_get_offset()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        TARE_SAMPLES,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT16(
-        TARE_SAMPLES,
-        fake_hx711_driver_get_consumed_reading_count()
-    );
-
-    TEST_ASSERT_FALSE(
-        fake_hx711_driver_sequence_was_exhausted()
-    );
-}
-
-
-static void
-test_tare_failure_on_first_read_preserves_offset(
-    void
-)
-{
-    establish_tare_offset(
-        ESTABLISHED_TARE_OFFSET
-    );
-
-    fake_hx711_driver_reset();
-
-    TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_TIMEOUT,
-            0
-        )
-    );
-
-    TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
-            9999
-        )
-    );
-
-    TEST_ASSERT_FALSE(scale_tare());
-
-    TEST_ASSERT_EQUAL_INT32(
-        ESTABLISHED_TARE_OFFSET,
-        scale_get_offset()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        1U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT16(
-        1U,
-        fake_hx711_driver_get_consumed_reading_count()
-    );
-}
-
-
-static void
-test_tare_failure_in_middle_preserves_offset(
-    void
-)
-{
-    establish_tare_offset(
-        ESTABLISHED_TARE_OFFSET
-    );
-
-    fake_hx711_driver_reset();
-
-    push_successful_readings_before_error(
-        7U,
-        5000,
-        HX711_STATUS_TIMEOUT
-    );
-
-    push_constant_readings(
-        3U,
-        6000
-    );
-
-    TEST_ASSERT_FALSE(scale_tare());
-
-    TEST_ASSERT_EQUAL_INT32(
-        ESTABLISHED_TARE_OFFSET,
-        scale_get_offset()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        8U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT16(
-        8U,
-        fake_hx711_driver_get_consumed_reading_count()
-    );
-}
-
-
-static void
-test_tare_failure_on_final_read_preserves_offset(
-    void
-)
-{
-    establish_tare_offset(
-        ESTABLISHED_TARE_OFFSET
-    );
-
-    fake_hx711_driver_reset();
-
-    push_successful_readings_before_error(
-        (uint8_t)(TARE_SAMPLES - 1U),
-        7000,
-        HX711_STATUS_TIMEOUT
-    );
-
-    TEST_ASSERT_FALSE(scale_tare());
-
-    TEST_ASSERT_EQUAL_INT32(
-        ESTABLISHED_TARE_OFFSET,
-        scale_get_offset()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        TARE_SAMPLES,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT16(
-        TARE_SAMPLES,
-        fake_hx711_driver_get_consumed_reading_count()
-    );
-}
-
-
-static void
-test_repeated_successful_tare_replaces_offset(
-    void
-)
-{
-    establish_tare_offset(1000);
-
-    fake_hx711_driver_reset();
-
-    push_constant_readings(
-        TARE_SAMPLES,
-        -250
-    );
-
-    TEST_ASSERT_TRUE(scale_tare());
-
-    TEST_ASSERT_EQUAL_INT32(
-        -250,
-        scale_get_offset()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        TARE_SAMPLES,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-}
-
-
-static void
-test_net_counts_rejects_null_output_without_reading(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    TEST_ASSERT_FALSE(
-        scale_read_net_counts(
-            NULL,
-            1U
-        )
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        0U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-}
-
-
-static void
-test_net_counts_rejects_zero_samples_without_reading(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    const float sentinel = 123.25F;
-    float net_counts = sentinel;
-
-    TEST_ASSERT_FALSE(
-        scale_read_net_counts(
-            &net_counts,
-            0U
-        )
-    );
-
-    TEST_ASSERT_FLOAT_WITHIN(
-        FLOAT_COMPARISON_TOLERANCE,
-        sentinel,
-        net_counts
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        0U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-}
-
-
-static void
-test_single_sample_net_counts_subtracts_tare(
-    void
-)
-{
-    establish_tare_offset(1000);
-
-    fake_hx711_driver_reset();
-
-    TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
-            1250
-        )
-    );
-
-    float net_counts = 0.0F;
-
-    TEST_ASSERT_TRUE(
-        scale_read_net_counts(
-            &net_counts,
-            1U
-        )
-    );
-
-    TEST_ASSERT_FLOAT_WITHIN(
-        FLOAT_COMPARISON_TOLERANCE,
-        250.0F,
-        net_counts
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        1U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-}
-
-
-static void
-test_multiple_net_count_samples_use_truncated_average(
-    void
-)
-{
-    establish_tare_offset(-100);
-
-    fake_hx711_driver_reset();
-
-    const int32_t readings[] = {
-        -9,
-        -8,
-        -7,
-        -6
-    };
-
-    for (uint8_t index = 0U;
-         index < 4U;
-         ++index)
-    {
-        TEST_ASSERT_TRUE(
-            fake_hx711_driver_push_reading(
-                HX711_STATUS_OK,
-                readings[index]
-            )
-        );
-    }
-
-    float net_counts = 0.0F;
-
-    TEST_ASSERT_TRUE(
-        scale_read_net_counts(
-            &net_counts,
-            4U
-        )
-    );
-
-    /*
-     * (-9 - 8 - 7 - 6) / 4 = -30 / 4.
-     * Integer division truncates toward zero: -7.
-     * Net counts: -7 - (-100) = 93.
-     */
-    TEST_ASSERT_FLOAT_WITHIN(
-        FLOAT_COMPARISON_TOLERANCE,
-        93.0F,
-        net_counts
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        4U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-}
-
-
-static void
-test_net_count_failure_on_first_read_preserves_output(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_TIMEOUT,
-            0
-        )
-    );
-
-    TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
-            500
-        )
-    );
-
-    assert_net_count_output_unchanged_after_failure(
-        456.75F,
-        2U
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        1U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT16(
-        1U,
-        fake_hx711_driver_get_consumed_reading_count()
-    );
-}
-
-
-static void
-test_net_count_failure_in_middle_preserves_output(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    push_successful_readings_before_error(
-        2U,
-        500,
-        HX711_STATUS_TIMEOUT
-    );
-
-    push_constant_readings(
-        2U,
-        700
-    );
-
-    assert_net_count_output_unchanged_after_failure(
-        -321.5F,
-        5U
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        3U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT16(
-        3U,
-        fake_hx711_driver_get_consumed_reading_count()
-    );
-}
-
-
-static void
-test_net_count_failure_on_final_read_preserves_output(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    push_successful_readings_before_error(
-        3U,
-        -500,
-        HX711_STATUS_TIMEOUT
-    );
-
-    assert_net_count_output_unchanged_after_failure(
-        88.0F,
-        4U
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        4U,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT16(
-        4U,
-        fake_hx711_driver_get_consumed_reading_count()
-    );
-}
-
-
-static void
-test_positive_hx711_limit_averages_without_overflow(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    const uint8_t maximum_sample_count = UINT8_MAX;
-    const int32_t maximum_hx711_value = 8388607;
-
-    push_constant_readings(
-        maximum_sample_count,
-        maximum_hx711_value
-    );
-
-    float net_counts = 0.0F;
-
-    TEST_ASSERT_TRUE(
-        scale_read_net_counts(
-            &net_counts,
-            maximum_sample_count
-        )
-    );
-
-    TEST_ASSERT_FLOAT_WITHIN(
-        0.5F,
-        (float)maximum_hx711_value,
-        net_counts
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        maximum_sample_count,
-        fake_hx711_driver_get_read_raw_call_count()
-    );
-}
-
-
-static void
-test_negative_hx711_limit_averages_without_overflow(
-    void
-)
-{
-    TEST_ASSERT_TRUE(scale_init());
-
-    const uint8_t maximum_sample_count = UINT8_MAX;
-    const int32_t minimum_hx711_value = -8388608;
-
-    push_constant_readings(
-        maximum_sample_count,
-        minimum_hx711_value
-    );
-
-    float net_counts = 0.0F;
-
-    TEST_ASSERT_TRUE(
-        scale_read_net_counts(
-            &net_counts,
-            maximum_sample_count
-        )
-    );
-
-    TEST_ASSERT_FLOAT_WITHIN(
-        0.5F,
-        (float)minimum_hx711_value,
-        net_counts
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        maximum_sample_count,
-        fake_hx711_driver_get_read_raw_call_count()
     );
 }
 
@@ -1134,7 +1143,7 @@ assert_weight_is(
     float weight_grams = 0.0F;
 
     TEST_ASSERT_TRUE(
-        scale_read_weight(&weight_grams)
+        scale_try_read_weight(&weight_grams)
     );
 
     TEST_ASSERT_FLOAT_WITHIN(
@@ -1153,7 +1162,7 @@ test_weight_rejects_null_output_without_checking_ready(
     TEST_ASSERT_TRUE(scale_init());
 
     TEST_ASSERT_FALSE(
-        scale_read_weight(NULL)
+        scale_try_read_weight(NULL)
     );
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -1182,7 +1191,7 @@ test_weight_not_ready_preserves_output_without_reading(
     float weight_grams = sentinel;
 
     TEST_ASSERT_FALSE(
-        scale_read_weight(&weight_grams)
+        scale_try_read_weight(&weight_grams)
     );
 
     TEST_ASSERT_FLOAT_WITHIN(
@@ -1208,7 +1217,8 @@ test_weight_converts_positive_net_counts_to_grams(
     void
 )
 {
-    establish_tare_offset(-170000);
+    TEST_ASSERT_TRUE(scale_init());
+    scale_set_offset(-170000);
 
     TEST_ASSERT_TRUE(
         scale_set_calibration_factor(46.5F)
@@ -1237,12 +1247,12 @@ test_weight_converts_positive_net_counts_to_grams(
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        WEIGHT_SAMPLES,
+        1U,
         fake_hx711_driver_get_read_raw_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT16(
-        WEIGHT_SAMPLES,
+        1U,
         fake_hx711_driver_get_consumed_reading_count()
     );
 }
@@ -1280,7 +1290,8 @@ test_negative_net_counts_produce_negative_weight(
     void
 )
 {
-    establish_tare_offset(1000);
+    TEST_ASSERT_TRUE(scale_init());
+    scale_set_offset(1000);
 
     TEST_ASSERT_TRUE(
         scale_set_calibration_factor(45.5F)
@@ -1322,7 +1333,7 @@ test_weight_read_error_after_ready_preserves_output(
     float weight_grams = sentinel;
 
     TEST_ASSERT_FALSE(
-        scale_read_weight(&weight_grams)
+        scale_try_read_weight(&weight_grams)
     );
 
     TEST_ASSERT_FLOAT_WITHIN(
@@ -1353,7 +1364,7 @@ int main(void)
     UNITY_BEGIN();
 
     RUN_TEST(
-        test_scale_init_uses_configured_pins_and_timeout
+        test_scale_init_uses_configured_pins_without_waiting
     );
 
     RUN_TEST(
@@ -1361,7 +1372,7 @@ int main(void)
     );
 
     RUN_TEST(
-        test_scale_init_returns_false_after_ready_timeout
+        test_scale_is_ready_forwards_current_ready_state
     );
 
     RUN_TEST(
@@ -1373,7 +1384,51 @@ int main(void)
     );
 
     RUN_TEST(
-        test_ready_timeout_preserves_scale_state
+        test_failed_reinitialization_preserves_collector_progress
+    );
+
+    RUN_TEST(
+        test_successful_reinitialization_discards_collector_progress
+    );
+
+    RUN_TEST(
+        test_collector_rejects_zero_samples_and_idle_result_take
+    );
+
+    RUN_TEST(
+        test_not_ready_update_keeps_collection_in_progress
+    );
+
+    RUN_TEST(
+        test_each_update_reads_at_most_one_sample_and_truncates_average
+    );
+
+    RUN_TEST(
+        test_new_collection_requires_idle_collector
+    );
+
+    RUN_TEST(
+        test_completed_result_rejects_null_output_and_remains_available
+    );
+
+    RUN_TEST(
+        test_read_errors_are_sticky_at_first_middle_and_final_sample
+    );
+
+    RUN_TEST(
+        test_cancellation_returns_partial_complete_and_error_to_idle
+    );
+
+    RUN_TEST(
+        test_collector_returns_raw_average_without_applying_tare
+    );
+
+    RUN_TEST(
+        test_positive_hx711_limit_collector_does_not_overflow
+    );
+
+    RUN_TEST(
+        test_negative_hx711_limit_collector_does_not_overflow
     );
 
     RUN_TEST(
@@ -1409,69 +1464,9 @@ int main(void)
     );
 
     RUN_TEST(
-        test_restored_offset_is_used_by_net_count_reading
-    );
-
-    RUN_TEST(
         test_restored_offset_is_used_by_weight_reading
     );
 
-
-    RUN_TEST(
-        test_successful_tare_averages_all_samples
-    );
-
-    RUN_TEST(
-        test_tare_failure_on_first_read_preserves_offset
-    );
-
-    RUN_TEST(
-        test_tare_failure_in_middle_preserves_offset
-    );
-
-    RUN_TEST(
-        test_tare_failure_on_final_read_preserves_offset
-    );
-
-    RUN_TEST(
-        test_repeated_successful_tare_replaces_offset
-    );
-
-    RUN_TEST(
-        test_net_counts_rejects_null_output_without_reading
-    );
-
-    RUN_TEST(
-        test_net_counts_rejects_zero_samples_without_reading
-    );
-
-    RUN_TEST(
-        test_single_sample_net_counts_subtracts_tare
-    );
-
-    RUN_TEST(
-        test_multiple_net_count_samples_use_truncated_average
-    );
-
-    RUN_TEST(
-        test_net_count_failure_on_first_read_preserves_output
-    );
-
-    RUN_TEST(
-        test_net_count_failure_in_middle_preserves_output
-    );
-
-    RUN_TEST(
-        test_net_count_failure_on_final_read_preserves_output
-    );
-
-    RUN_TEST(
-        test_positive_hx711_limit_averages_without_overflow
-    );
-
-    RUN_TEST(
-        test_negative_hx711_limit_averages_without_overflow
-    );
 
 
     RUN_TEST(

@@ -37,6 +37,12 @@ typedef enum
     OPERATION_INDICATOR_CALIBRATION_MASS,
 
     /*
+     * The HIGH LED blinks persistently while the
+     * application is in its latched fault state.
+     */
+    OPERATION_INDICATOR_FAULT,
+
+    /*
      * All LEDs blink temporarily after a
      * successful calibration.
      */

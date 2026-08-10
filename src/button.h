@@ -26,6 +26,15 @@ typedef struct
      */
     bool hold_event_reported;
 
+    /*
+     * Prevents a press consumed by another application
+     * state from later becoming a hold event.
+     *
+     * Unlike hold_event_reported, this state must survive
+     * a pending press completing its debounce interval.
+     */
+    bool hold_suppressed_until_release;
+
 } button_t;
 
 
@@ -71,6 +80,9 @@ bool button_was_held(
  *
  * This is useful when one press changes application
  * context and must not be reinterpreted afterwards.
+ *
+ * If the button is fully released, this function does
+ * nothing and the next independent press remains valid.
  */
 void button_suppress_hold_until_release(
     button_t *button

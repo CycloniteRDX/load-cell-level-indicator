@@ -26,7 +26,6 @@ static const uint8_t HIGH_LEVEL_LED_PIN = 7U;
  * HX711 sampling configuration.
  */
 static const uint8_t TARE_SAMPLES = 20U;
-static const uint8_t WEIGHT_SAMPLES = 1U;
 
 /*
  * Console configuration.
@@ -46,6 +45,26 @@ static const uint32_t CALIBRATION_START_HOLD_MS =
     3000UL;
 
 static const uint32_t PRINT_PERIOD_MS = 500UL;
+
+
+/*
+ * Maximum time allowed for the first HX711 conversion
+ * to become ready after pin configuration.
+ */
+static const uint32_t SCALE_STARTUP_TIMEOUT_MS =
+    2000UL;
+
+
+/*
+ * Maximum total time allowed for one incremental
+ * multi-sample HX711 collection.
+ *
+ * Twenty samples require approximately two seconds at
+ * the current 10 SPS rate. Five seconds leaves margin
+ * while still detecting a stalled or disconnected ADC.
+ */
+static const uint32_t
+    SCALE_SAMPLE_COLLECTION_TIMEOUT_MS = 5000UL;
 
 
 /*
