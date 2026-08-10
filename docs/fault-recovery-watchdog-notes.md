@@ -329,23 +329,9 @@ software is alive and the domain deadline is responsible for that wait.
 
 ---
 
-## 11. Scale API must preserve error information
+## 11. Scale API preserves error information
 
-The current function:
-
-```c
-bool scale_try_read_weight(float *weight_grams);
-```
-
-uses `false` for both:
-
-```text
-no conversion ready yet
-driver read failed
-```
-
-That ambiguity prevents correct fault classification. `v1.3` shall introduce a
-status-rich result, conceptually:
+The scale read interface now returns a status-rich result:
 
 ```c
 typedef enum
@@ -354,9 +340,19 @@ typedef enum
     SCALE_READ_VALUE,
     SCALE_READ_ERROR
 } scale_read_status_t;
+
+scale_read_status_t scale_try_read_weight(
+    float *weight_grams
+);
 ```
 
 The output weight is written only for `SCALE_READ_VALUE`.
+
+`SCALE_READ_NO_DATA` means that the immediate non-blocking poll found no ready
+conversion. `SCALE_READ_ERROR` means that the output pointer was invalid or the
+driver failed after readiness was observed. The application fault-policy commit
+will consume this distinction; the boundary commit deliberately does not yet
+change application recovery behaviour.
 
 The sample collector already distinguishes in-progress, complete and error.
 The application deadline continues to distinguish a stalled collector from an
@@ -386,21 +382,33 @@ does not consume a ready conversion.
 
 ## 13. HX711 power-cycle recovery
 
-The scale layer shall expose one bounded recovery operation that:
+The scale layer now exposes:
+
+```c
+bool scale_recover(void);
+```
+
+This bounded recovery operation:
 
 1. cancels any sample collection;
 2. places the initialized HX711 in power-down;
 3. brings `PD_SCK` LOW again;
 4. preserves the runtime tare offset;
 5. preserves the runtime calibration factor;
-6. returns without waiting for the next conversion.
+6. returns without waiting for the next conversion;
+7. reports failure when either driver power operation fails.
 
 The application then enters the cooperative ready-wait state.
 
-The current product uses channel A, gain 128. If future non-default gain support
-makes `hx711_power_up()` wait for and discard a conversion, that blocking path
-must not silently enter this recovery design. The scale recovery contract must
+The current product uses channel A, gain 128, and the scale API does not expose
+a gain-changing operation. Therefore the current `hx711_power_up()` path lowers
+`PD_SCK` and returns without waiting for a conversion. If future non-default
+gain support makes it wait for and discard a conversion, that blocking path must
+not silently enter this recovery design. The scale recovery contract must
 remain bounded and documented.
+
+The application does not call `scale_recover()` until the later cooperative
+recovery-state commit defines when attempts start and how they are counted.
 
 Automatic recovery shall not be declared complete until repeated real hardware
 power cycles pass.
@@ -769,6 +777,8 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
+Steps 1 and 2 are now implemented on the feature branch.
+
 ---
 
 ## 28. Definition of done
@@ -776,7 +786,7 @@ must remain after the recovery model is explicit and tested.
 - [ ] Fault codes are explicit and documented.
 - [ ] Each code has one recovery or terminal policy.
 - [ ] Normal level output is disabled immediately on system fault.
-- [ ] Scale no-data and read-error results are distinguishable.
+- [x] Scale no-data and read-error results are distinguishable.
 - [ ] Runtime readiness has a finite cooperative deadline.
 - [ ] HX711 recovery has bounded backoff, timeout and retry count.
 - [ ] Recovery preserves committed tare and calibration.
@@ -798,11 +808,11 @@ must remain after the recovery model is explicit and tested.
 
 ---
 
-## 29. First implementation step after this document
+## 29. First implementation result
 
-Do not enable the watchdog yet.
+The watchdog remains disabled.
 
-The first code change shall make the scale boundary status-rich and testable:
+The first code change made the scale boundary status-rich and testable:
 
 ```text
 no conversion ready
@@ -810,7 +820,8 @@ successful conversion
 driver read error
 ```
 
-It shall then add a bounded scale-level HX711 power-cycle operation that
-preserves tare and calibration. Only after those contracts pass native tests
-should the application recovery state machine use them.
-
+It also added a bounded scale-level HX711 power-cycle operation that cancels an
+active collector and preserves tare and calibration. Native tests cover the
+successful order, power-down failure and power-up failure. Only after these
+contracts exist does the next commit introduce application fault codes and
+policy; automatic retries and watchdog activation still do not belong here.

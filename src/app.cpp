@@ -1507,7 +1507,10 @@ static void update_weight_measurement(void)
 {
     float weight_grams = 0.0F;
 
-    if (!scale_try_read_weight(&weight_grams))
+    const scale_read_status_t read_status =
+        scale_try_read_weight(&weight_grams);
+
+    if (read_status != SCALE_READ_VALUE)
     {
         return;
     }

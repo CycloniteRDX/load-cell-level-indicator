@@ -24,6 +24,14 @@ void fake_hx711_driver_set_ready(
     bool ready
 );
 
+void fake_hx711_driver_set_power_down_status(
+    hx711_status_t status
+);
+
+void fake_hx711_driver_set_power_up_status(
+    hx711_status_t status
+);
+
 bool fake_hx711_driver_push_reading(
     hx711_status_t status,
     int32_t raw_value
@@ -33,6 +41,12 @@ uint32_t fake_hx711_driver_get_init_call_count(void);
 uint32_t fake_hx711_driver_get_wait_ready_call_count(void);
 uint32_t fake_hx711_driver_get_is_ready_call_count(void);
 uint32_t fake_hx711_driver_get_read_raw_call_count(void);
+uint32_t fake_hx711_driver_get_power_down_call_count(void);
+uint32_t fake_hx711_driver_get_power_up_call_count(void);
+
+bool fake_hx711_driver_power_down_preceded_power_up(
+    void
+);
 
 uint8_t fake_hx711_driver_get_last_data_pin(void);
 uint8_t fake_hx711_driver_get_last_clock_pin(void);

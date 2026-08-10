@@ -935,12 +935,14 @@ bool scale_take_sample_average(
 }
 
 
-bool scale_try_read_weight(float *weight_grams)
+scale_read_status_t scale_try_read_weight(
+    float *weight_grams
+)
 {
     (void)weight_grams;
 
     ++scale_weight_read_calls;
-    return false;
+    return SCALE_READ_NO_DATA;
 }
 
 

@@ -6,6 +6,7 @@ The project began as a small Arduino learning exercise and was progressively evo
 
 > **Project status:** validated functional prototype
 > **Latest completed milestone:** `v1.2-non-blocking-application`
+> **Current development milestone:** `v1.3-fault-recovery-and-watchdog`
 
 ## Features
 
@@ -28,11 +29,13 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Serial console with fixed-point number formatting.
 - Cooperative application state machine for startup, tare and calibration.
 - Incremental HX711 sampling with at most one ready conversion per update.
+- Status-rich scale reads that distinguish no data from driver failure.
+- Bounded HX711 power-cycle primitive that preserves active tare and calibration.
 - Explicit result-pattern and latched startup-fault states.
 - Responsive UART and button handling during 20-sample operations.
 - Direct AVR implementations for GPIO, Timer1, EEPROM and USART0.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 269 native Unity tests across 11 suites.
+- 272 native Unity tests across 11 suites.
 
 ## Hardware
 
@@ -450,20 +453,20 @@ Validated test inventory:
 | `native_hx711` | 18 |
 | `native_level_indicator` | 14 |
 | `native_operation_indicator` | 16 |
-| `native_scale` | 32 |
+| `native_scale` | 35 |
 | `native_app` | 48 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **269** |
+| **Total** | **272** |
 
 Validated result:
 
 ```text
 Suites passed: 11/11
-Tests passed:  269/269
+Tests passed:  272/272
 Failures:      0
 Exit code:     0
 ```

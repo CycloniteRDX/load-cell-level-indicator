@@ -14,6 +14,14 @@ typedef enum
 } scale_sample_collection_status_t;
 
 
+typedef enum
+{
+    SCALE_READ_NO_DATA,
+    SCALE_READ_VALUE,
+    SCALE_READ_ERROR
+} scale_read_status_t;
+
+
 /*
  * Initializes the load-cell measurement system.
  *
@@ -93,12 +101,28 @@ void scale_cancel_sample_collection(void);
 
 
 /*
+ * Performs one bounded HX711 power-down/power-up cycle.
+ *
+ * Any active sample collection is cancelled before the
+ * cycle begins. The current tare offset and calibration
+ * factor are preserved.
+ *
+ * Returns false when either driver operation fails.
+ */
+bool scale_recover(void);
+
+
+/*
  * Attempts to obtain exactly one new weight measurement.
  *
- * Returns immediately when no conversion is ready.
- * The result is written only when a read succeeds.
+ * Returns immediately with SCALE_READ_NO_DATA when no
+ * conversion is ready. The result is written only when
+ * SCALE_READ_VALUE is returned. A driver read failure is
+ * reported separately as SCALE_READ_ERROR.
  */
-bool scale_try_read_weight(float *weight_grams);
+scale_read_status_t scale_try_read_weight(
+    float *weight_grams
+);
 
 
 /*

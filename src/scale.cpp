@@ -183,11 +183,38 @@ void scale_cancel_sample_collection(void)
     scale_reset_sample_collection();
 }
 
-bool scale_try_read_weight(float *weight_grams)
+
+bool scale_recover(void)
+{
+    scale_cancel_sample_collection();
+
+    const hx711_status_t power_down_status =
+        hx711_power_down(&hx711_device);
+
+    if (power_down_status != HX711_STATUS_OK)
+    {
+        return false;
+    }
+
+    /*
+     * Scale currently keeps the HX711 at its initialized
+     * channel-A, gain-128 setting. At that setting the
+     * driver power-up path does not wait for a conversion.
+     */
+    const hx711_status_t power_up_status =
+        hx711_power_up(&hx711_device);
+
+    return power_up_status == HX711_STATUS_OK;
+}
+
+
+scale_read_status_t scale_try_read_weight(
+    float *weight_grams
+)
 {
     if (weight_grams == NULL)
     {
-        return false;
+        return SCALE_READ_ERROR;
     }
 
     /*
@@ -197,7 +224,7 @@ bool scale_try_read_weight(float *weight_grams)
      */
     if (!hx711_is_ready(&hx711_device))
     {
-        return false;
+        return SCALE_READ_NO_DATA;
     }
 
     int32_t raw_value = 0;
@@ -210,7 +237,7 @@ bool scale_try_read_weight(float *weight_grams)
 
     if (read_status != HX711_STATUS_OK)
     {
-        return false;
+        return SCALE_READ_ERROR;
     }
 
     const int32_t net_counts =
@@ -220,7 +247,7 @@ bool scale_try_read_weight(float *weight_grams)
         (float)net_counts /
         current_calibration_factor;
 
-    return true;
+    return SCALE_READ_VALUE;
 }
 
 
