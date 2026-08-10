@@ -20,9 +20,9 @@ The post-release documentation correction does not change the firmware used as
 the technical baseline.
 
 This document is the design contract and incremental implementation record.
-Cooperative HX711 recovery, runtime readiness supervision and distinct recovery
-and terminal-fault indicators are now implemented and covered by native tests.
-Physical power-cycle validation and the watchdog remain pending.
+Cooperative HX711 recovery, runtime readiness supervision, distinct recovery
+and terminal-fault indicators, and the AVR watchdog HAL are now implemented.
+Physical HX711 power-cycle and watchdog validation remain pending.
 
 ---
 
@@ -791,7 +791,7 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
-Steps 1 through 7 are now implemented on the feature branch.
+Steps 1 through 8 are now implemented on the feature branch.
 
 ---
 
@@ -809,8 +809,8 @@ Steps 1 through 7 are now implemented on the feature branch.
 - [x] Recovery and terminal LED patterns are distinct.
 - [x] Persistent loads distinguish absent, corrupt and access-failure states.
 - [ ] Power-down/power-up pass a dedicated physical test.
-- [ ] The watchdog is fed only after complete application iterations.
-- [ ] The watchdog is never fed from an interrupt.
+- [x] The watchdog is fed only after complete application iterations.
+- [x] The watchdog is never fed from an interrupt.
 - [ ] A forced software stall causes a real watchdog reset.
 - [ ] Reset-cause support or bootloader limitation is documented from evidence.
 - [ ] Direct AVR production builds successfully.
@@ -1018,3 +1018,47 @@ policy. Existing storage tests now assert all four statuses while continuing to
 prove that non-valid loads preserve their output arguments. The `native_app`
 suite now contains `69` tests, `native_app_fault` contains `5`, and the complete
 expected native inventory is `300` tests across `12` suites.
+
+---
+
+## 35. AVR watchdog and reset-cause HAL result
+
+The watchdog is now active in both ATmega328P firmware environments with a
+two-second hardware period.
+
+The AVR backend owns an early `.init3` startup hook. Before ordinary C/C++
+initialization and before either `main()` or Arduino `setup()`, it:
+
+1. copies the raw `MCUSR` flags into `.noinit` storage;
+2. clears the reset flags, including `WDRF`;
+3. disables any watchdog inherited from a previous watchdog reset.
+
+The public C-compatible HAL translates the captured AVR flags into independent
+application bits for power-on, external, brown-out and watchdog reset. A zero
+mask means that no supported cause remains visible to the application. This is
+intentionally described as application-visible evidence because the Nano
+bootloader may inspect or clear `MCUSR` before the firmware startup hook runs.
+
+`app_init()` reads the cause once after the console is available and emits one
+line for every visible flag. It does not enable, disable or feed the watchdog.
+The two entry points apply the same supervision boundary:
+
+```text
+app_init()
+hal_watchdog_enable()
+
+app_update()
+hal_watchdog_kick()
+```
+
+There is no watchdog feed in an interrupt, inside `app_update()` or before an
+application iteration. A cooperative terminal fault continues to return from
+`app_update()` and is therefore still fed; only software that stops completing
+iterations should cause a watchdog reset.
+
+One new integral application test verifies unknown-cause reporting, a single
+HAL query and simultaneous reporting of every supported cause bit. The
+`native_app` suite now contains `70` tests, and the complete expected native
+inventory is `301` tests across `12` suites. Native tests do not claim to prove
+AVR register timing, the real two-second period or bootloader preservation of
+`MCUSR`; those remain gates for the dedicated hardware-validation build.

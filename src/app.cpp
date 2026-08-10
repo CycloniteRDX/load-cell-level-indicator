@@ -14,6 +14,7 @@
 #include "indicator_leds.h"
 #include "operation_indicator.h"
 #include "hal_time.h"
+#include "hal_watchdog.h"
 
 
 static float latest_weight_grams = 0.0F;
@@ -77,6 +78,54 @@ static app_state_t tare_return_state =
  */
 static app_state_t state_after_result =
     APP_STATE_TARE_REQUIRED;
+
+
+static void print_reset_causes(void)
+{
+    const hal_reset_cause_t reset_causes =
+        hal_watchdog_get_reset_cause();
+
+    if (reset_causes == HAL_RESET_CAUSE_UNKNOWN)
+    {
+        CONSOLE_PRINTLN(
+            "Reset cause visible to application: unknown."
+        );
+
+        return;
+    }
+
+    if ((reset_causes &
+            HAL_RESET_CAUSE_POWER_ON) != 0U)
+    {
+        CONSOLE_PRINTLN(
+            "Reset cause visible to application: power-on."
+        );
+    }
+
+    if ((reset_causes &
+            HAL_RESET_CAUSE_EXTERNAL) != 0U)
+    {
+        CONSOLE_PRINTLN(
+            "Reset cause visible to application: external."
+        );
+    }
+
+    if ((reset_causes &
+            HAL_RESET_CAUSE_BROWN_OUT) != 0U)
+    {
+        CONSOLE_PRINTLN(
+            "Reset cause visible to application: brown-out."
+        );
+    }
+
+    if ((reset_causes &
+            HAL_RESET_CAUSE_WATCHDOG) != 0U)
+    {
+        CONSOLE_PRINTLN(
+            "Reset cause visible to application: watchdog."
+        );
+    }
+}
 
 
 static void enter_normal_operation_state(void)
@@ -2294,6 +2343,8 @@ void app_init(void)
     CONSOLE_PRINTLN(
         "=== Load cell level indicator ==="
     );
+
+    print_reset_causes();
 
     if (!scale_init())
     {

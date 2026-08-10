@@ -1,6 +1,7 @@
 #include <avr/interrupt.h>
 
 #include "app.h"
+#include "hal_watchdog.h"
 
 
 int main(void)
@@ -23,6 +24,13 @@ int main(void)
     app_init();
 
     /*
+     * Watchdog supervision begins only after bounded
+     * initialization has established safe outputs and
+     * a complete application state.
+     */
+    hal_watchdog_enable();
+
+    /*
      * Embedded firmware has no operating system to
      * return to. Execute application iterations forever,
      * replacing the repeated Arduino loop() calls.
@@ -30,5 +38,12 @@ int main(void)
     while (true)
     {
         app_update();
+
+        /*
+         * Reaching this point proves that one complete
+         * application iteration returned. Never feed
+         * the watchdog from an interrupt.
+         */
+        hal_watchdog_kick();
     }
 }

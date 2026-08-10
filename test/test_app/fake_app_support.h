@@ -7,6 +7,7 @@
 #include "operation_indicator.h"
 #include "scale.h"
 #include "storage_load_status.h"
+#include "hal_watchdog.h"
 
 
 void fake_app_reset(void);
@@ -14,6 +15,13 @@ void fake_app_reset(void);
 
 void fake_app_set_time_ms(uint32_t time_ms);
 void fake_app_advance_time_ms(uint32_t elapsed_ms);
+
+
+void fake_app_set_reset_cause(
+    hal_reset_cause_t reset_cause
+);
+
+uint32_t fake_app_reset_cause_call_count(void);
 
 
 void fake_app_set_scale_init_result(bool result);

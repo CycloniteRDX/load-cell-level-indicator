@@ -168,6 +168,11 @@ static void test_init_configures_scale_without_polling_or_loading_storage(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
+        fake_app_reset_cause_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
         fake_app_scale_init_call_count()
     );
 
@@ -193,6 +198,54 @@ static void test_init_configures_scale_without_polling_or_loading_storage(void)
 
     assert_console_contains(
         "Waiting for the first HX711 conversion..."
+    );
+
+    assert_console_contains(
+        "Reset cause visible to application: unknown."
+    );
+}
+
+
+static void test_init_reports_every_visible_reset_cause(void)
+{
+    const hal_reset_cause_t reset_causes =
+        (hal_reset_cause_t)(
+            HAL_RESET_CAUSE_POWER_ON |
+            HAL_RESET_CAUSE_EXTERNAL |
+            HAL_RESET_CAUSE_BROWN_OUT |
+            HAL_RESET_CAUSE_WATCHDOG
+        );
+
+    fake_app_set_reset_cause(reset_causes);
+
+    app_init();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_reset_cause_call_count()
+    );
+
+    assert_console_contains(
+        "Reset cause visible to application: power-on."
+    );
+
+    assert_console_contains(
+        "Reset cause visible to application: external."
+    );
+
+    assert_console_contains(
+        "Reset cause visible to application: brown-out."
+    );
+
+    assert_console_contains(
+        "Reset cause visible to application: watchdog."
+    );
+
+    TEST_ASSERT_NULL(
+        strstr(
+            fake_app_console_output(),
+            "Reset cause visible to application: unknown."
+        )
     );
 }
 
@@ -2772,6 +2825,7 @@ int main(void)
     UNITY_BEGIN();
 
     RUN_TEST(test_init_configures_scale_without_polling_or_loading_storage);
+    RUN_TEST(test_init_reports_every_visible_reset_cause);
     RUN_TEST(test_immediate_scale_initialization_failure_enters_fault);
     RUN_TEST(test_startup_wait_returns_without_loading_configuration);
     RUN_TEST(test_startup_timeout_enters_recovery_at_exact_deadline);

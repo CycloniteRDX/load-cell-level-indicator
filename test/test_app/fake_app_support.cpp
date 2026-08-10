@@ -9,6 +9,7 @@
 #include "console.h"
 #include "fake_app_support.h"
 #include "hal_time.h"
+#include "hal_watchdog.h"
 #include "indicator_leds.h"
 #include "level_indicator.h"
 #include "scale.h"
@@ -19,6 +20,10 @@ static const size_t CONSOLE_OUTPUT_CAPACITY =
     16384U;
 
 static uint32_t current_time_ms = 0UL;
+
+static hal_reset_cause_t reset_cause =
+    HAL_RESET_CAUSE_UNKNOWN;
+static uint32_t reset_cause_calls = 0UL;
 
 static bool scale_init_result = true;
 static bool scale_ready = false;
@@ -146,6 +151,9 @@ void fake_app_reset(void)
 {
     current_time_ms = 0UL;
 
+    reset_cause = HAL_RESET_CAUSE_UNKNOWN;
+    reset_cause_calls = 0UL;
+
     scale_init_result = true;
     scale_ready = false;
     scale_recover_result = true;
@@ -228,6 +236,20 @@ void fake_app_set_time_ms(uint32_t time_ms)
 void fake_app_advance_time_ms(uint32_t elapsed_ms)
 {
     current_time_ms += elapsed_ms;
+}
+
+
+void fake_app_set_reset_cause(
+    hal_reset_cause_t new_reset_cause
+)
+{
+    reset_cause = new_reset_cause;
+}
+
+
+uint32_t fake_app_reset_cause_call_count(void)
+{
+    return reset_cause_calls;
 }
 
 
@@ -593,6 +615,13 @@ void hal_time_init(void)
 uint32_t hal_time_millis(void)
 {
     return current_time_ms;
+}
+
+
+hal_reset_cause_t hal_watchdog_get_reset_cause(void)
+{
+    ++reset_cause_calls;
+    return reset_cause;
 }
 
 

@@ -37,10 +37,12 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Cooperative HX711 recovery with 500 ms backoff, a 2000 ms ready deadline and three attempts.
 - Recovery discards inputs, cancels unfinished operations and returns only to a safe boundary state.
 - Distinct recovery indication with the LOW and HIGH LEDs alternating every 250 ms.
+- Two-second AVR hardware watchdog fed only after complete application iterations.
+- Early application-visible reset-cause capture and startup diagnostics.
 - Responsive UART and button handling during 20-sample operations.
-- Direct AVR implementations for GPIO, Timer1, EEPROM and USART0.
+- Direct AVR implementations for GPIO, Timer1, EEPROM, USART0 and watchdog control.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 300 native Unity tests across 12 suites.
+- 301 native Unity tests across 12 suites.
 
 ## Hardware
 
@@ -97,6 +99,7 @@ The current values are provisional and can be changed in [`src/config.h`](src/co
 | Recovery ready timeout | 2000 ms |
 | Recovery attempts | 3 |
 | Recovery LED alternation | 250 ms |
+| Hardware watchdog period | 2 s |
 | Tare samples | 20 |
 | Normal weight reads per update | At most 1 |
 | Calibration samples | 20 |
@@ -187,20 +190,26 @@ calibration sampling.
 
 After reset, the production firmware:
 
-1. Enters the project-owned AVR `main()`.
-2. Enables global interrupts.
+1. Runs an early `.init3` hook that captures the reset flags still visible in `MCUSR`, clears them and disables an inherited watchdog.
+2. Enters the project-owned AVR `main()` and enables global interrupts.
 3. Initializes Timer1, USART0, buttons and LEDs.
-4. Initializes the HX711.
-5. Returns from initialization and polls HX711 readiness from `app_update()`.
-6. Records fault `02` and starts bounded cooperative recovery if the first conversion is not ready within 2000 ms.
-7. Power-cycles the HX711 after each 500 ms backoff and waits cooperatively for a conversion for at most 2000 ms.
-8. Retries at most three times, then enters a terminal reset-required fault if the sensor does not recover.
-9. Loads and classifies the persistent calibration record after a successful startup recovery.
-10. Uses a valid stored calibration, or the compiled default when the record is absent or corrupt.
-11. Loads and classifies the persistent tare record.
-12. Applies the stored offset and enters normal measurement when the tare is valid.
-13. Enters `TARE_REQUIRED` when the tare record is absent or corrupt.
-14. Enters terminal `FAULT 09` when either record cannot be read from persistent storage.
+4. Reports the application-visible reset cause and initializes the HX711.
+5. Enables the two-second watchdog only after `app_init()` has established the complete safe application state.
+6. Calls `app_update()` repeatedly and feeds the watchdog only after each complete iteration returns.
+7. Polls HX711 readiness cooperatively from `app_update()`.
+8. Records fault `02` and starts bounded recovery if the first conversion is not ready within 2000 ms.
+9. Power-cycles the HX711 after each 500 ms backoff and waits cooperatively for a conversion for at most 2000 ms.
+10. Retries at most three times, then enters a terminal reset-required fault if the sensor does not recover.
+11. Loads and classifies the persistent calibration record after a successful startup recovery.
+12. Uses a valid stored calibration, or the compiled default when the record is absent or corrupt.
+13. Loads and classifies the persistent tare record.
+14. Applies the stored offset and enters normal measurement when the tare is valid.
+15. Enters `TARE_REQUIRED` when the tare record is absent or corrupt.
+16. Enters terminal `FAULT 09` when either record cannot be read from persistent storage.
+
+The Nano bootloader may alter `MCUSR` before the application starts. The
+firmware therefore reports only the flags visible to the application and uses
+`unknown` when no supported flag survives that boot path.
 
 The firmware does **not** automatically tare during startup.
 
@@ -353,6 +362,7 @@ app.cpp
     +--> hal_storage_avr.c
     +--> hal_serial_avr.c
     +--> hal_critical_avr.c
+    +--> hal_watchdog_avr.c
 ```
 
 The production environment does not declare `framework = arduino`.
@@ -575,8 +585,8 @@ Current limitations include:
 - No EEPROM wear levelling.
 - Thresholds and the reference calibration mass are compile-time constants.
 - No stable-weight detector or advanced outlier rejection.
-- No hardware watchdog is active yet.
-- No brown-out reset diagnosis.
+- Watchdog reset timing and forced-stall behaviour have not yet been validated on real hardware.
+- Reset-cause visibility through the Nano bootloader has not yet been characterized physically.
 - Serial service commands do not require confirmation.
 - EEPROM operations and console transmission remain bounded synchronous operations.
 - Physical HX711 power-down and power-up validation remains pending separately.
@@ -593,7 +603,7 @@ completed `v1.2` transition.
 Later phases include:
 
 1. Add Lesson 20 to the separate educational repository.
-2. Add explicit fault categories, diagnostics and watchdog handling.
+2. Complete physical fault-recovery and watchdog validation.
 3. Improve measurement stability and outlier rejection.
 4. Design the 24 V power and tower-light driver hardware.
 5. Create a first custom PCB.

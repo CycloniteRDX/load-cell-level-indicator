@@ -103,7 +103,7 @@ foreach ($environment in $testEnvironments)
 
 Write-Host "Native regression completed successfully."
 Write-Host "Suites passed: $completedSuites/$totalSuites"
-Write-Host "Expected project test inventory: 300 tests"
+Write-Host "Expected project test inventory: 301 tests"
 Write-Host ""
 
 exit 0
