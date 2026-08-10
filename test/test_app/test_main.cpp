@@ -182,7 +182,7 @@ static void test_immediate_scale_initialization_failure_enters_fault(void)
     );
 
     assert_console_contains(
-        "ERROR: HX711 initialization failed."
+        "FAULT 01: HX711 initialization failed."
     );
 
     app_update();
@@ -257,7 +257,7 @@ static void test_startup_timeout_enters_fault_at_exact_deadline(void)
     );
 
     assert_console_contains(
-        "ERROR: HX711 startup timed out."
+        "FAULT 02: HX711 startup conversion timeout."
     );
 }
 
@@ -400,6 +400,37 @@ static void test_valid_stored_configuration_is_loaded_once(void)
 }
 
 
+static void test_runtime_read_error_enters_fault_with_stable_code(void)
+{
+    load_configuration_with_tare(-172706);
+
+    fake_app_set_scale_read_status(
+        SCALE_READ_ERROR
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_weight_read_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_cancel_call_count()
+    );
+
+    assert_console_contains(
+        "FAULT 04: HX711 conversion read failed."
+    );
+}
+
+
 static void test_missing_tare_selects_tare_required_and_disables_measurement(void)
 {
     load_configuration();
@@ -460,7 +491,7 @@ static void test_invalid_active_calibration_factor_enters_fault_before_tare_load
     );
 
     assert_console_contains(
-        "ERROR: Invalid calibration factor."
+        "FAULT 07: Invalid active calibration factor."
     );
 }
 
@@ -551,7 +582,11 @@ static void test_fault_is_latched_and_rejects_commands(void)
     );
 
     assert_console_contains(
-        "FAULT: Reset required."
+        "FAULT 02: HX711 startup conversion timeout."
+    );
+
+    assert_console_contains(
+        "Reset required."
     );
 }
 
@@ -870,7 +905,7 @@ static void test_tare_save_failure_preserves_previous_runtime_offset(void)
 }
 
 
-static void test_tare_read_error_preserves_previous_runtime_offset(void)
+static void test_tare_read_error_enters_fault_and_preserves_offset(void)
 {
     load_configuration_with_tare(-172706);
     start_serial_tare();
@@ -902,12 +937,12 @@ static void test_tare_read_error_preserves_previous_runtime_offset(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_ERROR,
+        OPERATION_INDICATOR_FAULT,
         fake_app_operation_indicator_mode()
     );
 
     assert_console_contains(
-        "ERROR: Tare samples could not be read."
+        "FAULT 04: HX711 conversion read failed."
     );
 }
 
@@ -941,12 +976,12 @@ static void test_tare_timeout_is_exact_and_handles_millisecond_overflow(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_ERROR,
+        OPERATION_INDICATOR_FAULT,
         fake_app_operation_indicator_mode()
     );
 
     assert_console_contains(
-        "ERROR: Tare sample collection timed out."
+        "FAULT 05: HX711 sample collection timeout."
     );
 }
 
@@ -984,7 +1019,7 @@ static void test_completed_tare_wins_at_timeout_deadline(void)
 }
 
 
-static void test_tare_start_failure_restores_previous_idle_state(void)
+static void test_tare_start_failure_enters_internal_fault(void)
 {
     load_configuration_with_tare(-172706);
 
@@ -1007,7 +1042,7 @@ static void test_tare_start_failure_restores_previous_idle_state(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_ERROR,
+        OPERATION_INDICATOR_FAULT,
         fake_app_operation_indicator_mode()
     );
 
@@ -1017,7 +1052,7 @@ static void test_tare_start_failure_restores_previous_idle_state(void)
     );
 
     assert_console_contains(
-        "ERROR: Tare sample collection could not be started."
+        "FAULT 06: Invalid sample collection state."
     );
 }
 
@@ -1350,7 +1385,7 @@ static void test_zero_save_failure_preserves_previous_offset_and_allows_retry(vo
 }
 
 
-static void test_zero_read_error_returns_to_zero_wait(void)
+static void test_zero_read_error_enters_fault_and_preserves_offset(void)
 {
     load_configuration_with_tare(-172706);
     start_calibration_zero_sampling();
@@ -1372,12 +1407,12 @@ static void test_zero_read_error_returns_to_zero_wait(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_CALIBRATION_ZERO,
-        fake_app_operation_indicator_return_mode()
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
     );
 
     assert_console_contains(
-        "ERROR: Calibration tare samples could not be read."
+        "FAULT 04: HX711 conversion read failed."
     );
 }
 
@@ -1409,12 +1444,12 @@ static void test_zero_timeout_is_exact_and_handles_millisecond_overflow(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_CALIBRATION_ZERO,
-        fake_app_operation_indicator_return_mode()
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
     );
 
     assert_console_contains(
-        "ERROR: Calibration tare sample collection timed out."
+        "FAULT 05: HX711 sample collection timeout."
     );
 }
 
@@ -1447,7 +1482,7 @@ static void test_completed_zero_wins_at_timeout_deadline(void)
 }
 
 
-static void test_zero_collection_start_failure_returns_to_zero_wait(void)
+static void test_zero_collection_start_failure_enters_internal_fault(void)
 {
     load_configuration_with_tare(-172706);
     start_calibration_waiting_for_zero();
@@ -1467,8 +1502,12 @@ static void test_zero_collection_start_failure_returns_to_zero_wait(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_CALIBRATION_ZERO,
-        fake_app_operation_indicator_return_mode()
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "FAULT 06: Invalid sample collection state."
     );
 }
 
@@ -1796,7 +1835,7 @@ static void test_calibration_save_failure_restores_previous_factor_and_exits(voi
 }
 
 
-static void test_mass_read_error_returns_to_mass_wait(void)
+static void test_mass_read_error_enters_fault(void)
 {
     load_configuration_with_tare(-172706);
     start_calibration_mass_sampling(-1000);
@@ -1813,12 +1852,12 @@ static void test_mass_read_error_returns_to_mass_wait(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_CALIBRATION_MASS,
-        fake_app_operation_indicator_return_mode()
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
     );
 
     assert_console_contains(
-        "ERROR: Calibration samples could not be read."
+        "FAULT 04: HX711 conversion read failed."
     );
 }
 
@@ -1853,8 +1892,12 @@ static void test_mass_timeout_is_exact_and_handles_millisecond_overflow(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_CALIBRATION_MASS,
-        fake_app_operation_indicator_return_mode()
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "FAULT 05: HX711 sample collection timeout."
     );
 }
 
@@ -1895,7 +1938,7 @@ static void test_completed_mass_wins_at_timeout_deadline(void)
 }
 
 
-static void test_mass_collection_start_failure_returns_to_mass_wait(void)
+static void test_mass_collection_start_failure_enters_internal_fault(void)
 {
     load_configuration_with_tare(-172706);
     reach_calibration_mass_wait(-1000);
@@ -1910,8 +1953,12 @@ static void test_mass_collection_start_failure_returns_to_mass_wait(void)
     );
 
     TEST_ASSERT_EQUAL_INT(
-        OPERATION_INDICATOR_CALIBRATION_MASS,
-        fake_app_operation_indicator_return_mode()
+        OPERATION_INDICATOR_FAULT,
+        fake_app_operation_indicator_mode()
+    );
+
+    assert_console_contains(
+        "FAULT 06: Invalid sample collection state."
     );
 }
 
@@ -1927,6 +1974,7 @@ int main(void)
     RUN_TEST(test_ready_scale_wins_when_detected_at_timeout_deadline);
     RUN_TEST(test_startup_timeout_handles_millisecond_overflow);
     RUN_TEST(test_valid_stored_configuration_is_loaded_once);
+    RUN_TEST(test_runtime_read_error_enters_fault_with_stable_code);
     RUN_TEST(test_missing_tare_selects_tare_required_and_disables_measurement);
     RUN_TEST(test_invalid_active_calibration_factor_enters_fault_before_tare_load);
     RUN_TEST(test_startup_commands_and_presses_are_consumed);
@@ -1940,10 +1988,10 @@ int main(void)
     RUN_TEST(test_cancelled_tare_restores_tare_required_state);
     RUN_TEST(test_completed_tare_saves_before_applying_and_discards_save_input);
     RUN_TEST(test_tare_save_failure_preserves_previous_runtime_offset);
-    RUN_TEST(test_tare_read_error_preserves_previous_runtime_offset);
+    RUN_TEST(test_tare_read_error_enters_fault_and_preserves_offset);
     RUN_TEST(test_tare_timeout_is_exact_and_handles_millisecond_overflow);
     RUN_TEST(test_completed_tare_wins_at_timeout_deadline);
-    RUN_TEST(test_tare_start_failure_restores_previous_idle_state);
+    RUN_TEST(test_tare_start_failure_enters_internal_fault);
     RUN_TEST(test_result_pattern_rejects_input_and_suppresses_holds);
     RUN_TEST(test_calibration_entry_waits_for_zero_without_starting_collection);
     RUN_TEST(test_zero_confirmation_starts_incremental_collection);
@@ -1952,10 +2000,10 @@ int main(void)
     RUN_TEST(test_tare_button_cancels_zero_and_restores_tare_required);
     RUN_TEST(test_completed_zero_saves_before_applying_and_survives_later_cancel);
     RUN_TEST(test_zero_save_failure_preserves_previous_offset_and_allows_retry);
-    RUN_TEST(test_zero_read_error_returns_to_zero_wait);
+    RUN_TEST(test_zero_read_error_enters_fault_and_preserves_offset);
     RUN_TEST(test_zero_timeout_is_exact_and_handles_millisecond_overflow);
     RUN_TEST(test_completed_zero_wins_at_timeout_deadline);
-    RUN_TEST(test_zero_collection_start_failure_returns_to_zero_wait);
+    RUN_TEST(test_zero_collection_start_failure_enters_internal_fault);
     RUN_TEST(test_mass_confirmation_starts_incremental_collection);
     RUN_TEST(test_mass_sampling_updates_once_and_rejects_other_input);
     RUN_TEST(test_serial_q_cancels_mass_without_changing_factor_or_new_tare);
@@ -1964,10 +2012,10 @@ int main(void)
     RUN_TEST(test_result_completion_consumes_boundary_input_before_retry);
     RUN_TEST(test_invalid_calculated_factor_preserves_previous_factor);
     RUN_TEST(test_calibration_save_failure_restores_previous_factor_and_exits);
-    RUN_TEST(test_mass_read_error_returns_to_mass_wait);
+    RUN_TEST(test_mass_read_error_enters_fault);
     RUN_TEST(test_mass_timeout_is_exact_and_handles_millisecond_overflow);
     RUN_TEST(test_completed_mass_wins_at_timeout_deadline);
-    RUN_TEST(test_mass_collection_start_failure_returns_to_mass_wait);
+    RUN_TEST(test_mass_collection_start_failure_enters_internal_fault);
 
     return UNITY_END();
 }

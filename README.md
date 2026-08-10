@@ -31,11 +31,12 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Incremental HX711 sampling with at most one ready conversion per update.
 - Status-rich scale reads that distinguish no data from driver failure.
 - Bounded HX711 power-cycle primitive that preserves active tare and calibration.
-- Explicit result-pattern and latched startup-fault states.
+- Stable application fault codes with explicit recovery or terminal policy.
+- Safe latched fallback while cooperative recovery states are being implemented.
 - Responsive UART and button handling during 20-sample operations.
 - Direct AVR implementations for GPIO, Timer1, EEPROM and USART0.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
-- 272 native Unity tests across 11 suites.
+- 277 native Unity tests across 12 suites.
 
 ## Hardware
 
@@ -180,7 +181,7 @@ After reset, the production firmware:
 3. Initializes Timer1, USART0, buttons and LEDs.
 4. Initializes the HX711.
 5. Returns from initialization and polls HX711 readiness from `app_update()`.
-6. Enters a latched fault state if the first conversion is not ready within 2000 ms.
+6. Records fault `02` and enters the safe latched fallback if the first conversion is not ready within 2000 ms.
 7. Loads a valid calibration factor from EEPROM, or uses the compiled default factor.
 8. Loads and validates the persistent tare record.
 9. Applies the stored offset and enters normal measurement when the tare is valid.
@@ -437,6 +438,7 @@ pio test -e native_hx711
 pio test -e native_level_indicator
 pio test -e native_operation_indicator
 pio test -e native_scale
+pio test -e native_app_fault
 pio test -e native_app
 pio test -e native_tare_record
 pio test -e native_tare_storage
@@ -454,19 +456,20 @@ Validated test inventory:
 | `native_level_indicator` | 14 |
 | `native_operation_indicator` | 16 |
 | `native_scale` | 35 |
-| `native_app` | 48 |
+| `native_app_fault` | 4 |
+| `native_app` | 49 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
 | `native_console` | 43 |
 | `native_time_delay` | 6 |
-| **Total** | **272** |
+| **Total** | **277** |
 
 Validated result:
 
 ```text
-Suites passed: 11/11
-Tests passed:  272/272
+Suites passed: 12/12
+Tests passed:  277/277
 Failures:      0
 Exit code:     0
 ```
@@ -557,8 +560,9 @@ Current limitations include:
 - No EEPROM wear levelling.
 - Thresholds and the reference calibration mass are compile-time constants.
 - No stable-weight detector or advanced outlier rejection.
-- The startup fault is deliberately generic and latched until reset.
-- No watchdog or complete runtime fault-recovery strategy.
+- Recoverable sensor faults are classified explicitly but still use a safe
+  latched fallback until the cooperative retry states are implemented.
+- No automatic HX711 recovery or watchdog is active yet.
 - No brown-out reset diagnosis.
 - Serial service commands do not require confirmation.
 - EEPROM operations and console transmission remain bounded synchronous operations.

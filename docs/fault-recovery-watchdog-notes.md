@@ -163,25 +163,25 @@ without knowing which domain operation was active.
 
 ## 6. Fault inventory for this milestone
 
-The first implementation shall use stable symbolic codes similar to:
+The application now uses these stable symbolic and numeric codes:
 
 ```c
 typedef enum
 {
-    APP_FAULT_NONE,
-    APP_FAULT_HX711_INITIALIZATION,
-    APP_FAULT_HX711_STARTUP_TIMEOUT,
-    APP_FAULT_HX711_RUNTIME_TIMEOUT,
-    APP_FAULT_HX711_READ,
-    APP_FAULT_SAMPLE_COLLECTION_TIMEOUT,
-    APP_FAULT_SAMPLE_COLLECTION_STATE,
-    APP_FAULT_INVALID_ACTIVE_CALIBRATION,
-    APP_FAULT_INTERNAL_STATE
+    APP_FAULT_NONE = 0,
+    APP_FAULT_HX711_INITIALIZATION = 1,
+    APP_FAULT_HX711_STARTUP_TIMEOUT = 2,
+    APP_FAULT_HX711_RUNTIME_TIMEOUT = 3,
+    APP_FAULT_HX711_READ = 4,
+    APP_FAULT_SAMPLE_COLLECTION_TIMEOUT = 5,
+    APP_FAULT_SAMPLE_COLLECTION_STATE = 6,
+    APP_FAULT_INVALID_ACTIVE_CALIBRATION = 7,
+    APP_FAULT_INTERNAL_STATE = 8
 } app_fault_code_t;
 ```
 
-The final names may change during implementation, but each detectable condition
-must retain a unique meaning.
+These values form the serial diagnostic contract for `v1.3`. Existing meanings
+must not be renumbered if a later release adds another cause.
 
 ### Initial policy matrix
 
@@ -777,15 +777,15 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
-Steps 1 and 2 are now implemented on the feature branch.
+Steps 1 through 3 are now implemented on the feature branch.
 
 ---
 
 ## 28. Definition of done
 
-- [ ] Fault codes are explicit and documented.
-- [ ] Each code has one recovery or terminal policy.
-- [ ] Normal level output is disabled immediately on system fault.
+- [x] Fault codes are explicit and documented.
+- [x] Each code has one recovery or terminal policy.
+- [x] Normal level output is disabled immediately on system fault.
 - [x] Scale no-data and read-error results are distinguishable.
 - [ ] Runtime readiness has a finite cooperative deadline.
 - [ ] HX711 recovery has bounded backoff, timeout and retry count.
@@ -825,3 +825,31 @@ active collector and preserves tare and calibration. Native tests cover the
 successful order, power-down failure and power-up failure. Only after these
 contracts exist does the next commit introduce application fault codes and
 policy; automatic retries and watchdog activation still do not belong here.
+
+---
+
+## 30. Explicit application fault-policy result
+
+The watchdog and automatic retry states remain disabled.
+
+The application now records one stable cause whenever a system fault is
+detected. A single safe-state entry path:
+
+1. normalizes unknown codes to `APP_FAULT_INTERNAL_STATE`;
+2. disables measurement availability;
+3. cancels any incremental sample collection;
+4. resets normal level indication;
+5. suppresses both button holds until release;
+6. discards queued serial input;
+7. preserves the committed tare and calibration values;
+8. emits one numbered diagnostic before latching the current fault state.
+
+The pure `app_fault` module maps startup/runtime sensor timeouts, HX711 read
+failure and collection timeout to `APP_FAULT_POLICY_RECOVER_SENSOR`.
+Initialization failure, impossible collector state, invalid active calibration
+and internal application state map to `APP_FAULT_POLICY_TERMINAL`. Unknown
+numeric values normalize to fault `08` and therefore fail safely.
+
+Until the next commit adds cooperative backoff and ready-wait states, both
+policies deliberately share the existing latched fallback. This intermediate
+state is safe and fully diagnosed, but it is not yet automatic recovery.

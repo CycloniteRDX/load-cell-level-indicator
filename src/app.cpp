@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "app.h"
+#include "app_fault.h"
 #include "button.h"
 #include "config.h"
 #include "console.h"
@@ -18,6 +19,9 @@
 static float latest_weight_grams = 0.0F;
 static bool measurement_available = false;
 static bool tare_available = false;
+
+static app_fault_code_t active_fault_code =
+    APP_FAULT_NONE;
 
 static button_t tare_button;
 static button_t calibration_button;
@@ -107,8 +111,91 @@ static void restore_idle_application_state(void)
 }
 
 
-static void enter_fault_state(void)
+static void print_fault_diagnostic(void)
 {
+    CONSOLE_PRINT("FAULT ");
+
+    if (active_fault_code < 10)
+    {
+        CONSOLE_PRINT("0");
+    }
+
+    console_print_int32(
+        (int32_t)active_fault_code
+    );
+
+    CONSOLE_PRINT(": ");
+
+    switch (active_fault_code)
+    {
+        case APP_FAULT_HX711_INITIALIZATION:
+            CONSOLE_PRINTLN(
+                "HX711 initialization failed."
+            );
+            break;
+
+        case APP_FAULT_HX711_STARTUP_TIMEOUT:
+            CONSOLE_PRINTLN(
+                "HX711 startup conversion timeout."
+            );
+            break;
+
+        case APP_FAULT_HX711_RUNTIME_TIMEOUT:
+            CONSOLE_PRINTLN(
+                "HX711 runtime conversion timeout."
+            );
+            break;
+
+        case APP_FAULT_HX711_READ:
+            CONSOLE_PRINTLN(
+                "HX711 conversion read failed."
+            );
+            break;
+
+        case APP_FAULT_SAMPLE_COLLECTION_TIMEOUT:
+            CONSOLE_PRINTLN(
+                "HX711 sample collection timeout."
+            );
+            break;
+
+        case APP_FAULT_SAMPLE_COLLECTION_STATE:
+            CONSOLE_PRINTLN(
+                "Invalid sample collection state."
+            );
+            break;
+
+        case APP_FAULT_INVALID_ACTIVE_CALIBRATION:
+            CONSOLE_PRINTLN(
+                "Invalid active calibration factor."
+            );
+            break;
+
+        case APP_FAULT_INTERNAL_STATE:
+        case APP_FAULT_NONE:
+        default:
+            CONSOLE_PRINTLN(
+                "Invalid internal application state."
+            );
+            break;
+    }
+}
+
+
+static void enter_fault_state(
+    app_fault_code_t fault_code
+)
+{
+    active_fault_code =
+        app_fault_normalize_code(fault_code);
+
+    if (app_fault_get_policy(
+            active_fault_code) ==
+        APP_FAULT_POLICY_NONE)
+    {
+        active_fault_code =
+            APP_FAULT_INTERNAL_STATE;
+    }
+
     app_state = APP_STATE_FAULT;
 
     measurement_available = false;
@@ -119,6 +206,24 @@ static void enter_fault_state(void)
     operation_indicator_set_mode(
         OPERATION_INDICATOR_FAULT
     );
+
+    button_suppress_hold_until_release(
+        &tare_button
+    );
+
+    button_suppress_hold_until_release(
+        &calibration_button
+    );
+
+    console_discard_input();
+
+    print_fault_diagnostic();
+
+    CONSOLE_PRINTLN(
+        "Normal level indication disabled."
+    );
+
+    CONSOLE_PRINTLN("Reset required.");
 }
 
 
@@ -251,16 +356,9 @@ static void start_tare(void)
     if (!scale_start_sample_collection(
             TARE_SAMPLES))
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Tare sample collection could not be started."
+        enter_fault_state(
+            APP_FAULT_SAMPLE_COLLECTION_STATE
         );
-
-        CONSOLE_PRINTLN(
-            "The previous tare offset remains active."
-        );
-
-        finish_tare_with_error();
-        console_newline();
         return;
     }
 
@@ -409,16 +507,9 @@ static void update_tare_sampling(void)
         if (!scale_take_sample_average(
                 &candidate_tare_offset))
         {
-            CONSOLE_PRINTLN(
-                "ERROR: Completed tare average could not be obtained."
+            enter_fault_state(
+                APP_FAULT_SAMPLE_COLLECTION_STATE
             );
-
-            CONSOLE_PRINTLN(
-                "The previous tare offset remains active."
-            );
-
-            finish_tare_with_error();
-            console_newline();
             return;
         }
 
@@ -428,31 +519,17 @@ static void update_tare_sampling(void)
 
     if (status == SCALE_SAMPLE_COLLECTION_ERROR)
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Tare samples could not be read."
+        enter_fault_state(
+            APP_FAULT_HX711_READ
         );
-
-        CONSOLE_PRINTLN(
-            "The previous tare offset remains active."
-        );
-
-        finish_tare_with_error();
-        console_newline();
         return;
     }
 
     if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Invalid tare sample collection state."
+        enter_fault_state(
+            APP_FAULT_SAMPLE_COLLECTION_STATE
         );
-
-        CONSOLE_PRINTLN(
-            "The previous tare offset remains active."
-        );
-
-        finish_tare_with_error();
-        console_newline();
         return;
     }
 
@@ -464,16 +541,9 @@ static void update_tare_sampling(void)
         return;
     }
 
-    CONSOLE_PRINTLN(
-        "ERROR: Tare sample collection timed out."
+    enter_fault_state(
+        APP_FAULT_SAMPLE_COLLECTION_TIMEOUT
     );
-
-    CONSOLE_PRINTLN(
-        "The previous tare offset remains active."
-    );
-
-    finish_tare_with_error();
-    console_newline();
 }
 
 
@@ -785,26 +855,9 @@ static void start_calibration_zero_sampling(void)
     if (!scale_start_sample_collection(
             TARE_SAMPLES))
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Calibration tare sample "
-            "collection could not be started."
+        enter_fault_state(
+            APP_FAULT_SAMPLE_COLLECTION_STATE
         );
-
-        CONSOLE_PRINTLN(
-            "The previous tare offset remains active."
-        );
-
-        CONSOLE_PRINTLN(
-            "Keep the empty container in place "
-            "and confirm again."
-        );
-
-        finish_calibration_sampling_with_error(
-            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
-            OPERATION_INDICATOR_CALIBRATION_ZERO
-        );
-
-        console_newline();
         return;
     }
 
@@ -928,21 +981,9 @@ static void update_calibration_zero_sampling(void)
         if (!scale_take_sample_average(
                 &candidate_tare_offset))
         {
-            CONSOLE_PRINTLN(
-                "ERROR: Completed calibration tare "
-                "average could not be obtained."
+            enter_fault_state(
+                APP_FAULT_SAMPLE_COLLECTION_STATE
             );
-
-            CONSOLE_PRINTLN(
-                "The previous tare offset remains active."
-            );
-
-            finish_calibration_sampling_with_error(
-                APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
-                OPERATION_INDICATOR_CALIBRATION_ZERO
-            );
-
-            console_newline();
             return;
         }
 
@@ -954,42 +995,17 @@ static void update_calibration_zero_sampling(void)
 
     if (status == SCALE_SAMPLE_COLLECTION_ERROR)
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Calibration tare samples "
-            "could not be read."
+        enter_fault_state(
+            APP_FAULT_HX711_READ
         );
-
-        CONSOLE_PRINTLN(
-            "The previous tare offset remains active."
-        );
-
-        CONSOLE_PRINTLN(
-            "Keep the empty container in place "
-            "and confirm again."
-        );
-
-        finish_calibration_sampling_with_error(
-            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
-            OPERATION_INDICATOR_CALIBRATION_ZERO
-        );
-
-        console_newline();
         return;
     }
 
     if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Invalid calibration tare "
-            "sample collection state."
+        enter_fault_state(
+            APP_FAULT_SAMPLE_COLLECTION_STATE
         );
-
-        finish_calibration_sampling_with_error(
-            APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
-            OPERATION_INDICATOR_CALIBRATION_ZERO
-        );
-
-        console_newline();
         return;
     }
 
@@ -1001,21 +1017,9 @@ static void update_calibration_zero_sampling(void)
         return;
     }
 
-    CONSOLE_PRINTLN(
-        "ERROR: Calibration tare sample "
-        "collection timed out."
+    enter_fault_state(
+        APP_FAULT_SAMPLE_COLLECTION_TIMEOUT
     );
-
-    CONSOLE_PRINTLN(
-        "The previous tare offset remains active."
-    );
-
-    finish_calibration_sampling_with_error(
-        APP_STATE_CALIBRATION_WAITING_FOR_ZERO,
-        OPERATION_INDICATOR_CALIBRATION_ZERO
-    );
-
-    console_newline();
 }
 
 
@@ -1033,21 +1037,9 @@ static void start_calibration_mass_sampling(void)
     if (!scale_start_sample_collection(
             CALIBRATION_SAMPLES))
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Calibration sample collection "
-            "could not be started."
+        enter_fault_state(
+            APP_FAULT_SAMPLE_COLLECTION_STATE
         );
-
-        CONSOLE_PRINTLN(
-            "Keep the mass in place and confirm again."
-        );
-
-        finish_calibration_sampling_with_error(
-            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
-            OPERATION_INDICATOR_CALIBRATION_MASS
-        );
-
-        console_newline();
         return;
     }
 
@@ -1249,21 +1241,9 @@ static void update_calibration_mass_sampling(void)
         if (!scale_take_sample_average(
                 &average_raw_counts))
         {
-            CONSOLE_PRINTLN(
-                "ERROR: Completed calibration "
-                "average could not be obtained."
+            enter_fault_state(
+                APP_FAULT_SAMPLE_COLLECTION_STATE
             );
-
-            CONSOLE_PRINTLN(
-                "Keep the mass in place and confirm again."
-            );
-
-            finish_calibration_sampling_with_error(
-                APP_STATE_CALIBRATION_WAITING_FOR_MASS,
-                OPERATION_INDICATOR_CALIBRATION_MASS
-            );
-
-            console_newline();
             return;
         }
 
@@ -1275,37 +1255,17 @@ static void update_calibration_mass_sampling(void)
 
     if (status == SCALE_SAMPLE_COLLECTION_ERROR)
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Calibration samples "
-            "could not be read."
+        enter_fault_state(
+            APP_FAULT_HX711_READ
         );
-
-        CONSOLE_PRINTLN(
-            "Keep the mass in place and confirm again."
-        );
-
-        finish_calibration_sampling_with_error(
-            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
-            OPERATION_INDICATOR_CALIBRATION_MASS
-        );
-
-        console_newline();
         return;
     }
 
     if (status != SCALE_SAMPLE_COLLECTION_IN_PROGRESS)
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Invalid calibration "
-            "sample collection state."
+        enter_fault_state(
+            APP_FAULT_SAMPLE_COLLECTION_STATE
         );
-
-        finish_calibration_sampling_with_error(
-            APP_STATE_CALIBRATION_WAITING_FOR_MASS,
-            OPERATION_INDICATOR_CALIBRATION_MASS
-        );
-
-        console_newline();
         return;
     }
 
@@ -1317,20 +1277,9 @@ static void update_calibration_mass_sampling(void)
         return;
     }
 
-    CONSOLE_PRINTLN(
-        "ERROR: Calibration sample collection timed out."
+    enter_fault_state(
+        APP_FAULT_SAMPLE_COLLECTION_TIMEOUT
     );
-
-    CONSOLE_PRINTLN(
-        "Keep the mass in place and confirm again."
-    );
-
-    finish_calibration_sampling_with_error(
-        APP_STATE_CALIBRATION_WAITING_FOR_MASS,
-        OPERATION_INDICATOR_CALIBRATION_MASS
-    );
-
-    console_newline();
 }
 
 
@@ -1510,8 +1459,17 @@ static void update_weight_measurement(void)
     const scale_read_status_t read_status =
         scale_try_read_weight(&weight_grams);
 
+    if (read_status == SCALE_READ_NO_DATA)
+    {
+        return;
+    }
+
     if (read_status != SCALE_READ_VALUE)
     {
+        enter_fault_state(
+            APP_FAULT_HX711_READ
+        );
+
         return;
     }
 
@@ -1694,9 +1652,8 @@ static void process_fault_input(void)
 
     if (command_read)
     {
-        CONSOLE_PRINTLN(
-            "FAULT: Reset required."
-        );
+        print_fault_diagnostic();
+        CONSOLE_PRINTLN("Reset required.");
     }
 }
 
@@ -1772,11 +1729,9 @@ static void load_startup_configuration(void)
     if (!scale_set_calibration_factor(
             calibration_factor))
     {
-        CONSOLE_PRINTLN(
-            "ERROR: Invalid calibration factor."
+        enter_fault_state(
+            APP_FAULT_INVALID_ACTIVE_CALIBRATION
         );
-
-        enter_fault_state();
         return;
     }
 
@@ -1878,11 +1833,9 @@ static void update_startup_wait_for_scale(void)
         return;
     }
 
-    CONSOLE_PRINTLN(
-        "ERROR: HX711 startup timed out."
+    enter_fault_state(
+        APP_FAULT_HX711_STARTUP_TIMEOUT
     );
-
-    enter_fault_state();
 }
 
 
@@ -1926,11 +1879,9 @@ static bool process_cooperative_base_state(void)
             return false;
 
         default:
-            CONSOLE_PRINTLN(
-                "ERROR: Invalid application state."
+            enter_fault_state(
+                APP_FAULT_INTERNAL_STATE
             );
-
-            enter_fault_state();
             return true;
     }
 }
@@ -1964,6 +1915,7 @@ void app_init(void)
     latest_weight_grams = 0.0F;
     measurement_available = false;
     tare_available = false;
+    active_fault_code = APP_FAULT_NONE;
 
     last_print_ms = 0UL;
     operation_started_ms = hal_time_millis();
@@ -1983,11 +1935,9 @@ void app_init(void)
 
     if (!scale_init())
     {
-        CONSOLE_PRINTLN(
-            "ERROR: HX711 initialization failed."
+        enter_fault_state(
+            APP_FAULT_HX711_INITIALIZATION
         );
-
-        enter_fault_state();
         return;
     }
 
@@ -2102,6 +2052,11 @@ void app_update(void)
     }
 
     update_weight_measurement();
+
+    if (app_state == APP_STATE_FAULT)
+    {
+        return;
+    }
 
     /*
     * Update normal level visual effects.

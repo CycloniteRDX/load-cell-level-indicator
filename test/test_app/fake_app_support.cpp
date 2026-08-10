@@ -22,6 +22,8 @@ static uint32_t current_time_ms = 0UL;
 
 static bool scale_init_result = true;
 static bool scale_ready = false;
+static scale_read_status_t scale_read_status =
+    SCALE_READ_NO_DATA;
 static bool scale_factor_result = true;
 static bool scale_collection_start_result = true;
 static scale_sample_collection_status_t
@@ -142,6 +144,7 @@ void fake_app_reset(void)
 
     scale_init_result = true;
     scale_ready = false;
+    scale_read_status = SCALE_READ_NO_DATA;
     scale_factor_result = true;
     scale_collection_start_result = true;
     scale_collection_status =
@@ -231,6 +234,14 @@ void fake_app_set_scale_init_result(bool result)
 void fake_app_set_scale_ready(bool ready)
 {
     scale_ready = ready;
+}
+
+
+void fake_app_set_scale_read_status(
+    scale_read_status_t status
+)
+{
+    scale_read_status = status;
 }
 
 
@@ -942,7 +953,7 @@ scale_read_status_t scale_try_read_weight(
     (void)weight_grams;
 
     ++scale_weight_read_calls;
-    return SCALE_READ_NO_DATA;
+    return scale_read_status;
 }
 
 

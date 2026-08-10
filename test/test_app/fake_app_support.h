@@ -17,6 +17,9 @@ void fake_app_advance_time_ms(uint32_t elapsed_ms);
 
 void fake_app_set_scale_init_result(bool result);
 void fake_app_set_scale_ready(bool ready);
+void fake_app_set_scale_read_status(
+    scale_read_status_t status
+);
 void fake_app_set_scale_collection_start_result(
     bool result
 );
