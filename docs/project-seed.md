@@ -2589,5 +2589,179 @@ The completed milestone is tagged:
 v1.2-non-blocking-application
 ```
 
-The next educational step is Lesson 20 in the separate study repository. The
-next planned production milestone is fault handling and watchdog policy.
+## Fault recovery and watchdog — v1.3
+
+The application now owns a stable fault contract instead of one generic
+latched fault. Codes `01` through `09` distinguish initialization, readiness,
+read, sample-collection, calibration, internal-state and storage failures.
+
+Each fault maps to one explicit policy:
+
+```text
+APP_FAULT_POLICY_RECOVER_SENSOR
+APP_FAULT_POLICY_TERMINAL
+```
+
+Unknown codes normalize to the terminal internal-state fault. Code values are
+part of the serial diagnostic contract and must not be renumbered later.
+
+### Status-rich scale reads and supervision
+
+The scale boundary now distinguishes:
+
+```text
+SCALE_READ_VALUE
+SCALE_READ_NO_DATA
+SCALE_READ_ERROR
+```
+
+Every valid normal conversion renews a 2000 ms health deadline. If DOUT never
+reports ready before that deadline, the application records `FAULT 03`,
+disables normal level output and begins cooperative recovery.
+
+All elapsed-time checks use unsigned subtraction and remain correct across
+millisecond overflow.
+
+### Cooperative HX711 recovery
+
+The recovery policy is:
+
+```text
+500 ms backoff
+power down HX711
+power up HX711
+wait at most 2000 ms for readiness
+repeat at most 3 times
+```
+
+The state machine remains cooperative throughout. During recovery:
+
+- LOW and HIGH LEDs alternate every 250 ms;
+- normal level indication remains disabled;
+- D4 and D8 are sampled but cannot start an operation;
+- UART commands receive `Recovery in progress.` and are discarded;
+- unfinished tare or calibration sampling is cancelled;
+- no rejected input is replayed later.
+
+A successful attempt retains committed tare and calibration and returns only
+to `NORMAL_OPERATION` or `TARE_REQUIRED`. Three failed attempts enter a
+terminal reset-required state with persistent HIGH blinking.
+
+### Persistent-load classification
+
+Calibration and tare storage loads return explicit results for:
+
+```text
+valid
+absent
+invalid/corrupt
+access failure
+```
+
+Absent or corrupt records use their established safe fallback. A real access
+failure enters terminal `FAULT 09` rather than masquerading as first startup.
+
+### AVR hardware watchdog
+
+The direct AVR watchdog HAL:
+
+- captures the reset flags still visible during the early `.init3` hook;
+- clears `MCUSR` and disables an inherited watchdog before initialization;
+- enables an approximately two-second hardware watchdog only after
+  `app_init()` establishes a complete safe state;
+- feeds it only after a complete `app_update()` returns;
+- never feeds it from an interrupt.
+
+Both the direct AVR and Arduino-reference entry points use the same feed
+boundary. Dedicated validation environments add a D4+D8 intentional-stall hook
+that is absent from both production builds.
+
+Physical resets occurred after `2.255 s` in the direct AVR environment and
+`2.260 s` in the Arduino-reference environment. Both restarted safely and did
+not enter a repeated-reset loop while the buttons remained held.
+
+The tested Nano bootloader did not preserve a supported `MCUSR` flag for the
+application, so post-watchdog startup correctly reports `unknown`.
+
+### Deterministic DOUT disconnection
+
+A floating D2 input produced false-ready events and implausible readings during
+early fault injection. The prototype therefore retains an external 10 kΩ
+pull-up between Nano D2 and the shared 5 V logic rail, on the microcontroller
+side of the removable HX711 connection.
+
+A disconnected conductor now fails HIGH, which is the HX711 not-ready state,
+and produces a deterministic finite timeout. The firmware leaves the internal
+D2 pull-up disabled.
+
+### Native regression
+
+The completed inventory is:
+
+```text
+native_button:                       11
+native_hx711:                        18
+native_level_indicator:              14
+native_operation_indicator:          18
+native_scale:                        35
+native_app_fault:                     5
+native_app:                          70
+native_tare_record:                  20
+native_tare_storage:                 21
+native_calibration_storage:          40
+native_console:                      43
+native_time_delay:                    6
+native_watchdog_validation:           6
+
+Total:                              307
+Failures:                             0
+Suites:                           13/13
+```
+
+### Memory usage
+
+Direct AVR production:
+
+```text
+RAM:   230 bytes
+Flash: 17738 bytes
+```
+
+Arduino reference:
+
+```text
+RAM:   239 bytes
+Flash: 18032 bytes
+```
+
+### Physical validation
+
+The real Nano and HX711 validated:
+
+- direct-AVR and Arduino-reference watchdog stalls and safe restart;
+- deterministic DOUT timeout with the external pull-up;
+- recovery after reconnection and terminal fault after exactly three attempts;
+- a real `82.49783 us` PD_SCK pulse with valid HIGH and LOW levels;
+- at least 16 automatic power-cycle attempts across the complete matrix;
+- interruption during tare, calibration zero and calibration mass sampling;
+- preservation of every committed EEPROM boundary;
+- D4/D8 suppression and UART discard across recovery;
+- a final tare, calibration start/cancel, reset and measurement regression.
+
+Detailed records:
+
+```text
+docs/fault-recovery-watchdog-notes.md
+docs/v1.3-fault-recovery-and-watchdog-validation.md
+docs/v1.3-release-notes.md
+```
+
+The completed milestone is tagged:
+
+```text
+v1.3-fault-recovery-and-watchdog
+```
+
+The next educational step remains Lesson 20 for `v1.2` in the separate study
+repository, followed later by a lesson for stable `v1.3`. The next planned
+production milestone is measurement robustness based on recorded real data.

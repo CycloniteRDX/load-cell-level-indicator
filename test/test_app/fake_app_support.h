@@ -6,6 +6,8 @@
 
 #include "operation_indicator.h"
 #include "scale.h"
+#include "storage_load_status.h"
+#include "hal_watchdog.h"
 
 
 void fake_app_reset(void);
@@ -15,8 +17,19 @@ void fake_app_set_time_ms(uint32_t time_ms);
 void fake_app_advance_time_ms(uint32_t elapsed_ms);
 
 
+void fake_app_set_reset_cause(
+    hal_reset_cause_t reset_cause
+);
+
+uint32_t fake_app_reset_cause_call_count(void);
+
+
 void fake_app_set_scale_init_result(bool result);
 void fake_app_set_scale_ready(bool ready);
+void fake_app_set_scale_recover_result(bool result);
+void fake_app_set_scale_read_status(
+    scale_read_status_t status
+);
 void fake_app_set_scale_collection_start_result(
     bool result
 );
@@ -30,6 +43,7 @@ void fake_app_set_scale_sample_average(
 
 uint32_t fake_app_scale_init_call_count(void);
 uint32_t fake_app_scale_ready_call_count(void);
+uint32_t fake_app_scale_recover_call_count(void);
 uint32_t fake_app_scale_cancel_call_count(void);
 uint32_t fake_app_scale_collection_start_call_count(void);
 uint32_t fake_app_scale_collection_update_call_count(void);
@@ -41,6 +55,10 @@ uint32_t fake_app_scale_weight_read_call_count(void);
 void fake_app_set_calibration_record(
     bool available,
     float calibration_factor
+);
+
+void fake_app_set_calibration_load_status(
+    storage_load_status_t status
 );
 
 void fake_app_set_scale_factor_result(bool result);
@@ -57,6 +75,10 @@ float fake_app_scale_factor_when_calibration_was_saved(void);
 void fake_app_set_tare_record(
     bool available,
     int32_t tare_offset
+);
+
+void fake_app_set_tare_load_status(
+    storage_load_status_t status
 );
 
 uint32_t fake_app_tare_load_call_count(void);

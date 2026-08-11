@@ -1099,6 +1099,154 @@ test_scale_set_offset_accepts_int32_boundaries(
 
 
 static void
+test_recovery_cycles_power_in_order_and_preserves_state(
+    void
+)
+{
+    establish_non_default_scale_state();
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(2U)
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_push_reading(
+            HX711_STATUS_OK,
+            5000
+        )
+    );
+
+    TEST_ASSERT_EQUAL(
+        SCALE_SAMPLE_COLLECTION_IN_PROGRESS,
+        scale_update_sample_collection()
+    );
+
+    TEST_ASSERT_TRUE(scale_recover());
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_power_down_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_power_up_call_count()
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_power_down_preceded_power_up()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        ESTABLISHED_TARE_OFFSET,
+        scale_get_offset()
+    );
+
+    assert_calibration_factor_is(
+        VALID_CALIBRATION_FACTOR
+    );
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    scale_cancel_sample_collection();
+}
+
+
+static void
+test_recovery_stops_when_power_down_fails(
+    void
+)
+{
+    establish_non_default_scale_state();
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    fake_hx711_driver_set_power_down_status(
+        HX711_STATUS_TIMEOUT
+    );
+
+    TEST_ASSERT_FALSE(scale_recover());
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_power_down_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_hx711_driver_get_power_up_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        ESTABLISHED_TARE_OFFSET,
+        scale_get_offset()
+    );
+
+    assert_calibration_factor_is(
+        VALID_CALIBRATION_FACTOR
+    );
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    scale_cancel_sample_collection();
+}
+
+
+static void
+test_recovery_reports_power_up_failure_after_ordered_cycle(
+    void
+)
+{
+    establish_non_default_scale_state();
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    fake_hx711_driver_set_power_up_status(
+        HX711_STATUS_TIMEOUT
+    );
+
+    TEST_ASSERT_FALSE(scale_recover());
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_power_down_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1U,
+        fake_hx711_driver_get_power_up_call_count()
+    );
+
+    TEST_ASSERT_TRUE(
+        fake_hx711_driver_power_down_preceded_power_up()
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        ESTABLISHED_TARE_OFFSET,
+        scale_get_offset()
+    );
+
+    assert_calibration_factor_is(
+        VALID_CALIBRATION_FACTOR
+    );
+
+    TEST_ASSERT_TRUE(
+        scale_start_sample_collection(1U)
+    );
+
+    scale_cancel_sample_collection();
+}
+
+
+static void
 test_restored_offset_is_used_by_weight_reading(
     void
 )
@@ -1120,7 +1268,8 @@ test_restored_offset_is_used_by_weight_reading(
 
     float weight_grams = 0.0F;
 
-    TEST_ASSERT_TRUE(
+    TEST_ASSERT_EQUAL(
+        SCALE_READ_VALUE,
         scale_try_read_weight(
             &weight_grams
         )
@@ -1142,7 +1291,8 @@ assert_weight_is(
 {
     float weight_grams = 0.0F;
 
-    TEST_ASSERT_TRUE(
+    TEST_ASSERT_EQUAL(
+        SCALE_READ_VALUE,
         scale_try_read_weight(&weight_grams)
     );
 
@@ -1161,7 +1311,8 @@ test_weight_rejects_null_output_without_checking_ready(
 {
     TEST_ASSERT_TRUE(scale_init());
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL(
+        SCALE_READ_ERROR,
         scale_try_read_weight(NULL)
     );
 
@@ -1190,7 +1341,8 @@ test_weight_not_ready_preserves_output_without_reading(
     const float sentinel = 321.75F;
     float weight_grams = sentinel;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL(
+        SCALE_READ_NO_DATA,
         scale_try_read_weight(&weight_grams)
     );
 
@@ -1332,7 +1484,8 @@ test_weight_read_error_after_ready_preserves_output(
     const float sentinel = -987.25F;
     float weight_grams = sentinel;
 
-    TEST_ASSERT_FALSE(
+    TEST_ASSERT_EQUAL(
+        SCALE_READ_ERROR,
         scale_try_read_weight(&weight_grams)
     );
 
@@ -1461,6 +1614,18 @@ int main(void)
 
     RUN_TEST(
         test_scale_set_offset_accepts_int32_boundaries
+    );
+
+    RUN_TEST(
+        test_recovery_cycles_power_in_order_and_preserves_state
+    );
+
+    RUN_TEST(
+        test_recovery_stops_when_power_down_fails
+    );
+
+    RUN_TEST(
+        test_recovery_reports_power_up_failure_after_ordered_cycle
     );
 
     RUN_TEST(

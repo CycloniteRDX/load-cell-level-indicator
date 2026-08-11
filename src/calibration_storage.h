@@ -3,14 +3,18 @@
 
 #include <stdbool.h>
 
+#include "storage_load_status.h"
+
 
 /*
  * Loads a valid calibration factor from non-volatile memory.
  *
- * Returns true when a valid record was found.
- * The stored factor is written to calibration_factor.
+ * Distinguishes a valid record, absent storage, invalid
+ * record bytes and a storage access error.
+ *
+ * The output is modified only for STORAGE_LOAD_VALID.
  */
-bool calibration_storage_load(
+storage_load_status_t calibration_storage_load(
     float *calibration_factor
 );
 

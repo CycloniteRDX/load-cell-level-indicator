@@ -185,6 +185,35 @@ static void test_calibration_mass_blinks_only_medium_led(void)
     assert_leds(false, true, false);
 }
 
+static void test_recovery_alternates_low_and_high_at_exact_period(void)
+{
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_RECOVERY
+    );
+
+    assert_leds(true, false, false);
+
+    advance_and_update(
+        FAULT_RECOVERY_INDICATOR_PERIOD_MS - 1U
+    );
+
+    assert_leds(true, false, false);
+
+    advance_and_update(1U);
+
+    assert_leds(false, false, true);
+
+    advance_and_update(
+        FAULT_RECOVERY_INDICATOR_PERIOD_MS
+    );
+
+    assert_leds(true, false, false);
+
+    TEST_ASSERT_FALSE(
+        operation_indicator_is_temporary_active()
+    );
+}
+
 static void test_fault_blinks_only_high_led_persistently(void)
 {
     operation_indicator_set_mode(
@@ -459,6 +488,29 @@ static void test_temporary_pattern_handles_millisecond_overflow(void)
     );
 }
 
+static void test_recovery_pattern_handles_millisecond_overflow(void)
+{
+    fake_operation_indicator_set_time_ms(
+        UINT32_MAX - 100U
+    );
+
+    operation_indicator_set_mode(
+        OPERATION_INDICATOR_RECOVERY
+    );
+
+    assert_leds(true, false, false);
+
+    advance_and_update(
+        FAULT_RECOVERY_INDICATOR_PERIOD_MS - 1U
+    );
+
+    assert_leds(true, false, false);
+
+    advance_and_update(1U);
+
+    assert_leds(false, false, true);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -469,6 +521,7 @@ int main(void)
     RUN_TEST(test_error_can_return_to_tare_required_mode);
     RUN_TEST(test_calibration_zero_blinks_only_low_led);
     RUN_TEST(test_calibration_mass_blinks_only_medium_led);
+    RUN_TEST(test_recovery_alternates_low_and_high_at_exact_period);
     RUN_TEST(test_fault_blinks_only_high_led_persistently);
     RUN_TEST(test_none_mode_turns_all_leds_off);
     RUN_TEST(test_success_flashes_all_leds_twice_then_releases_them);
@@ -479,6 +532,7 @@ int main(void)
     RUN_TEST(test_set_mode_cancels_temporary_pattern);
     RUN_TEST(test_persistent_blinking_handles_millisecond_overflow);
     RUN_TEST(test_temporary_pattern_handles_millisecond_overflow);
+    RUN_TEST(test_recovery_pattern_handles_millisecond_overflow);
 
     return UNITY_END();
 }

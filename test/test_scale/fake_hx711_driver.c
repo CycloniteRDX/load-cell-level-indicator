@@ -16,6 +16,12 @@ static hx711_status_t init_status =
 static hx711_status_t wait_ready_status =
     HX711_STATUS_OK;
 
+static hx711_status_t power_down_status =
+    HX711_STATUS_OK;
+
+static hx711_status_t power_up_status =
+    HX711_STATUS_OK;
+
 static bool ready_state = true;
 
 static fake_hx711_reading_t readings[
@@ -30,6 +36,12 @@ static uint32_t init_call_count = 0U;
 static uint32_t wait_ready_call_count = 0U;
 static uint32_t is_ready_call_count = 0U;
 static uint32_t read_raw_call_count = 0U;
+static uint32_t power_down_call_count = 0U;
+static uint32_t power_up_call_count = 0U;
+
+static uint32_t driver_call_sequence = 0U;
+static uint32_t power_down_call_order = 0U;
+static uint32_t power_up_call_order = 0U;
 
 static uint8_t last_data_pin = 0U;
 static uint8_t last_clock_pin = 0U;
@@ -40,6 +52,8 @@ void fake_hx711_driver_reset(void)
 {
     init_status = HX711_STATUS_OK;
     wait_ready_status = HX711_STATUS_OK;
+    power_down_status = HX711_STATUS_OK;
+    power_up_status = HX711_STATUS_OK;
     ready_state = true;
 
     prepared_reading_count = 0U;
@@ -50,6 +64,12 @@ void fake_hx711_driver_reset(void)
     wait_ready_call_count = 0U;
     is_ready_call_count = 0U;
     read_raw_call_count = 0U;
+    power_down_call_count = 0U;
+    power_up_call_count = 0U;
+
+    driver_call_sequence = 0U;
+    power_down_call_order = 0U;
+    power_up_call_order = 0U;
 
     last_data_pin = 0U;
     last_clock_pin = 0U;
@@ -78,6 +98,22 @@ void fake_hx711_driver_set_ready(
 )
 {
     ready_state = ready;
+}
+
+
+void fake_hx711_driver_set_power_down_status(
+    hx711_status_t status
+)
+{
+    power_down_status = status;
+}
+
+
+void fake_hx711_driver_set_power_up_status(
+    hx711_status_t status
+)
+{
+    power_up_status = status;
 }
 
 
@@ -126,6 +162,29 @@ uint32_t fake_hx711_driver_get_is_ready_call_count(void)
 uint32_t fake_hx711_driver_get_read_raw_call_count(void)
 {
     return read_raw_call_count;
+}
+
+
+uint32_t
+fake_hx711_driver_get_power_down_call_count(void)
+{
+    return power_down_call_count;
+}
+
+
+uint32_t fake_hx711_driver_get_power_up_call_count(void)
+{
+    return power_up_call_count;
+}
+
+
+bool fake_hx711_driver_power_down_preceded_power_up(
+    void
+)
+{
+    return (power_down_call_order != 0U) &&
+           (power_up_call_order != 0U) &&
+           (power_down_call_order < power_up_call_order);
 }
 
 
@@ -260,7 +319,11 @@ hx711_status_t hx711_power_down(
 )
 {
     (void)device;
-    return HX711_STATUS_OK;
+
+    ++power_down_call_count;
+    power_down_call_order = ++driver_call_sequence;
+
+    return power_down_status;
 }
 
 
@@ -269,5 +332,9 @@ hx711_status_t hx711_power_up(
 )
 {
     (void)device;
-    return HX711_STATUS_OK;
+
+    ++power_up_call_count;
+    power_up_call_order = ++driver_call_sequence;
+
+    return power_up_status;
 }

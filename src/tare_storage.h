@@ -4,14 +4,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "storage_load_status.h"
+
 
 /*
  * Loads a valid tare offset from non-volatile memory.
  *
- * Returns true when a valid record was found.
- * The stored offset is written to tare_offset.
+ * Distinguishes a valid record, absent storage, invalid
+ * record bytes and a storage access error.
+ *
+ * The output is modified only for STORAGE_LOAD_VALID.
  */
-bool tare_storage_load(
+storage_load_status_t tare_storage_load(
     int32_t *tare_offset
 );
 

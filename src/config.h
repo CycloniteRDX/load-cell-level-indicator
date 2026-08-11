@@ -56,6 +56,16 @@ static const uint32_t SCALE_STARTUP_TIMEOUT_MS =
 
 
 /*
+ * Maximum time that normal operation may receive only
+ * SCALE_READ_NO_DATA results. Every valid measurement
+ * starts a fresh window. States that intentionally do
+ * not consume normal measurements do not use it.
+ */
+static const uint32_t
+    SCALE_RUNTIME_READY_TIMEOUT_MS = 2000UL;
+
+
+/*
  * Maximum total time allowed for one incremental
  * multi-sample HX711 collection.
  *
@@ -65,6 +75,33 @@ static const uint32_t SCALE_STARTUP_TIMEOUT_MS =
  */
 static const uint32_t
     SCALE_SAMPLE_COLLECTION_TIMEOUT_MS = 5000UL;
+
+
+/*
+ * Cooperative HX711 recovery policy.
+ *
+ * Every attempt starts only after a finite backoff.
+ * A successful power cycle must then produce a ready
+ * conversion before the ready timeout expires.
+ */
+static const uint32_t
+    FAULT_RECOVERY_BACKOFF_MS = 500UL;
+
+static const uint32_t
+    FAULT_RECOVERY_READY_TIMEOUT_MS = 2000UL;
+
+static const uint8_t
+    FAULT_RECOVERY_MAX_ATTEMPTS = 3U;
+
+
+/*
+ * Recovery indication.
+ *
+ * LOW and HIGH alternate every 250 ms so recovery is
+ * visually distinct from every normal and fault mode.
+ */
+static const uint32_t
+    FAULT_RECOVERY_INDICATOR_PERIOD_MS = 250UL;
 
 
 /*
