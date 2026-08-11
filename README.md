@@ -5,8 +5,7 @@ A bare-metal ATmega328P firmware project that measures the weight of a container
 The project began as a small Arduino learning exercise and was progressively evolved into a modular, tested firmware with project-owned drivers, hardware-abstraction layers, persistent calibration and tare records, native unit tests and a direct AVR entry point.
 
 > **Project status:** validated functional prototype
-> **Latest completed milestone:** `v1.2-non-blocking-application`
-> **Current development milestone:** `v1.3-fault-recovery-and-watchdog`
+> **Latest completed milestone:** `v1.3-fault-recovery-and-watchdog`
 
 ## Features
 
@@ -37,8 +36,10 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Cooperative HX711 recovery with 500 ms backoff, a 2000 ms ready deadline and three attempts.
 - Recovery discards inputs, cancels unfinished operations and returns only to a safe boundary state.
 - Distinct recovery indication with the LOW and HIGH LEDs alternating every 250 ms.
+- Deterministic HX711 `DOUT` disconnection detection through an external 10 kΩ pull-up.
 - Two-second AVR hardware watchdog fed only after complete application iterations.
 - Early application-visible reset-cause capture and startup diagnostics.
+- Watchdog reset timing and safe restart physically validated in both firmware environments.
 - Responsive UART and button handling during 20-sample operations.
 - Direct AVR implementations for GPIO, Timer1, EEPROM, USART0 and watchdog control.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
@@ -52,6 +53,7 @@ The current prototype uses:
 - Arduino Nano with ATmega328P at 16 MHz.
 - HX711 module.
 - Load cell connected to the HX711.
+- 10 kΩ pull-up resistor between Nano D2 and the shared logic supply.
 - Two momentary push buttons.
 - Three indicator LEDs with suitable current-limiting resistors.
 - USB connection for programming and the 115200-baud console.
@@ -64,7 +66,7 @@ The pin assignments are defined in [`src/config.h`](src/config.h).
 |---|---|---|
 | D0 / RX | USART0 receive | USB-to-serial console |
 | D1 / TX | USART0 transmit | USB-to-serial console |
-| D2 | HX711 `DOUT` | HX711 data output |
+| D2 | HX711 `DOUT` | HX711 data output; external 10 kΩ pull-up to the shared logic supply |
 | D3 | HX711 `SCK` | HX711 clock input |
 | D4 | Tare/cancel button | Connect button between D4 and GND |
 | D5 | Low-level LED | Active-high output |
@@ -78,6 +80,58 @@ The two buttons use the ATmega328P internal pull-up resistors:
 released = HIGH
 pressed  = LOW
 ```
+
+### HX711 DOUT fail-safe pull-up
+
+The prototype keeps an external 10 kΩ pull-up on the Nano side of the HX711
+`DOUT` connection:
+
+```text
+Nano +5 V ---- 10 kΩ ----+
+                          +---- Nano D2
+HX711 DOUT ---------------+
+```
+
+The resistor must connect to the shared logic rail: 5 V in the current
+prototype, or 3.3 V if both devices use 3.3 V logic. It should remain on the
+microcontroller side of the cable or connector so a broken `DOUT` conductor
+leaves D2 at a defined HIGH level. Do not connect D2 directly to the supply.
+
+The HX711 protocol uses HIGH for "conversion not ready" and LOW for
+"conversion ready". A disconnected `DOUT` therefore produces a deterministic
+timeout instead of allowing a floating D2 input to generate false readiness
+events and false 24-bit readings. When the HX711 drives LOW, the 10 kΩ resistor
+draws approximately 0.5 mA from a 5 V rail.
+
+The ATmega328P internal pull-up is a valid software-controlled alternative. In
+a simple Arduino program it is enabled with:
+
+```cpp
+pinMode(LOADCELL_DOUT_PIN, INPUT_PULLUP);
+```
+
+In this project's HAL-based architecture, the equivalent change would be to
+make `hx711_platform_configure_input()` call:
+
+```c
+hal_gpio_configure_input_pullup((hal_gpio_pin_t)pin);
+```
+
+That same HAL call maps to `pinMode(pin, INPUT_PULLUP)` in the Arduino-reference
+backend. In the direct AVR backend it keeps D2/PD2 as an input and sets its
+`PORTD` latch bit:
+
+```c
+DDRD  &= (uint8_t)~(1U << DDD2);
+PORTD |= (uint8_t)(1U << PORTD2);
+```
+
+The internal pull-up only exists after firmware configures the pin and its
+resistance is less tightly controlled than a selected external resistor. A
+reset, bootloader execution or later input reconfiguration may temporarily
+disable it. The external 10 kΩ resistor is therefore the selected production
+prototype solution. The firmware leaves the internal D2 pull-up disabled; both
+pull-ups are not required simultaneously.
 
 The LED outputs are active-high. Ordinary indicator LEDs must use current-limiting resistors.
 
@@ -443,8 +497,53 @@ two-second watchdog must reset the MCU. The trigger starts disarmed after every
 reset and cannot fire again until both buttons have been observed released, so
 keeping both pressed through the reset does not create a repeated-reset loop.
 
+Physical testing on the real Nano produced watchdog resets after `2.255 s` in
+the direct AVR environment and `2.260 s` in the Arduino-reference environment.
+Both restarted safely, restored the stored tare and resumed normal measurement.
+The Nano bootloader path left no supported `MCUSR` flag visible to the
+application, so post-watchdog startup reported `unknown` as designed.
+
 Do not use a validation environment for normal operation. Re-upload
 `nanoatmega328new` after the physical test.
+
+### HX711 power-down pulse measurement
+
+The `PD_SCK` power-down pulse generated by the production direct-AVR firmware
+was captured on the real Nano and HX711 during the `v1.3` physical validation.
+The oscilloscope used a ×10 probe, 20 MHz bandwidth limit, 50 µs/div timebase
+and a positive-pulse trigger at 2.5 V.
+
+![HX711 PD_SCK power-down pulse captured during recovery](docs/images/hx711-pd-sck-power-down-pulse.png)
+
+| Measurement | Result |
+|---|---:|
+| Automatic positive width | `82.49783 µs` |
+| HX711 power-down requirement | `>60 µs` |
+| Stable HIGH level (`Top`) | `4.91458 V` |
+| Stable LOW level (`Base`) | `-2.083 mV` |
+| Timing and logic levels | **PASS** |
+
+The measured width includes the requested 70 µs delay plus the execution time
+of the surrounding GPIO operations. `Pk-Pk = 5.82292 V` is not used as a logic
+level because it includes the brief overshoot and undershoot around the two
+edges. `Top` and `Base` represent the stable levels more usefully.
+
+<details>
+<summary>Manual level-cursor verification</summary>
+
+![HX711 PD_SCK HIGH and LOW levels checked with oscilloscope cursors](docs/images/hx711-pd-sck-level-cursors.png)
+
+The Y cursors independently place the stable HIGH level near `4.95 V` and the
+stable LOW level near `-0.03 V`, for approximately `4.98 V` between them. The X
+cursors in this capture are not positioned on the pulse edges; the pulse width
+is the automatic `+Width(C1)` result shown at the bottom of both captures.
+
+</details>
+
+This capture validates the electrical timing and levels of one real recovery
+pulse. The complete physical fault matrix exercised at least 16 automatic
+power-cycle attempts while checking measurement continuity, retry exhaustion,
+transactional persistence and input behaviour across recovery.
 
 ## Upload
 
@@ -524,25 +623,25 @@ Exit code:     0
 
 ## Production memory usage
 
-For the direct AVR production environment at `v1.2`:
+For the direct AVR production environment at `v1.3`:
 
 ```text
-Static SRAM: 217 bytes of 2048 bytes (10.6%)
-Flash:       16898 bytes of 30720 bytes (55.0%)
+Static SRAM: 230 bytes of 2048 bytes (11.2%)
+Flash:       17738 bytes of 30720 bytes (57.7%)
 ```
 
 For the controlled Arduino entry-point reference environment:
 
 ```text
-Static SRAM: 226 bytes of 2048 bytes (11.0%)
-Flash:       17194 bytes of 30720 bytes (56.0%)
+Static SRAM: 239 bytes of 2048 bytes (11.7%)
+Flash:       18032 bytes of 30720 bytes (58.7%)
 ```
 
 The Arduino reference currently uses:
 
 ```text
 9 additional SRAM bytes
-296 additional Flash bytes
+294 additional Flash bytes
 ```
 
 ## Project history
@@ -569,6 +668,7 @@ v0.16-direct-avr-entrypoint
 v1.0-functional-prototype
 v1.1-safe-startup-tare
 v1.2-non-blocking-application
+v1.3-fault-recovery-and-watchdog
 ```
 
 These tags preserve the progressive learning path from an Arduino/Bogde
@@ -580,7 +680,10 @@ cooperative application states.
 Start with:
 
 - [`docs/project-seed.md`](docs/project-seed.md) — completed project history and architecture.
-- [`docs/project-roadmap.md`](docs/project-roadmap.md) — active continuation plan after `v1.2`.
+- [`docs/project-roadmap.md`](docs/project-roadmap.md) — active continuation plan after `v1.3`.
+- [`docs/v1.3-release-notes.md`](docs/v1.3-release-notes.md) — fault recovery and watchdog release summary.
+- [`docs/v1.3-fault-recovery-and-watchdog-validation.md`](docs/v1.3-fault-recovery-and-watchdog-validation.md) — native, build and physical validation for `v1.3`.
+- [`docs/fault-recovery-watchdog-notes.md`](docs/fault-recovery-watchdog-notes.md) — `v1.3` design and incremental implementation record.
 - [`docs/v1.2-release-notes.md`](docs/v1.2-release-notes.md) — non-blocking application release summary.
 - [`docs/v1.2-non-blocking-application-validation.md`](docs/v1.2-non-blocking-application-validation.md) — native, build and physical validation for `v1.2`.
 - [`docs/non-blocking-application-notes.md`](docs/non-blocking-application-notes.md) — cooperative state-machine design and input policy.
@@ -608,26 +711,27 @@ Current limitations include:
 - No EEPROM wear levelling.
 - Thresholds and the reference calibration mass are compile-time constants.
 - No stable-weight detector or advanced outlier rejection.
-- Watchdog reset timing and forced-stall behaviour have not yet been validated on real hardware.
-- Reset-cause visibility through the Nano bootloader has not yet been characterized physically.
+- The Nano bootloader path does not preserve a supported `MCUSR` cause for the application; post-watchdog startup reports `unknown`.
 - Serial service commands do not require confirmation.
 - EEPROM operations and console transmission remain bounded synchronous operations.
-- Physical HX711 power-down and power-up validation remains pending separately.
+- Recovery accepts the first ready post-cycle conversion; it does not yet require several coherent measurements before declaring success.
+- The DOUT pull-up detects a missing digital connection but not every possible load-cell bridge-wire fault.
 - No 24 V output-driver hardware is included in this repository.
 - The current hardware target is only the ATmega328P Nano.
 - The current measurement backend is only the HX711.
 
-## Roadmap after `v1.2`
+## Roadmap after `v1.3`
 
-The next firmware milestone is expected to address fault handling and watchdog
-policy. Lesson 20 in the separate study repository will first document the
-completed `v1.2` transition.
+The next firmware milestone is expected to improve measurement robustness
+using real raw data to justify the selected stability, filtering or outlier
+policy. The separate study repository can document `v1.3` after its existing
+`v1.2` Lesson 20 work is complete.
 
 Later phases include:
 
-1. Add Lesson 20 to the separate educational repository.
-2. Complete physical fault-recovery and watchdog validation.
-3. Improve measurement stability and outlier rejection.
+1. Complete Lesson 20 for `v1.2` in the educational repository.
+2. Add the later educational lesson for stable `v1.3`.
+3. Improve measurement stability and outlier rejection from recorded data.
 4. Design the 24 V power and tower-light driver hardware.
 5. Create a first custom PCB.
 6. Add alternative scale backends such as NAU7802 or ADS1232.

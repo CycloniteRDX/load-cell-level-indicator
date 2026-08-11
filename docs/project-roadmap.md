@@ -5,7 +5,7 @@
 This document is the active continuation plan for the project after:
 
 ```text
-v1.2-non-blocking-application
+v1.3-fault-recovery-and-watchdog
 ```
 
 It is intentionally separate from [`project-seed.md`](project-seed.md).
@@ -32,7 +32,7 @@ When development is resumed after a long pause, read:
 The current stable release is:
 
 ```text
-v1.2-non-blocking-application
+v1.3-fault-recovery-and-watchdog
 ```
 
 The release contains:
@@ -52,15 +52,23 @@ The release contains:
 - At most one ready HX711 conversion per application update.
 - Explicit busy-state and result-state input policies.
 - Latched cooperative startup fault instead of a permanent wait loop.
+- Stable fault codes with explicit recoverable or terminal policy.
+- Runtime HX711 readiness supervision and bounded cooperative recovery.
+- Three recovery attempts with real HX711 power cycling.
+- Distinct recovery and terminal LED patterns.
+- Persistent record loads that distinguish absent, corrupt and access failure.
+- Two-second AVR hardware watchdog fed only after complete iterations.
+- Dedicated watchdog validation builds for both entry points.
+- Deterministic DOUT fault detection through an external 10 kΩ pull-up.
 - Four logical level states represented by three LEDs.
-- 269 native tests across 11 suites with zero failures.
+- 307 native tests across 13 suites with zero failures.
 - Complete release and physical-validation documentation.
 
 Production memory usage at the stable baseline:
 
 ```text
-Static SRAM: 217 bytes
-Flash:       16898 bytes
+Static SRAM: 230 bytes
+Flash:       17738 bytes
 ```
 
 The stable tag must never be moved or recreated.
@@ -203,6 +211,7 @@ v0.16-direct-avr-entrypoint
 v1.0-functional-prototype
 v1.1-safe-startup-tare
 v1.2-non-blocking-application
+v1.3-fault-recovery-and-watchdog
 ```
 
 Do not create a lesson for planned firmware. Add the next lesson only after its
@@ -351,38 +360,65 @@ docs/v1.2-non-blocking-application-validation.md
 docs/v1.2-release-notes.md
 ```
 
+## v1.3: fault recovery and watchdog
+
+Completed tag:
+
+```text
+v1.3-fault-recovery-and-watchdog
+```
+
+Development branch:
+
+```text
+feature/fault-recovery-watchdog
+```
+
+The milestone introduced:
+
+- Stable application-visible fault codes `01` through `09`.
+- Explicit recover-sensor and terminal policies.
+- Scale read results that distinguish value, no data and read error.
+- A 2000 ms runtime no-conversion health deadline.
+- Cooperative HX711 power cycling with 500 ms backoff, 2000 ms attempt
+  deadline and three attempts.
+- Cancellation of incomplete work and return only to safe boundary states.
+- D4/D8 suppression and UART discard across recovery transitions.
+- LOW/HIGH alternating recovery indication and persistent HIGH terminal fault.
+- Valid, absent, corrupt and access-failure persistent-load classification.
+- Two-second AVR hardware watchdog fed after complete application iterations.
+- Early application-visible reset-cause capture.
+- Dedicated direct-AVR and Arduino-reference watchdog validation builds.
+- External 10 kΩ DOUT pull-up for deterministic disconnection detection.
+- 307 passing native tests across 13 suites.
+- Complete watchdog, PD_SCK, retry, interruption and input-boundary physical
+  validation.
+
+Validated memory usage:
+
+```text
+Direct AVR production:
+SRAM:  230 bytes
+Flash: 17738 bytes
+
+Arduino reference:
+SRAM:  239 bytes
+Flash: 18032 bytes
+```
+
+Detailed records:
+
+```text
+docs/fault-recovery-watchdog-notes.md
+docs/v1.3-fault-recovery-and-watchdog-validation.md
+docs/v1.3-release-notes.md
+```
+
 ---
 
 # Next and later firmware milestones
 
 The names and ordering below are provisional. They should remain smaller than a single large redesign.
-
-## v1.3: fault handling and watchdog
-
-Add explicit runtime fault categories.
-
-Candidates:
-
-- HX711 not ready.
-- HX711 timeout.
-- Implausible raw reading.
-- Saturated ADC.
-- Invalid calibration.
-- Invalid persistent configuration.
-- Internal state inconsistency.
-
-Define:
-
-- Recoverable faults.
-- Non-recoverable faults.
-- User-visible LED patterns.
-- Console diagnostic messages.
-- Retry policy.
-- Safe output policy.
-- Watchdog reset policy.
-- Startup reason reporting when feasible.
-
-Only enable the watchdog after the application has a clear fault and recovery model.
 
 ## v1.4: measurement robustness
 
@@ -593,8 +629,8 @@ Read:
 README.md
 docs/project-seed.md
 docs/project-roadmap.md
-docs/v1.2-release-notes.md
-docs/v1.2-non-blocking-application-validation.md
+docs/v1.3-release-notes.md
+docs/v1.3-fault-recovery-and-watchdog-validation.md
 ```
 
 Then read the notes for the most recent completed milestone.
@@ -606,20 +642,20 @@ pio run -e nanoatmega328new
 .\scripts\run-native-tests.ps1
 ```
 
-Expected baseline at `v1.2-non-blocking-application`:
+Expected baseline at `v1.3-fault-recovery-and-watchdog`:
 
 ```text
 production build: SUCCESS
-native suites:    11/11
-tests:            269
+native suites:    13/13
+tests:            307
 failures:         0
 ```
 
 Validated production memory:
 
 ```text
-SRAM:  217 bytes
-Flash: 16898 bytes
+SRAM:  230 bytes
+Flash: 17738 bytes
 ```
 
 ## Identify the active objective
@@ -666,8 +702,8 @@ Current recommended order:
 
 ```text
 1. Add Lesson 20 to the study repository for stable v1.2
-2. Add fault handling and watchdog
-3. Improve measurement robustness
+2. Add the later study lesson for stable v1.3
+3. Improve measurement robustness from recorded real data
 4. Validate 24 V power and output hardware
 5. Build the final mechanical installation
 6. Design a custom PCB

@@ -19,11 +19,15 @@ a89ea34 — merge: integrate non-blocking application
 The post-release documentation correction does not change the firmware used as
 the technical baseline.
 
-This document is the design contract and incremental implementation record.
-Cooperative HX711 recovery, runtime readiness supervision, distinct recovery
-and terminal-fault indicators, the AVR watchdog HAL and dedicated watchdog
-hardware-validation builds are now implemented. Physical HX711 power-cycle and
-watchdog validation remain pending.
+This document is the completed design contract and incremental implementation
+record. Cooperative HX711 recovery, runtime readiness supervision, distinct
+recovery and terminal-fault indicators, persistent-load classification, the
+AVR watchdog HAL and dedicated watchdog hardware-validation builds are
+implemented. Native, build and physical validation passed on the real Nano.
+The physical matrix includes watchdog stalls in both entry-point environments,
+deterministic `DOUT` disconnection, repeated real power cycles, direct `PD_SCK`
+measurement, interrupted tare and calibration operations, input suppression
+across recovery and a final normal-operation regression.
 
 ---
 
@@ -44,13 +48,13 @@ The current application has one generic latched state:
 APP_STATE_FAULT
 ```
 
-That state is cooperative and safe, but it loses the cause and always requires
-a reset. `v1.3` will separate fault detection, classification, recovery and
+That state was cooperative and safe, but it lost the cause and always required
+a reset. `v1.3` separates fault detection, classification, recovery and
 watchdog supervision.
 
 ---
 
-## 2. Important pending HX711 validation
+## 2. HX711 validation pending at milestone start
 
 The driver already implements and natively tests:
 
@@ -77,6 +81,12 @@ Native fake tests prove call order and logical state. They cannot prove:
 - wake-up timing on the installed HX711 module;
 - conversion readiness after repeated cycles;
 - continuity of real measurements after recovery.
+
+The normal-operation automatic path has now been exercised physically, as
+recorded in section 38. That result proves that the installed system can detect
+a controlled `DOUT` disconnection, run bounded recovery and resume real
+measurements after reconnection. The dedicated repeated power-cycle and timing
+checks listed in section 24 subsequently passed and are recorded in section 39.
 
 ---
 
@@ -758,8 +768,10 @@ At minimum:
 - verify the recovered system uses the previous committed configuration.
 
 Electrical manipulation must not short `DOUT`, `PD_SCK`, VCC or ground. Use a
-controlled disconnection or another test method defined before the physical
-procedure is executed.
+controlled disconnection while a 10 kΩ pull-up holds Nano D2 at the shared
+logic supply, or another test method defined before the physical procedure is
+executed. The pull-up must be on the microcontroller side of the disconnected
+conductor. Leaving D2 floating is not a valid deterministic test method.
 
 ---
 
@@ -827,7 +839,11 @@ The milestone should remain reviewable through small commits:
 The exact split may change if one diff is too large, but watchdog activation
 must remain after the recovery model is explicit and tested.
 
-Steps 1 through 9 are now implemented on the feature branch.
+Steps 1 through 11 are complete on the feature branch. The detailed acceptance
+record is stored in
+[`v1.3-fault-recovery-and-watchdog-validation.md`](v1.3-fault-recovery-and-watchdog-validation.md).
+Only the final repository operations remain: commit this documentation, merge
+the branch and create the annotated release tag.
 
 ---
 
@@ -844,18 +860,19 @@ Steps 1 through 9 are now implemented on the feature branch.
 - [x] Inputs are not replayed across fault-state transitions.
 - [x] Recovery and terminal LED patterns are distinct.
 - [x] Persistent loads distinguish absent, corrupt and access-failure states.
-- [ ] Power-down/power-up pass a dedicated physical test.
+- [x] Power-down/power-up pass a dedicated physical test.
 - [x] The watchdog is fed only after complete application iterations.
 - [x] The watchdog is never fed from an interrupt.
-- [ ] A forced software stall causes a real watchdog reset.
-- [ ] Reset-cause support or bootloader limitation is documented from evidence.
-- [ ] Direct AVR production builds successfully.
-- [ ] Arduino reference builds successfully.
-- [ ] All native tests pass.
-- [ ] SRAM and flash usage are recorded.
-- [ ] Physical recovery scenarios pass.
-- [ ] README, roadmap, seed, validation record and release notes agree.
-- [ ] The release is merged and tagged only after physical validation.
+- [x] A forced software stall causes a real watchdog reset.
+- [x] Reset-cause support or bootloader limitation is documented from evidence.
+- [x] Direct AVR production builds successfully.
+- [x] Arduino reference builds successfully.
+- [x] All native tests pass.
+- [x] SRAM and flash usage are recorded.
+- [x] Normal-measurement DOUT disconnection recovers after reconnection and reaches terminal fault after three failed attempts.
+- [x] Physical recovery scenarios pass.
+- [x] README, roadmap, seed, validation record and release notes agree.
+- [x] Release integration and tagging are deferred until after physical validation.
 
 ---
 
@@ -1129,3 +1146,341 @@ one-button states, explicit arming, the simultaneous-press requirement and
 reinitialization. The expected native inventory is now `307` tests across `13`
 suites. Native tests prove only trigger logic; the real reset interval, safe
 restart and bootloader handling of `MCUSR` still require the physical procedure.
+
+---
+
+## 37. Physical watchdog validation result
+
+Physical validation was completed on 2026-08-10 using the real Arduino Nano,
+HX711, load cell, buttons, LEDs and the 115200-baud serial monitor with timestamp
+filtering. Both dedicated validation environments were tested:
+
+```text
+nanoatmega328new_watchdog_validation
+nanoatmega328new_arduino_watchdog_validation
+```
+
+Before each forced stall, the application was operating normally with stored
+tare offset `-217186`, the default calibration factor `45.589332 counts/g` and
+a load of approximately `930 g`. The normal level was `MEDIUM`, represented by
+the steady medium/yellow LED.
+
+### Measured resets
+
+| Environment | Stall diagnostic | New startup header | Measured interval | Visible reset cause |
+| --- | --- | --- | ---: | --- |
+| Direct AVR | `19:47:11.532` | `19:47:13.787` | `2.255 s` | `unknown` |
+| Arduino reference, run 1 | `19:53:06.955` | `19:53:09.215` | `2.260 s` | `unknown` |
+| Arduino reference, run 2 | `19:53:21.017` | `19:53:23.277` | `2.260 s` | `unknown` |
+
+The additional approximately `255–260 ms` beyond the configured two-second
+watchdog period is consistent with reset, bootloader execution and startup code
+before the first serial header is emitted.
+
+### Observed recovery behaviour
+
+- Pressing D4 and D8 started the deliberate stall immediately after a complete
+  `app_update()` and before the next watchdog feed.
+- The medium/yellow LED retained its last valid state during the stall because
+  the stalled program did not rewrite the AVR GPIO output registers.
+- All three LEDs turned off during reset and early startup while the GPIO pins
+  returned to their initial input/high-impedance state.
+- The stored tare offset was loaded again after every reset.
+- Normal measurements resumed near the previous `930 g` value.
+- The medium/yellow LED returned only after initialization and a valid level
+  decision completed.
+- Keeping D4 and D8 pressed through reset did not cause another automatic
+  stall or a repeated-reset loop.
+- Both entry-point environments exhibited the same watchdog timing and safe
+  recovery behaviour.
+
+### Reset-cause limitation
+
+Every post-watchdog startup reported:
+
+```text
+Reset cause visible to application: unknown.
+```
+
+The physical reset interval proves that the hardware watchdog caused the
+restart, but no supported `MCUSR` flag survived to the application `.init3`
+hook. On this Nano bootloader path, reset-cause reporting is therefore recorded
+as unavailable. The most likely explanation is that the bootloader reads,
+changes or clears `MCUSR` before control reaches the application image.
+
+This is a diagnostic limitation, not a watchdog failure. The two-second
+hardware recovery, safe restart, persistent-state restoration and reset-loop
+protection all passed. These watchdog results alone do not validate HX711
+power cycling or application sensor recovery. Section 38 records the later
+normal-measurement recovery test; sections 39 through 42 record the later
+electrical, interruption, input-boundary and final-regression results that
+closed those gates.
+
+---
+
+## 38. Physical DOUT disconnection and pull-up validation result
+
+Physical validation was performed on 2026-08-10 with the production direct-AVR
+environment, the real Nano, HX711, load cell, stored tare offset `-217186`,
+default calibration factor `45.589332 counts/g` and a load near `925–930 g`.
+
+### Floating-input observation
+
+An initial test disconnected HX711 `DOUT` without keeping Nano D2 at a defined
+logic level. The floating input produced implausible values including:
+
+```text
+4763.94 g
+-986.15 g
+-6736.27 g
+7639.00 g
+```
+
+A floating D2 can cross the digital threshold because of noise or intermittent
+contact. The driver may then observe a false LOW, interpret it as "conversion
+ready" and clock 24 meaningless bits. The application also prints the last
+stored weight periodically, so one false reading can be repeated until a new
+reading arrives or the readiness deadline expires.
+
+Consequently, an unconnected floating input can both delay the intended
+timeout and make `HX711 recovery succeeded` mean only that D2 was observed LOW,
+not that the physical connection is reliable. This test method was rejected.
+
+### Controlled test circuit
+
+A 10 kΩ resistor was connected from Nano D2 to the shared 5 V logic rail before
+disconnecting the HX711 `DOUT` conductor:
+
+```text
+Nano +5 V ---- 10 kΩ ----+
+                          +---- Nano D2
+HX711 DOUT ---------------+
+```
+
+The resistor remained on the Nano side throughout the test. Therefore:
+
+- connected HX711: `DOUT` could still drive D2 LOW, drawing approximately
+  0.5 mA through the pull-up;
+- disconnected HX711: D2 remained deterministically HIGH;
+- no direct short between D2 and 5 V was possible.
+
+### Recovery after reconnection
+
+The baseline was stable near `924–930 g` with level `MEDIUM`. The controlled
+disconnection then produced:
+
+| Event | Timestamp | Result |
+| --- | --- | --- |
+| Runtime fault detected | `20:15:25.602` | `FAULT 03`; normal level indication disabled |
+| Attempt 1 power cycle | `20:15:26.102` | No ready conversion within 2 s |
+| Attempt 2 power cycle | `20:15:28.617` | Waiting for reconnection/conversion |
+| Recovery declared | `20:15:29.075` | Attempt 2 succeeded |
+| First recovered weight | `20:15:29.083` | `924.08 g`, `MEDIUM` |
+| Following valid weight | `20:15:29.586` | `925.83 g`, `MEDIUM` |
+
+The LOW and HIGH LEDs alternated during recovery. After reconnection the
+application preserved the active tare and calibration, resumed a physically
+reasonable weight and restored the MEDIUM/yellow level without resetting the
+Nano.
+
+### Exhausted-retry path
+
+`DOUT` was disconnected again and was deliberately not restored before the
+retry budget expired:
+
+| Event | Timestamp |
+| --- | --- |
+| New runtime fault detected | `20:15:31.250` |
+| Attempt 1 power cycle | `20:15:31.758` |
+| Attempt 1 timeout | `20:15:33.763` |
+| Attempt 2 power cycle | `20:15:34.259` |
+| Attempt 2 timeout | `20:15:36.271` |
+| Attempt 3 power cycle | `20:15:36.769` |
+| Attempt 3 timeout and terminal fault | `20:15:38.775` |
+
+The serial output reported `Recovery attempts exhausted` and `Reset required`.
+The alternating recovery pattern stopped and the HIGH LED blinked, matching the
+designed latched terminal-fault indication. Reconnecting `DOUT` alone does not
+leave this state; the deliberate recovery policy requires a Nano reset after
+the wiring fault is corrected.
+
+### Hardware decision
+
+The external 10 kΩ pull-up is retained as part of the prototype wiring. It
+makes a broken or disconnected `DOUT` conductor fail HIGH, which maps naturally
+to the firmware's finite no-conversion deadline. The resistor must connect to
+the common logic rail and remain physically on the microcontroller side of the
+connection being supervised.
+
+The pull-up improves detection of the HX711 digital connection. It does not
+detect every possible load-cell bridge-wire fault, prove that a recovered value
+is coherent, or replace the remaining repeated `PD_SCK` timing tests.
+
+### Internal ATmega328P pull-up alternative
+
+The same fail-high behaviour can be requested without the external resistor by
+enabling the ATmega328P's internal pull-up on D2/PD2.
+
+In a simple Arduino program:
+
+```cpp
+pinMode(LOADCELL_DOUT_PIN, INPUT_PULLUP);
+```
+
+This must remain the effective configuration after HX711 initialization. A
+driver or library that later executes `pinMode(DOUT, INPUT)` would disable the
+pull-up again.
+
+The current project already provides the portable HAL operation:
+
+```c
+hal_gpio_configure_input_pullup((hal_gpio_pin_t)pin);
+```
+
+To select the internal alternative in this repository,
+`hx711_platform_configure_input()` in `src/hx711_platform.c` would call that
+operation instead of `hal_gpio_configure_input()`. No higher HX711-driver or
+application change would be necessary. The existing backends implement it as:
+
+```cpp
+// Arduino-reference backend
+pinMode(pin, INPUT_PULLUP);
+```
+
+```c
+// Direct AVR equivalent for Nano D2 / ATmega328P PD2
+DDRD  &= (uint8_t)~(1U << DDD2);
+PORTD |= (uint8_t)(1U << PORTD2);
+```
+
+Clearing the `DDRD` bit makes PD2 an input. Setting its `PORTD` latch bit while
+it is an input enables the internal pull-up.
+
+The internal option has three relevant limitations compared with the selected
+external 10 kΩ resistor:
+
+- it is active only after software configures the GPIO;
+- reset, bootloader execution or later reconfiguration can temporarily leave
+  the pin without that pull-up;
+- its resistance is device-dependent rather than a selected 10 kΩ value.
+
+For those reasons the external resistor remains the project decision and the
+internal pull-up remains a documented alternative. The production firmware
+should not enable both merely for redundancy; leaving the internal pull-up off
+keeps the effective pull-up equal to the known external 10 kΩ value.
+
+### Later validation completed
+
+This section originally closed only the normal-measurement reconnection and
+exhausted-retry cases. Sections 39 through 42 close the remaining `v1.3`
+physical gates. Requiring several mutually coherent measurements before
+declaring recovery remains a possible `v1.4` measurement-robustness change, not
+an unrecorded requirement of this release.
+
+---
+
+## 39. Physical PD_SCK and repeated power-cycle result
+
+The production direct-AVR power-down pulse was captured on the real Nano and
+HX711 with a x10 probe, 20 MHz bandwidth limit, 50 us/div timebase and a
+positive-pulse trigger at 2.5 V.
+
+![HX711 PD_SCK power-down pulse](images/hx711-pd-sck-power-down-pulse.png)
+
+| Measurement | Result |
+|---|---:|
+| Automatic positive width | `82.49783 us` |
+| HX711 requirement | `>60 us` |
+| Stable HIGH level | `4.91458 V` |
+| Stable LOW level | `-2.083 mV` |
+
+The manual cursor capture independently places HIGH near `4.95 V` and LOW near
+`-0.03 V`:
+
+![HX711 PD_SCK level cursors](images/hx711-pd-sck-level-cursors.png)
+
+The complete fault matrix exercised at least 16 automatic HX711 power-cycle
+attempts: ordinary reconnection, exact retry exhaustion, interrupted tare,
+both calibration phases and input-boundary tests. Successful attempts returned
+to real conversions and reasonable pre-fault weights. No successful recovery
+showed a gain-scale jump, changed the active tare or factor, or enabled normal
+level indication before readiness returned.
+
+Electrical timing, levels and repeated application-path cycling: **PASS**.
+
+---
+
+## 40. Interrupted tare and calibration result
+
+### Operational tare
+
+A `1500 g` load remained on the platform while tare sampling was interrupted.
+`FAULT 05` entered recovery on attempt 1. The pre-test tare `-175517` remained
+active and was loaded again after reset. Loaded measurements changed only from
+a pre-fault mean of `1525.95 g` to a recovered mean of `1521.98 g`; removing the
+mass returned near `-5 g`. No partial offset was printed, applied or saved.
+
+### Calibration zero
+
+Calibration-zero sampling was interrupted with the reference load still in
+place. Recovery succeeded on attempt 1. The last five pre-fault readings
+averaged `1504.35 g`; all 17 recovered loaded readings before unloading
+averaged `1495.83 g` instead of becoming zero. After unloading and reset,
+factor `45.589332 counts/g` and tare `-176304` were restored. No partial
+calibration tare was committed.
+
+### Calibration mass
+
+The zero phase first completed and correctly committed tare `-176317`. The
+reference-mass collector was then interrupted. Recovery succeeded on attempt 2
+and the loaded mean remained `1548.71 g`. After unloading, the mean was
+`-2.29 g`. Reset reported no stored calibration, restored the default
+`45.589332 counts/g` factor and loaded tare `-176317`. The completed zero
+boundary remained committed while the incomplete factor was discarded.
+
+All three transactional interruption cases: **PASS**.
+
+---
+
+## 41. Recovery input-boundary result
+
+D4 and D8 were held across physical recovery boundaries, including consecutive
+recoveries that succeeded on attempts 2 and 3. Neither button produced a
+delayed tare or calibration while held, on recovery, or on later release.
+
+The serial sequence `ctq` was sent during recovery. `Recovery in progress.` was
+reported during attempts 1 and 2, the bytes were consumed immediately, and no
+command executed after recovery succeeded on attempt 2. Normal measurement
+resumed near `14-15 g`.
+
+Button suppression, UART discard and absence of replay: **PASS**.
+
+The startup-not-ready condition was physically injected during `v1.2`. Native
+`v1.3` application coverage proves that `FAULT 02` enters the same recovery FSM
+physically exercised here through runtime and sample-collection timeouts. No
+separate `FAULT 02` serial trace was retained for this release.
+
+---
+
+## 42. Final regression and acceptance result
+
+After all fault injection, serial `t` completed normally and saved tare
+`-175467`. The first five post-tare readings averaged approximately `0.66 g`.
+Serial `c` started calibration, serial `q` cancelled it without changing the
+factor, and reset loaded `-175467` with the default `45.589332 counts/g` factor.
+The first five post-reset readings averaged approximately `-1.45 g`.
+
+The final native inventory is `307` tests across `13` suites with zero
+failures. Final memory usage is:
+
+| Environment | Static SRAM | Flash |
+|---|---:|---:|
+| Direct AVR production | `230 B` | `17738 B` |
+| Arduino reference | `239 B` | `18032 B` |
+| Direct AVR watchdog validation | `231 B` | `18076 B` |
+| Arduino watchdog validation | `240 B` | `18370 B` |
+
+The milestone satisfies every functional, physical, native and build criterion.
+No further fault injection is required before integration. Full evidence and
+the release-facing acceptance table are in
+[`v1.3-fault-recovery-and-watchdog-validation.md`](v1.3-fault-recovery-and-watchdog-validation.md).
