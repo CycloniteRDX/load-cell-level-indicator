@@ -1247,7 +1247,7 @@ test_recovery_reports_power_up_failure_after_ordered_cycle(
 
 
 static void
-test_restored_offset_is_used_by_weight_reading(
+test_restored_offset_is_used_by_measurement(
     void
 )
 {
@@ -1266,46 +1266,76 @@ test_restored_offset_is_used_by_weight_reading(
         )
     );
 
-    float weight_grams = 0.0F;
+    scale_measurement_t measurement = {
+        0,
+        0,
+        0.0F
+    };
 
     TEST_ASSERT_EQUAL(
         SCALE_READ_VALUE,
-        scale_try_read_weight(
-            &weight_grams
+        scale_try_read_measurement(
+            &measurement
         )
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        0,
+        measurement.raw_counts
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        1000,
+        measurement.net_counts
     );
 
     TEST_ASSERT_FLOAT_WITHIN(
         FLOAT_COMPARISON_TOLERANCE,
         20.0F,
-        weight_grams
+        measurement.weight_grams
     );
 }
 
 
 static void
-assert_weight_is(
+assert_measurement_is(
+    int32_t expected_raw_counts,
+    int32_t expected_net_counts,
     float expected_weight,
     float tolerance
 )
 {
-    float weight_grams = 0.0F;
+    scale_measurement_t measurement = {
+        0,
+        0,
+        0.0F
+    };
 
     TEST_ASSERT_EQUAL(
         SCALE_READ_VALUE,
-        scale_try_read_weight(&weight_grams)
+        scale_try_read_measurement(&measurement)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        expected_raw_counts,
+        measurement.raw_counts
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        expected_net_counts,
+        measurement.net_counts
     );
 
     TEST_ASSERT_FLOAT_WITHIN(
         tolerance,
         expected_weight,
-        weight_grams
+        measurement.weight_grams
     );
 }
 
 
 static void
-test_weight_rejects_null_output_without_checking_ready(
+test_measurement_rejects_null_output_without_checking_ready(
     void
 )
 {
@@ -1313,7 +1343,7 @@ test_weight_rejects_null_output_without_checking_ready(
 
     TEST_ASSERT_EQUAL(
         SCALE_READ_ERROR,
-        scale_try_read_weight(NULL)
+        scale_try_read_measurement(NULL)
     );
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -1329,7 +1359,7 @@ test_weight_rejects_null_output_without_checking_ready(
 
 
 static void
-test_weight_not_ready_preserves_output_without_reading(
+test_measurement_not_ready_preserves_output_without_reading(
     void
 )
 {
@@ -1338,18 +1368,33 @@ test_weight_not_ready_preserves_output_without_reading(
     fake_hx711_driver_reset();
     fake_hx711_driver_set_ready(false);
 
-    const float sentinel = 321.75F;
-    float weight_grams = sentinel;
+    const scale_measurement_t sentinel = {
+        123456,
+        -654321,
+        321.75F
+    };
+
+    scale_measurement_t measurement = sentinel;
 
     TEST_ASSERT_EQUAL(
         SCALE_READ_NO_DATA,
-        scale_try_read_weight(&weight_grams)
+        scale_try_read_measurement(&measurement)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        sentinel.raw_counts,
+        measurement.raw_counts
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        sentinel.net_counts,
+        measurement.net_counts
     );
 
     TEST_ASSERT_FLOAT_WITHIN(
         FLOAT_COMPARISON_TOLERANCE,
-        sentinel,
-        weight_grams
+        sentinel.weight_grams,
+        measurement.weight_grams
     );
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -1365,7 +1410,7 @@ test_weight_not_ready_preserves_output_without_reading(
 
 
 static void
-test_weight_converts_positive_net_counts_to_grams(
+test_measurement_contains_raw_net_and_positive_weight(
     void
 )
 {
@@ -1388,7 +1433,9 @@ test_weight_converts_positive_net_counts_to_grams(
     const float expected_weight =
         70000.0F / 46.5F;
 
-    assert_weight_is(
+    assert_measurement_is(
+        -100000,
+        70000,
         expected_weight,
         0.001F
     );
@@ -1430,7 +1477,9 @@ test_negative_calibration_factor_reverses_weight_sign(
         )
     );
 
-    assert_weight_is(
+    assert_measurement_is(
+        455,
+        455,
         -10.0F,
         FLOAT_COMPARISON_TOLERANCE
     );
@@ -1458,7 +1507,9 @@ test_negative_net_counts_produce_negative_weight(
         )
     );
 
-    assert_weight_is(
+    assert_measurement_is(
+        545,
+        -455,
         -10.0F,
         FLOAT_COMPARISON_TOLERANCE
     );
@@ -1466,7 +1517,7 @@ test_negative_net_counts_produce_negative_weight(
 
 
 static void
-test_weight_read_error_after_ready_preserves_output(
+test_measurement_read_error_after_ready_preserves_output(
     void
 )
 {
@@ -1481,18 +1532,33 @@ test_weight_read_error_after_ready_preserves_output(
         )
     );
 
-    const float sentinel = -987.25F;
-    float weight_grams = sentinel;
+    const scale_measurement_t sentinel = {
+        -765432,
+        234567,
+        -987.25F
+    };
+
+    scale_measurement_t measurement = sentinel;
 
     TEST_ASSERT_EQUAL(
         SCALE_READ_ERROR,
-        scale_try_read_weight(&weight_grams)
+        scale_try_read_measurement(&measurement)
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        sentinel.raw_counts,
+        measurement.raw_counts
+    );
+
+    TEST_ASSERT_EQUAL_INT32(
+        sentinel.net_counts,
+        measurement.net_counts
     );
 
     TEST_ASSERT_FLOAT_WITHIN(
         FLOAT_COMPARISON_TOLERANCE,
-        sentinel,
-        weight_grams
+        sentinel.weight_grams,
+        measurement.weight_grams
     );
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -1629,21 +1695,21 @@ int main(void)
     );
 
     RUN_TEST(
-        test_restored_offset_is_used_by_weight_reading
+        test_restored_offset_is_used_by_measurement
     );
 
 
 
     RUN_TEST(
-        test_weight_rejects_null_output_without_checking_ready
+        test_measurement_rejects_null_output_without_checking_ready
     );
 
     RUN_TEST(
-        test_weight_not_ready_preserves_output_without_reading
+        test_measurement_not_ready_preserves_output_without_reading
     );
 
     RUN_TEST(
-        test_weight_converts_positive_net_counts_to_grams
+        test_measurement_contains_raw_net_and_positive_weight
     );
 
     RUN_TEST(
@@ -1655,7 +1721,7 @@ int main(void)
     );
 
     RUN_TEST(
-        test_weight_read_error_after_ready_preserves_output
+        test_measurement_read_error_after_ready_preserves_output
     );
 
     return UNITY_END();

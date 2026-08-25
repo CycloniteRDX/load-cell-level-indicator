@@ -23,6 +23,21 @@ typedef enum
 
 
 /*
+ * Values produced from one successful HX711 conversion.
+ *
+ * Keeping the raw, net and calibrated representations
+ * together prevents callers from accidentally combining
+ * values obtained from different conversions.
+ */
+typedef struct
+{
+    int32_t raw_counts;
+    int32_t net_counts;
+    float weight_grams;
+} scale_measurement_t;
+
+
+/*
  * Initializes the load-cell measurement system.
  *
  * This function only configures the HX711. It does not
@@ -113,15 +128,16 @@ bool scale_recover(void);
 
 
 /*
- * Attempts to obtain exactly one new weight measurement.
+ * Attempts to obtain exactly one new scale measurement.
  *
  * Returns immediately with SCALE_READ_NO_DATA when no
- * conversion is ready. The result is written only when
- * SCALE_READ_VALUE is returned. A driver read failure is
- * reported separately as SCALE_READ_ERROR.
+ * conversion is ready. Raw counts, net counts and grams
+ * are all derived from the same conversion. The output is
+ * written only when SCALE_READ_VALUE is returned. A driver
+ * read failure is reported separately as SCALE_READ_ERROR.
  */
-scale_read_status_t scale_try_read_weight(
-    float *weight_grams
+scale_read_status_t scale_try_read_measurement(
+    scale_measurement_t *measurement
 );
 
 

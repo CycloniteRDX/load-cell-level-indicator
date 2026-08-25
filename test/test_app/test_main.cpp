@@ -468,14 +468,14 @@ static void test_valid_stored_configuration_is_loaded_once(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     app_update();
 
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -574,7 +574,7 @@ static void test_runtime_read_error_enters_recovery_with_stable_code(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     TEST_ASSERT_EQUAL_INT(
@@ -589,6 +589,40 @@ static void test_runtime_read_error_enters_recovery_with_stable_code(void)
 
     assert_console_contains(
         "FAULT 04: HX711 conversion read failed."
+    );
+}
+
+
+static void test_runtime_measurement_passes_weight_to_level_indicator(void)
+{
+    load_configuration_with_tare(-172706);
+
+    fake_app_set_scale_measurement(
+        -102706,
+        70000,
+        1400.25F
+    );
+
+    fake_app_set_scale_read_status(
+        SCALE_READ_VALUE
+    );
+
+    app_update();
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_measurement_read_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_level_update_call_count()
+    );
+
+    TEST_ASSERT_FLOAT_WITHIN(
+        0.000001F,
+        1400.25F,
+        fake_app_last_level_weight_grams()
     );
 }
 
@@ -609,7 +643,7 @@ static void test_runtime_no_data_is_tolerated_before_timeout(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -703,7 +737,7 @@ static void test_runtime_value_wins_at_timeout_and_renews_deadline(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         3UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     assert_console_contains(
@@ -806,7 +840,7 @@ static void test_runtime_timeout_is_inactive_during_calibration_wait(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
@@ -840,7 +874,7 @@ static void test_missing_tare_selects_tare_required_and_disables_measurement(voi
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     assert_console_contains(
@@ -1238,7 +1272,7 @@ static void test_startup_recovery_loads_configuration_on_following_update(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -1269,7 +1303,7 @@ static void test_runtime_recovery_returns_to_normal_on_following_update(void)
     );
 
     const uint32_t reads_before =
-        fake_app_scale_weight_read_call_count();
+        fake_app_scale_measurement_read_call_count();
 
     fake_app_set_scale_read_status(
         SCALE_READ_NO_DATA
@@ -1278,7 +1312,7 @@ static void test_runtime_recovery_returns_to_normal_on_following_update(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         reads_before + 1UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -1304,7 +1338,7 @@ static void test_recovery_without_valid_tare_returns_to_tare_required(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -1471,7 +1505,7 @@ static void test_serial_tare_starts_incremental_collection_without_blocking(void
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     TEST_ASSERT_EQUAL_INT(
@@ -1577,7 +1611,7 @@ static void test_serial_q_cancels_before_next_sample_and_restores_normal(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -1635,7 +1669,7 @@ static void test_cancelled_tare_restores_tare_required_state(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -1708,7 +1742,7 @@ static void test_completed_tare_saves_before_applying_and_discards_save_input(vo
 
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -1963,7 +1997,7 @@ static void test_result_pattern_rejects_input_and_suppresses_holds(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     assert_console_contains(
@@ -1980,7 +2014,7 @@ static void test_result_pattern_rejects_input_and_suppresses_holds(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     app_update();
@@ -1992,7 +2026,7 @@ static void test_result_pattern_rejects_input_and_suppresses_holds(void)
 
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -2020,7 +2054,7 @@ static void test_calibration_entry_waits_for_zero_without_starting_collection(vo
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -2680,14 +2714,14 @@ static void test_calibration_save_failure_restores_previous_factor_and_exits(voi
 
     TEST_ASSERT_EQUAL_UINT32(
         0UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 
     app_update();
 
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
-        fake_app_scale_weight_read_call_count()
+        fake_app_scale_measurement_read_call_count()
     );
 }
 
@@ -2835,6 +2869,7 @@ int main(void)
     RUN_TEST(test_invalid_calibration_uses_default_with_corruption_diagnostic);
     RUN_TEST(test_calibration_storage_access_error_enters_terminal_fault);
     RUN_TEST(test_runtime_read_error_enters_recovery_with_stable_code);
+    RUN_TEST(test_runtime_measurement_passes_weight_to_level_indicator);
     RUN_TEST(test_runtime_no_data_is_tolerated_before_timeout);
     RUN_TEST(test_runtime_no_data_enters_recovery_at_exact_timeout);
     RUN_TEST(test_runtime_value_wins_at_timeout_and_renews_deadline);

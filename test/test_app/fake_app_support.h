@@ -30,6 +30,11 @@ void fake_app_set_scale_recover_result(bool result);
 void fake_app_set_scale_read_status(
     scale_read_status_t status
 );
+void fake_app_set_scale_measurement(
+    int32_t raw_counts,
+    int32_t net_counts,
+    float weight_grams
+);
 void fake_app_set_scale_collection_start_result(
     bool result
 );
@@ -49,7 +54,7 @@ uint32_t fake_app_scale_collection_start_call_count(void);
 uint32_t fake_app_scale_collection_update_call_count(void);
 uint32_t fake_app_scale_average_take_call_count(void);
 uint8_t fake_app_last_requested_sample_count(void);
-uint32_t fake_app_scale_weight_read_call_count(void);
+uint32_t fake_app_scale_measurement_read_call_count(void);
 
 
 void fake_app_set_calibration_record(
@@ -100,6 +105,8 @@ void fake_app_complete_operation_pattern(void);
 
 uint32_t fake_app_operation_indicator_update_call_count(void);
 uint32_t fake_app_level_reset_call_count(void);
+uint32_t fake_app_level_update_call_count(void);
+float fake_app_last_level_weight_grams(void);
 
 
 void fake_app_queue_console_command(char command);

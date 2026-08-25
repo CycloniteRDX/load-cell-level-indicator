@@ -17,7 +17,11 @@
 #include "hal_watchdog.h"
 
 
-static float latest_weight_grams = 0.0F;
+static scale_measurement_t latest_measurement = {
+    0,
+    0,
+    0.0F
+};
 static bool measurement_available = false;
 static bool tare_available = false;
 
@@ -1612,10 +1616,10 @@ static void process_console_commands(void)
 
 static void update_weight_measurement(void)
 {
-    float weight_grams = 0.0F;
+    scale_measurement_t measurement;
 
     const scale_read_status_t read_status =
-        scale_try_read_weight(&weight_grams);
+        scale_try_read_measurement(&measurement);
 
     if (read_status == SCALE_READ_NO_DATA)
     {
@@ -1644,11 +1648,13 @@ static void update_weight_measurement(void)
         return;
     }
 
-    latest_weight_grams = weight_grams;
+    latest_measurement = measurement;
     measurement_available = true;
     scale_runtime_activity_ms = hal_time_millis();
 
-    level_indicator_update(latest_weight_grams);
+    level_indicator_update(
+        latest_measurement.weight_grams
+    );
 }
 
 
@@ -1673,7 +1679,7 @@ static void print_weight_periodically(void)
 
     CONSOLE_PRINT("Weight: ");
     console_print_float(
-        latest_weight_grams,
+        latest_measurement.weight_grams,
         2U
     );
     CONSOLE_PRINT(" g | Level: ");
@@ -2319,7 +2325,9 @@ void app_init(void)
     level_indicator_init();
     operation_indicator_init();
 
-    latest_weight_grams = 0.0F;
+    latest_measurement.raw_counts = 0;
+    latest_measurement.net_counts = 0;
+    latest_measurement.weight_grams = 0.0F;
     measurement_available = false;
     tare_available = false;
     active_fault_code = APP_FAULT_NONE;

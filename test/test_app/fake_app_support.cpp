@@ -30,6 +30,11 @@ static bool scale_ready = false;
 static bool scale_recover_result = true;
 static scale_read_status_t scale_read_status =
     SCALE_READ_NO_DATA;
+static scale_measurement_t scale_measurement = {
+    0,
+    0,
+    0.0F
+};
 static bool scale_factor_result = true;
 static bool scale_collection_start_result = true;
 static scale_sample_collection_status_t
@@ -46,7 +51,7 @@ static uint32_t scale_collection_start_calls = 0UL;
 static uint32_t scale_collection_update_calls = 0UL;
 static uint32_t scale_average_take_calls = 0UL;
 static uint8_t last_requested_sample_count = 0U;
-static uint32_t scale_weight_read_calls = 0UL;
+static uint32_t scale_measurement_read_calls = 0UL;
 
 static float active_scale_factor = 1.0F;
 static int32_t active_scale_offset = 0;
@@ -81,6 +86,8 @@ static operation_indicator_mode_t
 
 static uint32_t operation_update_calls = 0UL;
 static uint32_t level_reset_calls = 0UL;
+static uint32_t level_update_calls = 0UL;
+static float last_level_weight_grams = 0.0F;
 
 static bool console_command_pending = false;
 static char pending_console_command = '\0';
@@ -158,6 +165,9 @@ void fake_app_reset(void)
     scale_ready = false;
     scale_recover_result = true;
     scale_read_status = SCALE_READ_NO_DATA;
+    scale_measurement.raw_counts = 0;
+    scale_measurement.net_counts = 0;
+    scale_measurement.weight_grams = 0.0F;
     scale_factor_result = true;
     scale_collection_start_result = true;
     scale_collection_status =
@@ -173,7 +183,7 @@ void fake_app_reset(void)
     scale_collection_update_calls = 0UL;
     scale_average_take_calls = 0UL;
     last_requested_sample_count = 0U;
-    scale_weight_read_calls = 0UL;
+    scale_measurement_read_calls = 0UL;
 
     active_scale_factor = 1.0F;
     active_scale_offset = 0;
@@ -203,6 +213,8 @@ void fake_app_reset(void)
         OPERATION_INDICATOR_NONE;
     operation_update_calls = 0UL;
     level_reset_calls = 0UL;
+    level_update_calls = 0UL;
+    last_level_weight_grams = 0.0F;
 
     console_command_pending = false;
     pending_console_command = '\0';
@@ -276,6 +288,18 @@ void fake_app_set_scale_read_status(
 )
 {
     scale_read_status = status;
+}
+
+
+void fake_app_set_scale_measurement(
+    int32_t raw_counts,
+    int32_t net_counts,
+    float weight_grams
+)
+{
+    scale_measurement.raw_counts = raw_counts;
+    scale_measurement.net_counts = net_counts;
+    scale_measurement.weight_grams = weight_grams;
 }
 
 
@@ -353,9 +377,9 @@ uint8_t fake_app_last_requested_sample_count(void)
 }
 
 
-uint32_t fake_app_scale_weight_read_call_count(void)
+uint32_t fake_app_scale_measurement_read_call_count(void)
 {
-    return scale_weight_read_calls;
+    return scale_measurement_read_calls;
 }
 
 
@@ -847,7 +871,8 @@ void level_indicator_reset(void)
 
 void level_indicator_update(float weight_grams)
 {
-    (void)weight_grams;
+    ++level_update_calls;
+    last_level_weight_grams = weight_grams;
 }
 
 
@@ -859,6 +884,18 @@ void level_indicator_update_visual(void)
 const char *level_indicator_get_state_name(void)
 {
     return "UNKNOWN";
+}
+
+
+uint32_t fake_app_level_update_call_count(void)
+{
+    return level_update_calls;
+}
+
+
+float fake_app_last_level_weight_grams(void)
+{
+    return last_level_weight_grams;
 }
 
 
@@ -1022,13 +1059,18 @@ bool scale_take_sample_average(
 }
 
 
-scale_read_status_t scale_try_read_weight(
-    float *weight_grams
+scale_read_status_t scale_try_read_measurement(
+    scale_measurement_t *measurement
 )
 {
-    (void)weight_grams;
+    ++scale_measurement_read_calls;
 
-    ++scale_weight_read_calls;
+    if ((scale_read_status == SCALE_READ_VALUE) &&
+        (measurement != NULL))
+    {
+        *measurement = scale_measurement;
+    }
+
     return scale_read_status;
 }
 

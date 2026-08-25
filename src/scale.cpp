@@ -208,11 +208,11 @@ bool scale_recover(void)
 }
 
 
-scale_read_status_t scale_try_read_weight(
-    float *weight_grams
+scale_read_status_t scale_try_read_measurement(
+    scale_measurement_t *measurement
 )
 {
-    if (weight_grams == NULL)
+    if (measurement == NULL)
     {
         return SCALE_READ_ERROR;
     }
@@ -243,9 +243,15 @@ scale_read_status_t scale_try_read_weight(
     const int32_t net_counts =
         raw_value - tare_offset;
 
-    *weight_grams =
+    scale_measurement_t candidate_measurement;
+
+    candidate_measurement.raw_counts = raw_value;
+    candidate_measurement.net_counts = net_counts;
+    candidate_measurement.weight_grams =
         (float)net_counts /
         current_calibration_factor;
+
+    *measurement = candidate_measurement;
 
     return SCALE_READ_VALUE;
 }
