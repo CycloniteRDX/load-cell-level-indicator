@@ -348,6 +348,22 @@ static void test_print_int32_formats_zero(void)
 }
 
 
+static void test_print_uint32_formats_zero(void)
+{
+    console_print_uint32(0U);
+
+    assert_output_is("0");
+}
+
+
+static void test_print_uint32_formats_maximum_value(void)
+{
+    console_print_uint32(UINT32_MAX);
+
+    assert_output_is("4294967295");
+}
+
+
 static void test_print_int32_formats_positive_value(void)
 {
     console_print_int32(1234567890L);
@@ -543,6 +559,8 @@ int main(
     RUN_TEST(test_console_println_macro_emits_literal_and_crlf);
     RUN_TEST(test_multiple_output_operations_are_concatenated);
 
+    RUN_TEST(test_print_uint32_formats_zero);
+    RUN_TEST(test_print_uint32_formats_maximum_value);
     RUN_TEST(test_print_int32_formats_zero);
     RUN_TEST(test_print_int32_formats_positive_value);
     RUN_TEST(test_print_int32_formats_negative_value);

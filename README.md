@@ -44,7 +44,7 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Direct AVR implementations for GPIO, Timer1, EEPROM, USART0 and watchdog control.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
 - Dedicated direct-AVR and Arduino-reference watchdog hardware-validation builds.
-- 307 native Unity tests across 13 suites.
+- 318 native Unity tests across 13 suites.
 
 ## Hardware
 
@@ -233,6 +233,7 @@ Commands are case-insensitive:
 | `s` | Save the active calibration factor |
 | `x` | Clear only the stored calibration record |
 | `z` | Clear only the stored tare record and enter `TARE_REQUIRED` |
+| `d` | Start or stop raw diagnostic data capture |
 
 No newline is required. When several bytes are pending, the application processes the first command and discards the remaining queued input.
 
@@ -240,6 +241,35 @@ Commands received while sampling or temporary result patterns are active receive
 an immediate state-specific response and are discarded, so they cannot execute
 later in a different state. `q` remains available to cancel active tare or
 calibration sampling.
+
+### Diagnostic data capture
+
+Diagnostic capture is an opt-in service mode for measurement analysis. It can
+start only during normal measurement with a valid tare and is disabled after
+every reset.
+
+Send:
+
+```text
+d
+```
+
+to start a session. The console prints one header followed by one row for every
+successful HX711 conversion:
+
+```text
+DATA,sequence,timestamp_ms,raw_counts,tare_offset,net_counts,weight_grams
+DATA,0,123456,-100000,-170000,70000,1505.500000
+```
+
+The values in each row describe the same conversion. The ordinary periodic
+`Weight: ... | Level: ...` output is suppressed while capture is active, but
+level calculation, LEDs, HX711 supervision, recovery and the watchdog continue
+normally.
+
+Send `d` again to stop the session. Starting tare or calibration, clearing the
+stored tare, entering fault handling or resetting the MCU also stops capture.
+It never restarts automatically and is not stored in EEPROM.
 
 ## Startup sequence
 
@@ -603,20 +633,20 @@ Validated test inventory:
 | `native_operation_indicator` | 18 |
 | `native_scale` | 35 |
 | `native_app_fault` | 5 |
-| `native_app` | 70 |
+| `native_app` | 79 |
 | `native_tare_record` | 20 |
 | `native_tare_storage` | 21 |
 | `native_calibration_storage` | 40 |
-| `native_console` | 43 |
+| `native_console` | 45 |
 | `native_time_delay` | 6 |
 | `native_watchdog_validation` | 6 |
-| **Total** | **307** |
+| **Total** | **318** |
 
 Validated result:
 
 ```text
 Suites passed: 13/13
-Tests passed:  307/307
+Tests passed:  318/318
 Failures:      0
 Exit code:     0
 ```

@@ -31,6 +31,19 @@ static void assert_console_contains(
 }
 
 
+static void assert_console_does_not_contain(
+    const char *unexpected_text
+)
+{
+    TEST_ASSERT_NULL(
+        strstr(
+            fake_app_console_output(),
+            unexpected_text
+        )
+    );
+}
+
+
 static void reach_configuration_state(void)
 {
     app_init();
@@ -121,6 +134,17 @@ static void start_calibration_mass_sampling(
     reach_calibration_mass_wait(tare_offset);
 
     fake_app_queue_console_command('c');
+    app_update();
+}
+
+
+static void start_diagnostic_capture(void)
+{
+    fake_app_set_scale_read_status(
+        SCALE_READ_NO_DATA
+    );
+
+    fake_app_queue_console_command('d');
     app_update();
 }
 
@@ -623,6 +647,246 @@ static void test_runtime_measurement_passes_weight_to_level_indicator(void)
         0.000001F,
         1400.25F,
         fake_app_last_level_weight_grams()
+    );
+}
+
+
+static void test_diagnostic_capture_requires_normal_measurement_and_tare(void)
+{
+    load_configuration();
+
+    fake_app_queue_console_command('d');
+    app_update();
+
+    assert_console_contains(
+        "Diagnostic capture requires normal "
+        "measurement and a valid tare."
+    );
+
+    assert_console_does_not_contain(
+        "Diagnostic capture started."
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0UL,
+        fake_app_scale_measurement_read_call_count()
+    );
+}
+
+
+static void test_diagnostic_capture_prints_coherent_rows_and_suppresses_weight(void)
+{
+    load_configuration_with_tare(-170000);
+    start_diagnostic_capture();
+
+    assert_console_contains(
+        "Diagnostic capture started."
+    );
+
+    assert_console_contains(
+        "DATA,sequence,timestamp_ms,raw_counts,"
+        "tare_offset,net_counts,weight_grams"
+    );
+
+    fake_app_set_time_ms(123456UL);
+    fake_app_set_scale_measurement(
+        -100000,
+        70000,
+        1505.5F
+    );
+    fake_app_set_scale_read_status(
+        SCALE_READ_VALUE
+    );
+
+    app_update();
+
+    assert_console_contains(
+        "DATA,0,123456,-100000,-170000,"
+        "70000,1505.500000\r\n"
+    );
+
+    fake_app_set_time_ms(UINT32_MAX);
+    fake_app_set_scale_measurement(
+        -100010,
+        69990,
+        1505.25F
+    );
+
+    app_update();
+
+    assert_console_contains(
+        "DATA,1,4294967295,-100010,-170000,"
+        "69990,1505.250000\r\n"
+    );
+
+    assert_console_does_not_contain("Weight: ");
+}
+
+
+static void test_manual_diagnostic_stop_restores_periodic_output_and_new_sequence(void)
+{
+    load_configuration_with_tare(-170000);
+    start_diagnostic_capture();
+
+    fake_app_queue_console_command('d');
+    app_update();
+
+    assert_console_contains(
+        "Diagnostic capture stopped."
+    );
+
+    fake_app_set_time_ms(1000UL);
+    fake_app_set_scale_measurement(
+        -100000,
+        70000,
+        1505.5F
+    );
+    fake_app_set_scale_read_status(
+        SCALE_READ_VALUE
+    );
+
+    app_update();
+
+    assert_console_contains(
+        "Weight: 1505.50 g | Level: UNKNOWN"
+    );
+
+    assert_console_does_not_contain(
+        "DATA,0,1000,-100000"
+    );
+
+    fake_app_queue_console_command('d');
+    app_update();
+
+    assert_console_contains(
+        "DATA,0,1000,-100000,-170000,"
+        "70000,1505.500000\r\n"
+    );
+}
+
+
+static void test_tare_stops_diagnostic_capture_before_sampling(void)
+{
+    load_configuration_with_tare(-170000);
+    start_diagnostic_capture();
+
+    fake_app_queue_console_command('t');
+    app_update();
+
+    assert_console_contains(
+        "Diagnostic capture stopped."
+    );
+
+    assert_console_contains("Taring...");
+
+    TEST_ASSERT_EQUAL_UINT32(
+        1UL,
+        fake_app_scale_collection_start_call_count()
+    );
+}
+
+
+static void test_calibration_stops_diagnostic_capture_before_zero_wait(void)
+{
+    load_configuration_with_tare(-170000);
+    start_diagnostic_capture();
+
+    fake_app_queue_console_command('c');
+    app_update();
+
+    assert_console_contains(
+        "Diagnostic capture stopped."
+    );
+
+    assert_console_contains(
+        "=== Calibration started ==="
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_CALIBRATION_ZERO,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_clearing_tare_stops_diagnostic_capture(void)
+{
+    load_configuration_with_tare(-170000);
+    start_diagnostic_capture();
+
+    fake_app_queue_console_command('z');
+    app_update();
+
+    assert_console_contains(
+        "Diagnostic capture stopped."
+    );
+
+    assert_console_contains(
+        "Stored tare offset cleared."
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_TARE_REQUIRED,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_runtime_fault_stops_diagnostic_capture_before_recovery(void)
+{
+    load_configuration_with_tare(-170000);
+    start_diagnostic_capture();
+
+    fake_app_set_scale_read_status(
+        SCALE_READ_ERROR
+    );
+
+    app_update();
+
+    assert_console_contains(
+        "Diagnostic capture stopped."
+    );
+
+    assert_console_contains(
+        "FAULT 04: HX711 conversion read failed."
+    );
+
+    TEST_ASSERT_EQUAL_INT(
+        OPERATION_INDICATOR_RECOVERY,
+        fake_app_operation_indicator_mode()
+    );
+}
+
+
+static void test_reset_disables_diagnostic_capture(void)
+{
+    fake_app_set_tare_record(true, -170000);
+    load_configuration();
+    start_diagnostic_capture();
+
+    app_init();
+    fake_app_set_scale_ready(true);
+    app_update();
+    app_update();
+
+    fake_app_set_time_ms(777UL);
+    fake_app_set_scale_measurement(
+        -100000,
+        70000,
+        1505.5F
+    );
+    fake_app_set_scale_read_status(
+        SCALE_READ_VALUE
+    );
+
+    app_update();
+
+    assert_console_does_not_contain(
+        "DATA,0,777,-100000"
+    );
+
+    assert_console_contains(
+        "Weight: 1505.50 g | Level: UNKNOWN"
     );
 }
 
@@ -2870,6 +3134,14 @@ int main(void)
     RUN_TEST(test_calibration_storage_access_error_enters_terminal_fault);
     RUN_TEST(test_runtime_read_error_enters_recovery_with_stable_code);
     RUN_TEST(test_runtime_measurement_passes_weight_to_level_indicator);
+    RUN_TEST(test_diagnostic_capture_requires_normal_measurement_and_tare);
+    RUN_TEST(test_diagnostic_capture_prints_coherent_rows_and_suppresses_weight);
+    RUN_TEST(test_manual_diagnostic_stop_restores_periodic_output_and_new_sequence);
+    RUN_TEST(test_tare_stops_diagnostic_capture_before_sampling);
+    RUN_TEST(test_calibration_stops_diagnostic_capture_before_zero_wait);
+    RUN_TEST(test_clearing_tare_stops_diagnostic_capture);
+    RUN_TEST(test_runtime_fault_stops_diagnostic_capture_before_recovery);
+    RUN_TEST(test_reset_disables_diagnostic_capture);
     RUN_TEST(test_runtime_no_data_is_tolerated_before_timeout);
     RUN_TEST(test_runtime_no_data_enters_recovery_at_exact_timeout);
     RUN_TEST(test_runtime_value_wins_at_timeout_and_renews_deadline);

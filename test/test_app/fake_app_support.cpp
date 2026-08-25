@@ -834,6 +834,21 @@ void console_print_int32(int32_t value)
 }
 
 
+void console_print_uint32(uint32_t value)
+{
+    char buffer[16];
+
+    snprintf(
+        buffer,
+        sizeof(buffer),
+        "%lu",
+        (unsigned long)value
+    );
+
+    append_console_text(buffer);
+}
+
+
 void console_print_float(
     float value,
     uint8_t decimal_places

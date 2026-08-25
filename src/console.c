@@ -29,7 +29,7 @@ static void console_write_character(
 }
 
 
-static void console_print_uint32(
+void console_print_uint32(
     uint32_t value
 )
 {

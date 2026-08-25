@@ -131,9 +131,9 @@ This first log suggests:
 - real transient readings and overshoot during mass placement and removal;
 - no HX711 timeout, recovery, terminal fault or obvious saturation event.
 
-These conclusions are provisional because the existing one-second human-readable
-output contains only occasional weight snapshots. It does not expose every raw
-HX711 conversion or preserve exact sample timing.
+These conclusions are provisional because the existing human-readable output,
+printed every `500 ms`, contains only occasional weight snapshots. It does not
+expose every raw HX711 conversion or preserve exact sample timing.
 
 ---
 
@@ -191,12 +191,11 @@ selected:
 The first firmware change after this document should expose the information from
 each successful HX711 conversion before any new filter is introduced.
 
-The normal measurement path currently reads a raw value inside `scale`, converts
-it to grams and returns only the floating-point weight. The application therefore
-cannot record the raw or net counts without changing the scale interface.
+The earlier normal measurement path read a raw value inside `scale`, converted
+it to grams and returned only the floating-point weight. The first code commit
+of this milestone replaced that result with one coherent measurement object.
 
-The preferred direction is to return one coherent measurement object containing
-all values derived from the same conversion. A provisional representation is:
+The implemented representation is:
 
 ```c
 typedef struct
@@ -207,17 +206,16 @@ typedef struct
 } scale_measurement_t;
 ```
 
-The final interface name and migration details will be decided in the
-implementation commit. The important invariant is that diagnostics must not read
-the HX711 a second time. Raw counts, net counts and grams must describe one and
-the same conversion.
+`scale_try_read_measurement()` fills this object only after one successful
+conversion. The diagnostic path does not read the HX711 a second time. Raw
+counts, net counts and grams therefore describe one and the same conversion.
 
 ### 6.2 Opt-in mode
 
-Raw capture should be controlled by a service-console command and disabled after
-every reset.
+Raw capture is controlled by a service-console command and disabled after every
+reset.
 
-A provisional command is:
+The command is:
 
 ```text
 d = toggle diagnostic data capture
@@ -227,17 +225,21 @@ While diagnostic capture is enabled:
 
 - each successful normal-operation conversion produces one machine-readable
   record;
-- the ordinary one-second `Weight: ... | Level: ...` line is suppressed to avoid
+- the ordinary periodic `Weight: ... | Level: ...` line is suppressed to avoid
   mixing formats;
 - level calculation and LED operation continue normally;
 - HX711 supervision, recovery and watchdog behaviour remain unchanged;
 - no setting is written to EEPROM;
 - busy-state input policies remain explicit;
-- leaving normal operation because of a fault, tare or calibration stops or
-  suspends capture according to a documented rule.
+- starting tare or calibration stops capture before the operation begins;
+- clearing the stored tare stops capture before entering `TARE_REQUIRED`;
+- entering fault handling stops capture before printing the fault diagnostic;
+- completing, cancelling or recovering from an operation does not restart
+  capture automatically.
 
-The exact start, stop and busy-state semantics must be covered by application
-tests before hardware capture begins.
+Capture can start only during normal measurement with a valid tare. Sending `d`
+again stops it explicitly. Every new capture session resets the sequence number
+to zero. Native application tests cover these start, stop and reset semantics.
 
 ### 6.3 Record format
 
@@ -250,7 +252,7 @@ DATA,sequence,timestamp_ms,raw_counts,tare_offset,net_counts,weight_grams
 Example:
 
 ```text
-DATA,1842,237510,-96894,-166841,69947,1500.80
+DATA,1842,237510,-96894,-166841,69947,1500.800000
 ```
 
 Fields:
@@ -268,8 +270,8 @@ The header should be printed once when capture starts. Data rows should use no
 localized decimal commas so common spreadsheet and scripting tools can parse
 them reliably.
 
-The sequence counter may wrap naturally as an unsigned fixed-width integer. A
-new capture session may restart it at zero if that behaviour is documented.
+The sequence counter wraps naturally as an unsigned 32-bit integer. Every new
+capture session restarts it at zero.
 
 ### 6.4 Serial bandwidth
 
@@ -533,4 +535,3 @@ The milestone is complete only when:
 - the stable result is integrated and tagged;
 - the separate study repository is updated only after the production milestone
   is stable.
-

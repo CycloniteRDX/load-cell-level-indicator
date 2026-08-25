@@ -100,6 +100,14 @@ void console_println_progmem(
 
 
 /*
+ * Prints an unsigned 32-bit integer in decimal notation.
+ */
+void console_print_uint32(
+    uint32_t value
+);
+
+
+/*
  * Prints a signed 32-bit integer in decimal notation.
  */
 void console_print_int32(

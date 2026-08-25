@@ -1,5 +1,6 @@
 
 #include <math.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "app.h"
@@ -38,6 +39,9 @@ static button_t tare_button;
 static button_t calibration_button;
 
 static uint32_t last_print_ms = 0;
+
+static bool diagnostic_capture_active = false;
+static uint32_t diagnostic_sequence = 0UL;
 
 
 /*
@@ -82,6 +86,87 @@ static app_state_t tare_return_state =
  */
 static app_state_t state_after_result =
     APP_STATE_TARE_REQUIRED;
+
+
+static void stop_diagnostic_capture(void)
+{
+    if (!diagnostic_capture_active)
+    {
+        return;
+    }
+
+    diagnostic_capture_active = false;
+    last_print_ms = hal_time_millis();
+
+    console_newline();
+    CONSOLE_PRINTLN("Diagnostic capture stopped.");
+    console_newline();
+}
+
+
+static void toggle_diagnostic_capture(void)
+{
+    if (diagnostic_capture_active)
+    {
+        stop_diagnostic_capture();
+        return;
+    }
+
+    if ((app_state != APP_STATE_NORMAL_OPERATION) ||
+        !tare_available)
+    {
+        console_newline();
+        CONSOLE_PRINTLN(
+            "Diagnostic capture requires normal "
+            "measurement and a valid tare."
+        );
+        console_newline();
+        return;
+    }
+
+    diagnostic_capture_active = true;
+    diagnostic_sequence = 0UL;
+    last_print_ms = hal_time_millis();
+
+    console_newline();
+    CONSOLE_PRINTLN("Diagnostic capture started.");
+    CONSOLE_PRINTLN(
+        "DATA,sequence,timestamp_ms,raw_counts,"
+        "tare_offset,net_counts,weight_grams"
+    );
+}
+
+
+static void print_diagnostic_measurement(
+    const scale_measurement_t *measurement,
+    uint32_t timestamp_ms
+)
+{
+    if (!diagnostic_capture_active ||
+        (measurement == NULL))
+    {
+        return;
+    }
+
+    CONSOLE_PRINT("DATA,");
+    console_print_uint32(diagnostic_sequence);
+    CONSOLE_PRINT(",");
+    console_print_uint32(timestamp_ms);
+    CONSOLE_PRINT(",");
+    console_print_int32(measurement->raw_counts);
+    CONSOLE_PRINT(",");
+    console_print_int32(scale_get_offset());
+    CONSOLE_PRINT(",");
+    console_print_int32(measurement->net_counts);
+    CONSOLE_PRINT(",");
+    console_print_float(
+        measurement->weight_grams,
+        6U
+    );
+    console_newline();
+
+    ++diagnostic_sequence;
+}
 
 
 static void print_reset_causes(void)
@@ -324,6 +409,8 @@ static void enter_fault_state(
     app_fault_code_t fault_code
 )
 {
+    stop_diagnostic_capture();
+
     active_fault_code =
         app_fault_normalize_code(fault_code);
 
@@ -499,6 +586,8 @@ static void cancel_tare(void)
 
 static void start_tare(void)
 {
+    stop_diagnostic_capture();
+
     tare_return_state =
         get_idle_application_state();
 
@@ -773,6 +862,8 @@ static void clear_stored_tare(void)
         return;
     }
 
+    stop_diagnostic_capture();
+
     /*
      * A persisted tare no longer exists, so normal
      * measurement must stop immediately.
@@ -827,6 +918,8 @@ static bool calibration_is_active(void)
 
 static void start_calibration(void)
 {
+    stop_diagnostic_capture();
+
     measurement_available = false;
     level_indicator_reset();
 
@@ -1598,6 +1691,11 @@ static void process_console_commands(void)
 
             break;
 
+        case 'd':
+        case 'D':
+            toggle_diagnostic_capture();
+            break;
+
         default:
             CONSOLE_PRINTLN("Unknown command.");
             CONSOLE_PRINTLN("Available commands:");
@@ -1609,6 +1707,7 @@ static void process_console_commands(void)
             CONSOLE_PRINTLN("  s = save active calibration");
             CONSOLE_PRINTLN("  x = clear stored calibration");
             CONSOLE_PRINTLN("  z = clear stored tare");
+            CONSOLE_PRINTLN("  d = toggle diagnostic capture");
             break;
     }
 }
@@ -1650,16 +1749,30 @@ static void update_weight_measurement(void)
 
     latest_measurement = measurement;
     measurement_available = true;
-    scale_runtime_activity_ms = hal_time_millis();
+
+    const uint32_t measurement_time_ms =
+        hal_time_millis();
+
+    scale_runtime_activity_ms = measurement_time_ms;
 
     level_indicator_update(
         latest_measurement.weight_grams
+    );
+
+    print_diagnostic_measurement(
+        &latest_measurement,
+        measurement_time_ms
     );
 }
 
 
 static void print_weight_periodically(void)
 {
+    if (diagnostic_capture_active)
+    {
+        return;
+    }
+
     const uint32_t now = hal_time_millis();
 
     if ((now - last_print_ms) < PRINT_PERIOD_MS)
@@ -1714,6 +1827,10 @@ static void print_runtime_information(void)
 
     CONSOLE_PRINTLN(
         "  Serial command 'q'    = cancel current tare/calibration"
+    );
+
+    CONSOLE_PRINTLN(
+        "  Serial command 'd'    = toggle diagnostic capture"
     );
 
     CONSOLE_PRINTLN(
@@ -2337,6 +2454,8 @@ void app_init(void)
     scale_runtime_activity_ms = 0UL;
 
     last_print_ms = 0UL;
+    diagnostic_capture_active = false;
+    diagnostic_sequence = 0UL;
     operation_started_ms = hal_time_millis();
 
     tare_return_state =
