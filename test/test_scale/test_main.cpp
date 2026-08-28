@@ -2,8 +2,7 @@
 
 #include <unity.h>
 
-#include "config.h"
-#include "fake_hx711_driver.h"
+#include "fake_scale_adc.h"
 #include "scale.h"
 
 
@@ -19,7 +18,7 @@ static const int32_t
 
 void setUp(void)
 {
-    fake_hx711_driver_reset();
+    fake_scale_adc_reset();
     scale_cancel_sample_collection();
 }
 
@@ -39,8 +38,8 @@ static void push_constant_readings(
          ++sample)
     {
         TEST_ASSERT_TRUE(
-            fake_hx711_driver_push_reading(
-                HX711_STATUS_OK,
+            fake_scale_adc_push_reading(
+                SCALE_ADC_STATUS_OK,
                 raw_value
             )
         );
@@ -52,7 +51,7 @@ static void
 push_successful_readings_before_error(
     uint8_t successful_reading_count,
     int32_t raw_value,
-    hx711_status_t error_status
+    scale_adc_status_t error_status
 )
 {
     push_constant_readings(
@@ -61,7 +60,7 @@ push_successful_readings_before_error(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
+        fake_scale_adc_push_reading(
             error_status,
             0
         )
@@ -109,7 +108,7 @@ static void assert_calibration_factor_is(
 
 
 static void
-test_scale_init_uses_configured_pins_without_waiting(
+test_scale_init_calls_adc_without_polling_or_reading(
     void
 )
 {
@@ -117,45 +116,45 @@ test_scale_init_uses_configured_pins_without_waiting(
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_init_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT8(
-        LOADCELL_DOUT_PIN,
-        fake_hx711_driver_get_last_data_pin()
-    );
-
-    TEST_ASSERT_EQUAL_UINT8(
-        LOADCELL_SCK_PIN,
-        fake_hx711_driver_get_last_clock_pin()
+        fake_scale_adc_get_init_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_wait_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_scale_adc_get_read_raw_call_count()
     );
 }
 
 
 static void
-test_scale_init_failure_skips_wait_ready(
+test_scale_init_failure_skips_other_adc_activity(
     void
 )
 {
-    fake_hx711_driver_set_init_status(
-        HX711_STATUS_INVALID_ARGUMENT
+    fake_scale_adc_set_init_status(
+        SCALE_ADC_STATUS_ERROR
     );
 
     TEST_ASSERT_FALSE(scale_init());
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_init_call_count()
+        fake_scale_adc_get_init_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_wait_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
+    );
+
+    TEST_ASSERT_EQUAL_UINT32(
+        0U,
+        fake_scale_adc_get_read_raw_call_count()
     );
 }
 
@@ -167,28 +166,23 @@ test_scale_is_ready_forwards_current_ready_state(
 {
     TEST_ASSERT_TRUE(scale_init());
 
-    fake_hx711_driver_reset();
-    fake_hx711_driver_set_ready(false);
+    fake_scale_adc_reset();
+    fake_scale_adc_set_ready(false);
 
     TEST_ASSERT_FALSE(scale_is_ready());
 
-    fake_hx711_driver_set_ready(true);
+    fake_scale_adc_set_ready(true);
 
     TEST_ASSERT_TRUE(scale_is_ready());
 
     TEST_ASSERT_EQUAL_UINT32(
         2U,
-        fake_hx711_driver_get_is_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_wait_ready_call_count()
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
-        0U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 }
 
@@ -212,14 +206,14 @@ test_successful_reinitialization_resets_scale_state(
 
 
 static void
-test_hx711_init_failure_preserves_scale_state(
+test_adc_init_failure_preserves_scale_state(
     void
 )
 {
     establish_non_default_scale_state();
 
-    fake_hx711_driver_set_init_status(
-        HX711_STATUS_INVALID_ARGUMENT
+    fake_scale_adc_set_init_status(
+        SCALE_ADC_STATUS_ERROR
     );
 
     TEST_ASSERT_FALSE(scale_init());
@@ -235,12 +229,12 @@ test_hx711_init_failure_preserves_scale_state(
 
     TEST_ASSERT_EQUAL_UINT32(
         2U,
-        fake_hx711_driver_get_init_call_count()
+        fake_scale_adc_get_init_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_wait_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 }
 
@@ -257,8 +251,8 @@ test_failed_reinitialization_preserves_collector_progress(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             100
         )
     );
@@ -268,8 +262,8 @@ test_failed_reinitialization_preserves_collector_progress(
         scale_update_sample_collection()
     );
 
-    fake_hx711_driver_set_init_status(
-        HX711_STATUS_INVALID_ARGUMENT
+    fake_scale_adc_set_init_status(
+        SCALE_ADC_STATUS_ERROR
     );
 
     TEST_ASSERT_FALSE(scale_init());
@@ -279,8 +273,8 @@ test_failed_reinitialization_preserves_collector_progress(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             300
         )
     );
@@ -315,8 +309,8 @@ test_successful_reinitialization_discards_collector_progress(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             100
         )
     );
@@ -361,12 +355,12 @@ test_collector_rejects_zero_samples_and_idle_result_take(
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_is_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 }
 
@@ -378,7 +372,7 @@ test_not_ready_update_keeps_collection_in_progress(
 {
     TEST_ASSERT_TRUE(scale_init());
 
-    fake_hx711_driver_set_ready(false);
+    fake_scale_adc_set_ready(false);
 
     TEST_ASSERT_TRUE(
         scale_start_sample_collection(1U)
@@ -391,19 +385,19 @@ test_not_ready_update_keeps_collection_in_progress(
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_is_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 
-    fake_hx711_driver_set_ready(true);
+    fake_scale_adc_set_ready(true);
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             4321
         )
     );
@@ -445,8 +439,8 @@ test_each_update_reads_at_most_one_sample_and_truncates_average(
          ++index)
     {
         TEST_ASSERT_TRUE(
-            fake_hx711_driver_push_reading(
-                HX711_STATUS_OK,
+            fake_scale_adc_push_reading(
+                SCALE_ADC_STATUS_OK,
                 readings[index]
             )
         );
@@ -473,7 +467,7 @@ test_each_update_reads_at_most_one_sample_and_truncates_average(
 
         TEST_ASSERT_EQUAL_UINT32(
             (uint32_t)update_index + 1U,
-            fake_hx711_driver_get_read_raw_call_count()
+            fake_scale_adc_get_read_raw_call_count()
         );
     }
 
@@ -484,12 +478,12 @@ test_each_update_reads_at_most_one_sample_and_truncates_average(
 
     TEST_ASSERT_EQUAL_UINT32(
         4U,
-        fake_hx711_driver_get_is_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         4U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 
     int32_t average_raw = 0;
@@ -521,8 +515,8 @@ test_new_collection_requires_idle_collector(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             250
         )
     );
@@ -558,8 +552,8 @@ test_completed_result_rejects_null_output_and_remains_available(
     TEST_ASSERT_TRUE(scale_init());
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             -765
         )
     );
@@ -619,13 +613,13 @@ test_read_errors_are_sticky_at_first_middle_and_final_sample(
          scenario < 3U;
          ++scenario)
     {
-        fake_hx711_driver_reset();
+        fake_scale_adc_reset();
         scale_cancel_sample_collection();
 
         push_successful_readings_before_error(
             successful_before_error[scenario],
             5000,
-            HX711_STATUS_TIMEOUT
+            SCALE_ADC_STATUS_ERROR
         );
 
         TEST_ASSERT_TRUE(
@@ -655,7 +649,7 @@ test_read_errors_are_sticky_at_first_middle_and_final_sample(
 
         TEST_ASSERT_EQUAL_UINT32(
             read_count_after_error,
-            fake_hx711_driver_get_read_raw_call_count()
+            fake_scale_adc_get_read_raw_call_count()
         );
 
         TEST_ASSERT_EQUAL(
@@ -665,7 +659,7 @@ test_read_errors_are_sticky_at_first_middle_and_final_sample(
 
         TEST_ASSERT_EQUAL_UINT32(
             read_count_after_error,
-            fake_hx711_driver_get_read_raw_call_count()
+            fake_scale_adc_get_read_raw_call_count()
         );
 
         TEST_ASSERT_FALSE(
@@ -698,8 +692,8 @@ test_cancellation_returns_partial_complete_and_error_to_idle(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             100
         )
     );
@@ -716,8 +710,8 @@ test_cancellation_returns_partial_complete_and_error_to_idle(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             200
         )
     );
@@ -734,8 +728,8 @@ test_cancellation_returns_partial_complete_and_error_to_idle(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_TIMEOUT,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_ERROR,
             0
         )
     );
@@ -765,15 +759,15 @@ test_collector_returns_raw_average_without_applying_tare(
     scale_set_offset(1000);
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             1200
         )
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             1300
         )
     );
@@ -811,18 +805,18 @@ test_collector_returns_raw_average_without_applying_tare(
 
 
 static void
-test_positive_hx711_limit_collector_does_not_overflow(
+test_positive_adc_limit_collector_does_not_overflow(
     void
 )
 {
     TEST_ASSERT_TRUE(scale_init());
 
     const uint8_t sample_count = UINT8_MAX;
-    const int32_t maximum_hx711_value = 8388607;
+    const int32_t maximum_adc_value = 8388607;
 
     push_constant_readings(
         sample_count,
-        maximum_hx711_value
+        maximum_adc_value
     );
 
     TEST_ASSERT_TRUE(
@@ -843,25 +837,25 @@ test_positive_hx711_limit_collector_does_not_overflow(
     );
 
     TEST_ASSERT_EQUAL_INT32(
-        maximum_hx711_value,
+        maximum_adc_value,
         average_raw
     );
 }
 
 
 static void
-test_negative_hx711_limit_collector_does_not_overflow(
+test_negative_adc_limit_collector_does_not_overflow(
     void
 )
 {
     TEST_ASSERT_TRUE(scale_init());
 
     const uint8_t sample_count = UINT8_MAX;
-    const int32_t minimum_hx711_value = -8388608;
+    const int32_t minimum_adc_value = -8388608;
 
     push_constant_readings(
         sample_count,
-        minimum_hx711_value
+        minimum_adc_value
     );
 
     TEST_ASSERT_TRUE(
@@ -882,7 +876,7 @@ test_negative_hx711_limit_collector_does_not_overflow(
     );
 
     TEST_ASSERT_EQUAL_INT32(
-        minimum_hx711_value,
+        minimum_adc_value,
         average_raw
     );
 }
@@ -1045,7 +1039,7 @@ test_scale_set_offset_accepts_zero_positive_and_negative_values(
 {
     TEST_ASSERT_TRUE(scale_init());
 
-    fake_hx711_driver_reset();
+    fake_scale_adc_reset();
 
     scale_set_offset(0);
 
@@ -1070,7 +1064,7 @@ test_scale_set_offset_accepts_zero_positive_and_negative_values(
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 }
 
@@ -1110,8 +1104,8 @@ test_recovery_cycles_power_in_order_and_preserves_state(
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             5000
         )
     );
@@ -1125,16 +1119,16 @@ test_recovery_cycles_power_in_order_and_preserves_state(
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_power_down_call_count()
+        fake_scale_adc_get_power_down_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_power_up_call_count()
+        fake_scale_adc_get_power_up_call_count()
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_power_down_preceded_power_up()
+        fake_scale_adc_power_down_preceded_power_up()
     );
 
     TEST_ASSERT_EQUAL_INT32(
@@ -1165,20 +1159,20 @@ test_recovery_stops_when_power_down_fails(
         scale_start_sample_collection(1U)
     );
 
-    fake_hx711_driver_set_power_down_status(
-        HX711_STATUS_TIMEOUT
+    fake_scale_adc_set_power_down_status(
+        SCALE_ADC_STATUS_ERROR
     );
 
     TEST_ASSERT_FALSE(scale_recover());
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_power_down_call_count()
+        fake_scale_adc_get_power_down_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_power_up_call_count()
+        fake_scale_adc_get_power_up_call_count()
     );
 
     TEST_ASSERT_EQUAL_INT32(
@@ -1209,24 +1203,24 @@ test_recovery_reports_power_up_failure_after_ordered_cycle(
         scale_start_sample_collection(1U)
     );
 
-    fake_hx711_driver_set_power_up_status(
-        HX711_STATUS_TIMEOUT
+    fake_scale_adc_set_power_up_status(
+        SCALE_ADC_STATUS_ERROR
     );
 
     TEST_ASSERT_FALSE(scale_recover());
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_power_down_call_count()
+        fake_scale_adc_get_power_down_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_power_up_call_count()
+        fake_scale_adc_get_power_up_call_count()
     );
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_power_down_preceded_power_up()
+        fake_scale_adc_power_down_preceded_power_up()
     );
 
     TEST_ASSERT_EQUAL_INT32(
@@ -1260,8 +1254,8 @@ test_restored_offset_is_used_by_measurement(
     scale_set_offset(-1000);
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             0
         )
     );
@@ -1348,12 +1342,12 @@ test_measurement_rejects_null_output_without_checking_ready(
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_is_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 }
 
@@ -1365,8 +1359,8 @@ test_measurement_not_ready_preserves_output_without_reading(
 {
     TEST_ASSERT_TRUE(scale_init());
 
-    fake_hx711_driver_reset();
-    fake_hx711_driver_set_ready(false);
+    fake_scale_adc_reset();
+    fake_scale_adc_set_ready(false);
 
     const scale_measurement_t sentinel = {
         123456,
@@ -1399,12 +1393,12 @@ test_measurement_not_ready_preserves_output_without_reading(
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_is_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         0U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 }
 
@@ -1421,11 +1415,11 @@ test_measurement_contains_raw_net_and_positive_weight(
         scale_set_calibration_factor(46.5F)
     );
 
-    fake_hx711_driver_reset();
+    fake_scale_adc_reset();
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             -100000
         )
     );
@@ -1442,17 +1436,17 @@ test_measurement_contains_raw_net_and_positive_weight(
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_is_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT16(
         1U,
-        fake_hx711_driver_get_consumed_reading_count()
+        fake_scale_adc_get_consumed_reading_count()
     );
 }
 
@@ -1468,11 +1462,11 @@ test_negative_calibration_factor_reverses_weight_sign(
         scale_set_calibration_factor(-45.5F)
     );
 
-    fake_hx711_driver_reset();
+    fake_scale_adc_reset();
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             455
         )
     );
@@ -1498,11 +1492,11 @@ test_negative_net_counts_produce_negative_weight(
         scale_set_calibration_factor(45.5F)
     );
 
-    fake_hx711_driver_reset();
+    fake_scale_adc_reset();
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_OK,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_OK,
             545
         )
     );
@@ -1523,11 +1517,11 @@ test_measurement_read_error_after_ready_preserves_output(
 {
     TEST_ASSERT_TRUE(scale_init());
 
-    fake_hx711_driver_reset();
+    fake_scale_adc_reset();
 
     TEST_ASSERT_TRUE(
-        fake_hx711_driver_push_reading(
-            HX711_STATUS_TIMEOUT,
+        fake_scale_adc_push_reading(
+            SCALE_ADC_STATUS_ERROR,
             0
         )
     );
@@ -1563,17 +1557,17 @@ test_measurement_read_error_after_ready_preserves_output(
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_is_ready_call_count()
+        fake_scale_adc_get_is_ready_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT32(
         1U,
-        fake_hx711_driver_get_read_raw_call_count()
+        fake_scale_adc_get_read_raw_call_count()
     );
 
     TEST_ASSERT_EQUAL_UINT16(
         1U,
-        fake_hx711_driver_get_consumed_reading_count()
+        fake_scale_adc_get_consumed_reading_count()
     );
 }
 
@@ -1583,11 +1577,11 @@ int main(void)
     UNITY_BEGIN();
 
     RUN_TEST(
-        test_scale_init_uses_configured_pins_without_waiting
+        test_scale_init_calls_adc_without_polling_or_reading
     );
 
     RUN_TEST(
-        test_scale_init_failure_skips_wait_ready
+        test_scale_init_failure_skips_other_adc_activity
     );
 
     RUN_TEST(
@@ -1599,7 +1593,7 @@ int main(void)
     );
 
     RUN_TEST(
-        test_hx711_init_failure_preserves_scale_state
+        test_adc_init_failure_preserves_scale_state
     );
 
     RUN_TEST(
@@ -1643,11 +1637,11 @@ int main(void)
     );
 
     RUN_TEST(
-        test_positive_hx711_limit_collector_does_not_overflow
+        test_positive_adc_limit_collector_does_not_overflow
     );
 
     RUN_TEST(
-        test_negative_hx711_limit_collector_does_not_overflow
+        test_negative_adc_limit_collector_does_not_overflow
     );
 
     RUN_TEST(

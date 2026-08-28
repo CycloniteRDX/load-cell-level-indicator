@@ -23,7 +23,7 @@ typedef enum
 
 
 /*
- * Values produced from one successful HX711 conversion.
+ * Values produced from one successful ADC conversion.
  *
  * Keeping the raw, net and calibrated representations
  * together prevents callers from accidentally combining
@@ -40,7 +40,7 @@ typedef struct
 /*
  * Initializes the load-cell measurement system.
  *
- * This function only configures the HX711. It does not
+ * This function only configures the selected ADC. It does not
  * wait for the first conversion to become ready.
  *
  * Returns true when the device was configured.
@@ -49,7 +49,7 @@ bool scale_init(void);
 
 
 /*
- * Returns true when the HX711 has a conversion ready.
+ * Returns true when the selected ADC has a conversion ready.
  */
 bool scale_is_ready(void);
 
@@ -90,7 +90,7 @@ bool scale_start_sample_collection(
 
 /*
  * Advances an incremental collection by at most one
- * ready HX711 conversion and returns its current state.
+ * ready ADC conversion and returns its current state.
  */
 scale_sample_collection_status_t
 scale_update_sample_collection(void);
@@ -116,7 +116,7 @@ void scale_cancel_sample_collection(void);
 
 
 /*
- * Performs one bounded HX711 power-down/power-up cycle.
+ * Performs one bounded ADC power-down/power-up cycle.
  *
  * Any active sample collection is cancelled before the
  * cycle begins. The current tare offset and calibration

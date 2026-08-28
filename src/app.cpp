@@ -131,6 +131,10 @@ static void toggle_diagnostic_capture(void)
     console_newline();
     CONSOLE_PRINTLN("Diagnostic capture started.");
     CONSOLE_PRINTLN(
+        "Measurement backend: "
+        SCALE_ADC_NAME_LITERAL
+    );
+    CONSOLE_PRINTLN(
         "DATA,sequence,timestamp_ms,raw_counts,"
         "tare_offset,net_counts,weight_grams"
     );
@@ -308,31 +312,36 @@ static void print_fault_diagnostic(void)
     {
         case APP_FAULT_HX711_INITIALIZATION:
             CONSOLE_PRINTLN(
-                "HX711 initialization failed."
+                SCALE_ADC_NAME_LITERAL
+                " initialization failed."
             );
             break;
 
         case APP_FAULT_HX711_STARTUP_TIMEOUT:
             CONSOLE_PRINTLN(
-                "HX711 startup conversion timeout."
+                SCALE_ADC_NAME_LITERAL
+                " startup conversion timeout."
             );
             break;
 
         case APP_FAULT_HX711_RUNTIME_TIMEOUT:
             CONSOLE_PRINTLN(
-                "HX711 runtime conversion timeout."
+                SCALE_ADC_NAME_LITERAL
+                " runtime conversion timeout."
             );
             break;
 
         case APP_FAULT_HX711_READ:
             CONSOLE_PRINTLN(
-                "HX711 conversion read failed."
+                SCALE_ADC_NAME_LITERAL
+                " conversion read failed."
             );
             break;
 
         case APP_FAULT_SAMPLE_COLLECTION_TIMEOUT:
             CONSOLE_PRINTLN(
-                "HX711 sample collection timeout."
+                SCALE_ADC_NAME_LITERAL
+                " sample collection timeout."
             );
             break;
 
@@ -1805,6 +1814,11 @@ static void print_weight_periodically(void)
 static void print_runtime_information(void)
 {
     console_newline();
+    CONSOLE_PRINTLN(
+        "Measurement backend: "
+        SCALE_ADC_NAME_LITERAL
+    );
+    console_newline();
     CONSOLE_PRINTLN("Controls:");
     CONSOLE_PRINTLN(
         "  Hold button on D4 for 3 s = tare"
@@ -1864,7 +1878,9 @@ static void print_runtime_information(void)
     );
 
     CONSOLE_PRINTLN(
-        " LOW/HIGH alternating = HX711 recovery"
+        " LOW/HIGH alternating = "
+        SCALE_ADC_NAME_LITERAL
+        " recovery"
     );
 
     console_newline();
@@ -1996,7 +2012,10 @@ static void finish_successful_scale_recovery(void)
 
     operation_indicator_clear();
 
-    CONSOLE_PRINTLN("HX711 recovery succeeded.");
+    CONSOLE_PRINTLN(
+        SCALE_ADC_NAME_LITERAL
+        " recovery succeeded."
+    );
     CONSOLE_PRINTLN(
         "Previous tare and calibration remain active."
     );
@@ -2074,7 +2093,8 @@ static void update_fault_recovery_backoff(void)
     fault_recovery_phase_started_ms = now;
 
     CONSOLE_PRINTLN(
-        "HX711 power cycle completed. Waiting for a conversion."
+        SCALE_ADC_NAME_LITERAL
+        " power cycle completed. Waiting for a conversion."
     );
 }
 
@@ -2099,7 +2119,8 @@ static void update_fault_recovery_wait_for_scale(void)
     }
 
     CONSOLE_PRINTLN(
-        "HX711 did not become ready after recovery."
+        SCALE_ADC_NAME_LITERAL
+        " did not become ready after recovery."
     );
 
     schedule_next_recovery_attempt(now);
@@ -2209,6 +2230,18 @@ static void load_startup_configuration(void)
             );
             return;
     }
+
+#if SCALE_ADC_BACKEND == SCALE_ADC_BACKEND_ADS1232
+
+    if (calibration_load_status != STORAGE_LOAD_VALID)
+    {
+        CONSOLE_PRINTLN(
+            "ADS1232 calibration is required before "
+            "weight values are meaningful."
+        );
+    }
+
+#endif
 
     if (!scale_set_calibration_factor(
             calibration_factor))
@@ -2484,7 +2517,9 @@ void app_init(void)
     operation_started_ms = hal_time_millis();
 
     CONSOLE_PRINTLN(
-        "Waiting for the first HX711 conversion..."
+        "Waiting for the first "
+        SCALE_ADC_NAME_LITERAL
+        " conversion..."
     );
 }
 

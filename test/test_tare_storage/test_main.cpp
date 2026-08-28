@@ -142,17 +142,13 @@ static void test_layout_assigns_non_overlapping_regions(
 )
 {
     TEST_ASSERT_EQUAL_UINT32(
-        0U,
-        CALIBRATION_STORAGE_ADDRESS
-    );
-
-    TEST_ASSERT_EQUAL_UINT32(
+        CALIBRATION_STORAGE_ADDRESS +
         CALIBRATION_RECORD_SIZE,
         TARE_STORAGE_ADDRESS
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        CALIBRATION_RECORD_SIZE +
+        TARE_STORAGE_ADDRESS +
         TARE_RECORD_SIZE,
         STORAGE_LAYOUT_REQUIRED_CAPACITY
     );

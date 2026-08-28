@@ -3,11 +3,26 @@
 
 #include <stdint.h>
 
+#include "scale_adc_backend.h"
+
 /*
  * HX711 connections.
  */
-static const uint8_t LOADCELL_DOUT_PIN = 2U;
-static const uint8_t LOADCELL_SCK_PIN = 3U;
+static const uint8_t HX711_DOUT_PIN = 2U;
+static const uint8_t HX711_SCK_PIN = 3U;
+
+/*
+ * ADS1232 connections.
+ *
+ * Nano A0 and A1 are used as digital pins 14 and 15.
+ * Module A0 (channel select) and SPEED remain strapped
+ * to GND and are not microcontroller connections.
+ */
+static const uint8_t ADS1232_DOUT_PIN = 2U;
+static const uint8_t ADS1232_SCLK_PIN = 3U;
+static const uint8_t ADS1232_PDWN_PIN = 9U;
+static const uint8_t ADS1232_GAIN0_PIN = 14U;
+static const uint8_t ADS1232_GAIN1_PIN = 15U;
 
 /*
  * User input.
@@ -23,7 +38,7 @@ static const uint8_t MEDIUM_LEVEL_LED_PIN = 6U;
 static const uint8_t HIGH_LEVEL_LED_PIN = 7U;
 
 /*
- * HX711 sampling configuration.
+ * Scale sampling configuration.
  */
 static const uint8_t TARE_SAMPLES = 20U;
 
@@ -48,7 +63,7 @@ static const uint32_t PRINT_PERIOD_MS = 500UL;
 
 
 /*
- * Maximum time allowed for the first HX711 conversion
+ * Maximum time allowed for the first ADC conversion
  * to become ready after pin configuration.
  */
 static const uint32_t SCALE_STARTUP_TIMEOUT_MS =
@@ -67,7 +82,7 @@ static const uint32_t
 
 /*
  * Maximum total time allowed for one incremental
- * multi-sample HX711 collection.
+ * multi-sample ADC collection.
  *
  * Twenty samples require approximately two seconds at
  * the current 10 SPS rate. Five seconds leaves margin
@@ -78,7 +93,7 @@ static const uint32_t
 
 
 /*
- * Cooperative HX711 recovery policy.
+ * Cooperative ADC recovery policy.
  *
  * Every attempt starts only after a finite backoff.
  * A successful power cycle must then produce a ready
@@ -152,8 +167,22 @@ static const uint32_t
  * It will be used when no valid calibration
  * has been stored in non-volatile memory.
  */
+#if SCALE_ADC_BACKEND == SCALE_ADC_BACKEND_HX711
+
 static const float DEFAULT_CALIBRATION_FACTOR =
     45.589332F;
+
+#elif SCALE_ADC_BACKEND == SCALE_ADC_BACKEND_ADS1232
+
+/*
+ * No transferable ADS1232 counts-per-gram factor exists
+ * before physical calibration. One keeps arithmetic valid
+ * without reusing HX711 data; the operator must calibrate.
+ */
+static const float DEFAULT_CALIBRATION_FACTOR =
+    1.0F;
+
+#endif
 
 /*
  * Provisional level thresholds.
@@ -182,7 +211,7 @@ static const float CALIBRATION_MASS_GRAMS =
 
 
 /*
- * Number of HX711 samples used to calculate
+ * Number of ADC samples used to calculate
  * the calibration factor.
  */
 static const uint8_t CALIBRATION_SAMPLES =

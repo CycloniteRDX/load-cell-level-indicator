@@ -454,6 +454,10 @@ static void test_valid_stored_configuration_is_loaded_once(void)
 
     load_configuration();
 
+    assert_console_contains(
+        "Measurement backend: HX711"
+    );
+
     TEST_ASSERT_EQUAL_UINT32(
         1UL,
         fake_app_calibration_load_call_count()
@@ -681,6 +685,10 @@ static void test_diagnostic_capture_prints_coherent_rows_and_suppresses_weight(v
 
     assert_console_contains(
         "Diagnostic capture started."
+    );
+
+    assert_console_contains(
+        "Measurement backend: HX711"
     );
 
     assert_console_contains(

@@ -1,6 +1,6 @@
 # Load Cell Level Indicator
 
-A bare-metal ATmega328P firmware project that measures the weight of a container through an HX711 load-cell ADC and represents the measured level with three LEDs.
+A bare-metal ATmega328P firmware project that measures the weight of a container through a compile-time-selected HX711 or ADS1232 load-cell ADC and represents the measured level with three LEDs.
 
 The project began as a small Arduino learning exercise and was progressively evolved into a modular, tested firmware with project-owned drivers, hardware-abstraction layers, persistent calibration and tare records, native unit tests and a direct AVR entry point.
 
@@ -9,7 +9,8 @@ The project began as a small Arduino learning exercise and was progressively evo
 
 ## Features
 
-- Load-cell measurement through a project-owned HX711 driver.
+- Load-cell measurement through project-owned HX711 and ADS1232 drivers.
+- Small compile-time ADC boundary that keeps the scale and application logic converter-independent.
 - Persistent tare offset restored after reset or power loss.
 - Explicit `TARE_REQUIRED` state when no valid tare exists.
 - Deliberate physical tare through a three-second button hold.
@@ -28,12 +29,12 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Debounced physical buttons with short-press and hold events.
 - Serial console with fixed-point number formatting.
 - Cooperative application state machine for startup, tare and calibration.
-- Incremental HX711 sampling with at most one ready conversion per update.
+- Incremental ADC sampling with at most one ready conversion per update.
 - Status-rich scale reads that distinguish no data from driver failure.
-- Bounded HX711 power-cycle primitive that preserves active tare and calibration.
+- Bounded ADC power-cycle primitive that preserves active tare and calibration.
 - Stable application fault codes with explicit recovery or terminal policy.
-- Finite 2000 ms health deadline for missing HX711 conversions during normal operation.
-- Cooperative HX711 recovery with 500 ms backoff, a 2000 ms ready deadline and three attempts.
+- Finite 2000 ms health deadline for missing ADC conversions during normal operation.
+- Cooperative ADC recovery with 500 ms backoff, a 2000 ms ready deadline and three attempts.
 - Recovery discards inputs, cancels unfinished operations and returns only to a safe boundary state.
 - Distinct recovery indication with the LOW and HIGH LEDs alternating every 250 ms.
 - Deterministic HX711 `DOUT` disconnection detection through an external 10 kΩ pull-up.
@@ -44,13 +45,12 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Direct AVR implementations for GPIO, Timer1, EEPROM, USART0 and watchdog control.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
 - Dedicated direct-AVR and Arduino-reference watchdog hardware-validation builds.
-- Isolated project-owned ADS1232 driver with native protocol tests; application
-  backend integration remains pending.
-- 338 native Unity tests across 14 suites.
+- Compile-time HX711 and ADS1232 production environments with independent EEPROM records.
+- 354 native Unity tests across 16 suites.
 
 ## Hardware
 
-The current prototype uses:
+The validated `v1.3` prototype uses:
 
 - Arduino Nano with ATmega328P at 16 MHz.
 - HX711 module.
@@ -60,6 +60,10 @@ The current prototype uses:
 - Three indicator LEDs with suitable current-limiting resistors.
 - USB connection for programming and the 115200-baud console.
 
+The current comparison prototype replaces the HX711 with the documented
+ADS1232 module. It keeps the same Nano, buttons and application logic, while
+the indicator LEDs remain disconnected for the first baseline capture.
+
 The pin assignments are defined in [`src/config.h`](src/config.h).
 
 ## Pinout
@@ -68,13 +72,16 @@ The pin assignments are defined in [`src/config.h`](src/config.h).
 |---|---|---|
 | D0 / RX | USART0 receive | USB-to-serial console |
 | D1 / TX | USART0 transmit | USB-to-serial console |
-| D2 | HX711 `DOUT` | HX711 data output; external 10 kΩ pull-up to the shared logic supply |
-| D3 | HX711 `SCK` | HX711 clock input |
+| D2 | ADC `DOUT` | HX711 with external 10 kΩ pull-up; ADS1232 direct, without that pull-up |
+| D3 | ADC clock | HX711 direct; ADS1232 `SCLK` through the 1 kΩ / 2 kΩ divider |
 | D4 | Tare/cancel button | Connect button between D4 and GND |
 | D5 | Low-level LED | Active-high output |
 | D6 | Medium-level LED | Active-high output |
 | D7 | High-level LED | Active-high output |
 | D8 | Calibration button | Connect button between D8 and GND |
+| D9 | ADS1232 `PDWN` | ADS1232 environment only; through the 1 kΩ / 2 kΩ divider |
+| A0 / D14 | ADS1232 `GAIN0` | ADS1232 environment only; through the 1 kΩ / 2 kΩ divider |
+| A1 / D15 | ADS1232 `GAIN1` | ADS1232 environment only; through the 1 kΩ / 2 kΩ divider |
 
 The two buttons use the ATmega328P internal pull-up resistors:
 
@@ -109,7 +116,7 @@ The ATmega328P internal pull-up is a valid software-controlled alternative. In
 a simple Arduino program it is enabled with:
 
 ```cpp
-pinMode(LOADCELL_DOUT_PIN, INPUT_PULLUP);
+pinMode(HX711_DOUT_PIN, INPUT_PULLUP);
 ```
 
 In this project's HAL-based architecture, the equivalent change would be to
@@ -149,8 +156,8 @@ The current values are provisional and can be changed in [`src/config.h`](src/co
 | Physical tare hold | 3000 ms |
 | Calibration-start hold | 3000 ms |
 | Weight output period | 500 ms |
-| HX711 startup timeout | 2000 ms |
-| HX711 runtime no-data timeout | 2000 ms |
+| ADC startup timeout | 2000 ms |
+| ADC runtime no-data timeout | 2000 ms |
 | Multi-sample operation timeout | 5000 ms |
 | Recovery backoff | 500 ms |
 | Recovery ready timeout | 2000 ms |
@@ -161,7 +168,8 @@ The current values are provisional and can be changed in [`src/config.h`](src/co
 | Normal weight reads per update | At most 1 |
 | Calibration samples | 20 |
 | Reference calibration mass | 1500 g |
-| Default calibration factor | 45.589332 counts/g |
+| HX711 default calibration factor | 45.589332 counts/g |
+| ADS1232 initial placeholder factor | 1.0 counts/g; physical calibration required |
 | Level hysteresis | 20 g |
 
 ### Level thresholds
@@ -256,8 +264,8 @@ Send:
 d
 ```
 
-to start a session. The console prints one header followed by one row for every
-successful HX711 conversion:
+to start a session. The console identifies the selected measurement backend,
+then prints one header followed by one row for every successful ADC conversion:
 
 ```text
 DATA,sequence,timestamp_ms,raw_counts,tare_offset,net_counts,weight_grams
@@ -266,7 +274,7 @@ DATA,0,123456,-100000,-170000,70000,1505.500000
 
 The values in each row describe the same conversion. The ordinary periodic
 `Weight: ... | Level: ...` output is suppressed while capture is active, but
-level calculation, LEDs, HX711 supervision, recovery and the watchdog continue
+level calculation, LEDs, ADC supervision, recovery and the watchdog continue
 normally.
 
 Send `d` again to stop the session. Starting tare or calibration, clearing the
@@ -280,12 +288,12 @@ After reset, the production firmware:
 1. Runs an early `.init3` hook that captures the reset flags still visible in `MCUSR`, clears them and disables an inherited watchdog.
 2. Enters the project-owned AVR `main()` and enables global interrupts.
 3. Initializes Timer1, USART0, buttons and LEDs.
-4. Reports the application-visible reset cause and initializes the HX711.
+4. Reports the application-visible reset cause and initializes the selected ADC backend.
 5. Enables the two-second watchdog only after `app_init()` has established the complete safe application state.
 6. Calls `app_update()` repeatedly and feeds the watchdog only after each complete iteration returns.
-7. Polls HX711 readiness cooperatively from `app_update()`.
+7. Polls ADC readiness cooperatively from `app_update()`.
 8. Records fault `02` and starts bounded recovery if the first conversion is not ready within 2000 ms.
-9. Power-cycles the HX711 after each 500 ms backoff and waits cooperatively for a conversion for at most 2000 ms.
+9. Power-cycles the selected ADC after each 500 ms backoff and waits cooperatively for a conversion for at most 2000 ms.
 10. Retries at most three times, then enters a terminal reset-required fault if the sensor does not recover.
 11. Loads and classifies the persistent calibration record after a successful startup recovery.
 12. Uses a valid stored calibration, or the compiled default when the record is absent or corrupt.
@@ -302,11 +310,16 @@ The firmware does **not** automatically tare during startup.
 
 A restart while the container is partially filled therefore restores the previous operational zero instead of redefining the current load as zero.
 
-### First startup after upgrading from `v1.0`
+### First startup with a new backend
 
-`v1.0` stored only the calibration record. Its calibration data remains in EEPROM addresses 0–11.
+`v1.0` stored only the HX711 calibration record. Its calibration data remains in EEPROM addresses 0–11.
 
 `v1.1` adds the tare record in addresses 12–23. On the first startup after upgrading, no valid tare record exists yet, so the firmware enters `TARE_REQUIRED`.
+
+The ADS1232 environments use different calibration and tare records in
+addresses 24–47. Therefore, the first ADS1232 startup also enters
+`TARE_REQUIRED` and cannot silently reuse HX711 counts. Complete the normal
+calibration procedure before treating ADS1232 weight values as meaningful.
 
 Place the empty permanent container on the platform and either:
 
@@ -335,13 +348,13 @@ To establish or replace it:
 1. Place the empty permanent container on the platform.
 2. Wait for the mechanical assembly to become stable.
 3. Hold D4 for approximately three seconds, or send `t`.
-4. Wait for the incremental HX711 sampling and EEPROM verification to complete.
+4. Wait for the incremental ADC sampling and EEPROM verification to complete.
 5. Confirm that normal measurement resumes.
 
 A short D4 press cannot redefine zero.
 
 During sampling the superloop continues updating inputs and indicators. A new
-D4 press or serial `q` cancels the operation before the next sample. If HX711
+D4 press or serial `q` cancels the operation before the next sample. If ADC
 sampling, its total timeout, EEPROM saving or verification fails, the previous
 offset remains active.
 
@@ -394,13 +407,19 @@ The `z` command invalidates only the stored tare record, disables normal level i
 
 ```text
 EEPROM 0–11
-    calibration record
+    HX711 calibration record
 
 EEPROM 12–23
-    tare record
+    HX711 tare record
 
-EEPROM 24 onward
-    unused
+EEPROM 24–35
+    ADS1232 calibration record
+
+EEPROM 36–47
+    ADS1232 tare record
+
+EEPROM 48 onward
+    unused by the current layout
 ```
 
 Both records use explicit fixed-size binary layouts, format versions and CRC-16/CCITT validation.
@@ -412,7 +431,8 @@ calibration = ADC counts per gram
 tare        = raw ADC count at operational zero
 ```
 
-Clearing or replacing one record does not modify the other.
+Clearing or replacing one active record does not modify the other record or
+the records owned by the other ADC backend.
 
 ## Firmware architecture
 
@@ -432,7 +452,10 @@ app.cpp
     +--> scale.cpp
     |       |
     |       v
-    |    hx711_driver.c
+    |    scale_adc.c
+    |       |
+    |       +--> hx711_driver.c
+    |       +--> ads1232_driver.c
     |
     +--> level_indicator.cpp
     +--> operation_indicator.cpp
@@ -511,6 +534,16 @@ The Arduino entry-point reference build is:
 ```powershell
 pio run -e nanoatmega328new_arduino
 ```
+
+The ADS1232 comparison builds select the alternative backend without changing
+the application or `scale` modules:
+
+```powershell
+pio run -e nanoatmega328new_ads1232
+pio run -e nanoatmega328new_arduino_ads1232
+```
+
+HX711 remains the default when `SCALE_ADC_BACKEND` is not defined.
 
 The two intentional-stall validation builds are:
 
@@ -591,10 +624,22 @@ Or explicitly:
 pio run -e nanoatmega328new -t upload
 ```
 
+For the wired ADS1232 prototype, use the dedicated direct-AVR environment:
+
+```powershell
+pio run -e nanoatmega328new_ads1232 -t upload
+```
+
 ## Serial monitor
 
 ```powershell
 pio device monitor -e nanoatmega328new
+```
+
+The ADS1232 environment uses the same 115200-baud monitor configuration:
+
+```powershell
+pio device monitor -e nanoatmega328new_ads1232
 ```
 
 Stop the monitor with `Ctrl+C` before the next upload.
@@ -613,6 +658,8 @@ The individual environments are:
 pio test -e native_button
 pio test -e native_hx711
 pio test -e native_ads1232
+pio test -e native_scale_adc_hx711
+pio test -e native_scale_adc_ads1232
 pio test -e native_level_indicator
 pio test -e native_operation_indicator
 pio test -e native_scale
@@ -626,13 +673,15 @@ pio test -e native_time_delay
 pio test -e native_watchdog_validation
 ```
 
-Validated test inventory:
+Expected test inventory for this integration increment:
 
 | Environment | Tests |
 |---|---:|
 | `native_button` | 11 |
 | `native_hx711` | 18 |
 | `native_ads1232` | 20 |
+| `native_scale_adc_hx711` | 8 |
+| `native_scale_adc_ads1232` | 8 |
 | `native_level_indicator` | 14 |
 | `native_operation_indicator` | 18 |
 | `native_scale` | 35 |
@@ -644,13 +693,13 @@ Validated test inventory:
 | `native_console` | 45 |
 | `native_time_delay` | 6 |
 | `native_watchdog_validation` | 6 |
-| **Total** | **338** |
+| **Total** | **354** |
 
-Validated result:
+Expected complete-regression result after local PlatformIO validation:
 
 ```text
-Suites passed: 14/14
-Tests passed:  338/338
+Suites passed: 16/16
+Tests passed:  354/354
 Failures:      0
 Exit code:     0
 ```
@@ -717,7 +766,7 @@ Start with:
 - [`docs/project-roadmap.md`](docs/project-roadmap.md) — active continuation plan after `v1.3`.
 - [`docs/measurement-robustness-notes.md`](docs/measurement-robustness-notes.md) — evidence-driven measurement investigation and capture plan.
 - [`docs/hx711-prototype-characterization.md`](docs/hx711-prototype-characterization.md) — physical HX711 wiring, coupling, drift and noise findings.
-- [`docs/ads1232-driver-notes.md`](docs/ads1232-driver-notes.md) — ADS1232 module wiring, driver protocol and isolated native-test boundary.
+- [`docs/ads1232-driver-notes.md`](docs/ads1232-driver-notes.md) — ADS1232 module wiring, driver protocol and compile-time application boundary.
 - [`docs/v1.3-release-notes.md`](docs/v1.3-release-notes.md) — fault recovery and watchdog release summary.
 - [`docs/v1.3-fault-recovery-and-watchdog-validation.md`](docs/v1.3-fault-recovery-and-watchdog-validation.md) — native, build and physical validation for `v1.3`.
 - [`docs/fault-recovery-watchdog-notes.md`](docs/fault-recovery-watchdog-notes.md) — `v1.3` design and incremental implementation record.
@@ -752,10 +801,11 @@ Current limitations include:
 - Serial service commands do not require confirmation.
 - EEPROM operations and console transmission remain bounded synchronous operations.
 - Recovery accepts the first ready post-cycle conversion; it does not yet require several coherent measurements before declaring success.
-- The DOUT pull-up detects a missing digital connection but not every possible load-cell bridge-wire fault.
+- The HX711 DOUT pull-up detects a missing digital connection but not every possible load-cell bridge-wire fault; it is not fitted for ADS1232.
 - No 24 V output-driver hardware is included in this repository.
 - The current hardware target is only the ATmega328P Nano.
-- The current measurement backend is only the HX711.
+- ADS1232 application integration is not yet physically characterized or calibrated on the real platform.
+- ADS1232 internal offset calibration is exposed by the low-level driver but is not yet part of application startup or recovery.
 
 ## Roadmap after `v1.3`
 
@@ -771,7 +821,7 @@ Later phases include:
 3. Improve measurement stability and outlier rejection from recorded data.
 4. Design the 24 V power and tower-light driver hardware.
 5. Create a first custom PCB.
-6. Add alternative scale backends such as NAU7802 or ADS1232.
+6. Characterize and calibrate the integrated ADS1232 backend, then decide whether filtering changes are justified.
 7. Add LoRa communication after the local system is stable.
 
 See [`docs/project-roadmap.md`](docs/project-roadmap.md) for the active plan.

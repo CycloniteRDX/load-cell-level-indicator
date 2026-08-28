@@ -8,6 +8,7 @@
 #include "calibration_record.h"
 #include "calibration_storage.h"
 #include "fake_hal_storage.h"
+#include "storage_layout.h"
 
 
 static const float
@@ -673,7 +674,7 @@ static void test_storage_load_reads_valid_record(
 {
     TEST_ASSERT_TRUE(
         fake_hal_storage_preload(
-            0U,
+            CALIBRATION_STORAGE_ADDRESS,
             EXPECTED_45_5_RECORD,
             CALIBRATION_RECORD_SIZE
         )
@@ -699,7 +700,7 @@ static void test_storage_load_reads_valid_record(
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        0U,
+        CALIBRATION_STORAGE_ADDRESS,
         fake_hal_storage_read_address(1U)
     );
 
@@ -824,7 +825,7 @@ static void test_storage_load_reports_invalid_for_corrupted_record(
 
     TEST_ASSERT_TRUE(
         fake_hal_storage_preload(
-            0U,
+            CALIBRATION_STORAGE_ADDRESS,
             corrupted_record,
             sizeof(corrupted_record)
         )
@@ -858,7 +859,7 @@ static void test_storage_save_writes_known_record_and_verifies_it(
 
     TEST_ASSERT_TRUE(
         fake_hal_storage_copy(
-            0U,
+            CALIBRATION_STORAGE_ADDRESS,
             stored_record,
             sizeof(stored_record)
         )
@@ -876,7 +877,7 @@ static void test_storage_save_writes_known_record_and_verifies_it(
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        0U,
+        CALIBRATION_STORAGE_ADDRESS,
         fake_hal_storage_write_address(1U)
     );
 
@@ -891,7 +892,7 @@ static void test_storage_save_writes_known_record_and_verifies_it(
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        0U,
+        CALIBRATION_STORAGE_ADDRESS,
         fake_hal_storage_read_address(1U)
     );
 
@@ -1073,7 +1074,7 @@ static void test_storage_clear_invalidates_only_magic_bytes(
 {
     TEST_ASSERT_TRUE(
         fake_hal_storage_preload(
-            0U,
+            CALIBRATION_STORAGE_ADDRESS,
             EXPECTED_45_5_RECORD,
             CALIBRATION_RECORD_SIZE
         )
@@ -1087,7 +1088,7 @@ static void test_storage_clear_invalidates_only_magic_bytes(
 
     TEST_ASSERT_TRUE(
         fake_hal_storage_copy(
-            0U,
+            CALIBRATION_STORAGE_ADDRESS,
             stored_record,
             sizeof(stored_record)
         )
@@ -1115,7 +1116,7 @@ static void test_storage_clear_invalidates_only_magic_bytes(
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        0U,
+        CALIBRATION_STORAGE_ADDRESS,
         fake_hal_storage_write_address(1U)
     );
 
@@ -1130,7 +1131,7 @@ static void test_storage_clear_invalidates_only_magic_bytes(
     );
 
     TEST_ASSERT_EQUAL_UINT32(
-        0U,
+        CALIBRATION_STORAGE_ADDRESS,
         fake_hal_storage_read_address(1U)
     );
 
@@ -1215,7 +1216,7 @@ static void test_storage_clear_rejects_unmodified_magic(
 {
     TEST_ASSERT_TRUE(
         fake_hal_storage_preload(
-            0U,
+            CALIBRATION_STORAGE_ADDRESS,
             EXPECTED_45_5_RECORD,
             CALIBRATION_RECORD_SIZE
         )
@@ -1235,7 +1236,7 @@ static void test_storage_load_reports_absent_after_successful_clear(
 {
     TEST_ASSERT_TRUE(
         fake_hal_storage_preload(
-            0U,
+            CALIBRATION_STORAGE_ADDRESS,
             EXPECTED_45_5_RECORD,
             CALIBRATION_RECORD_SIZE
         )

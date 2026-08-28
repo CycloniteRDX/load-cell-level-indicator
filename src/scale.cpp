@@ -2,11 +2,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "config.h"
-#include "hx711_driver.h"
 #include "scale.h"
-
-static hx711_t hx711_device;
+#include "scale_adc.h"
 
 static int32_t tare_offset = 0;
 
@@ -35,13 +32,10 @@ static void scale_reset_sample_collection(void)
 
 bool scale_init(void)
 {
-    const hx711_status_t init_status = hx711_init(
-        &hx711_device,
-        LOADCELL_DOUT_PIN,
-        LOADCELL_SCK_PIN
-    );
+    const scale_adc_status_t init_status =
+        scale_adc_init();
 
-    if (init_status != HX711_STATUS_OK)
+    if (init_status != SCALE_ADC_STATUS_OK)
     {
         return false;
     }
@@ -56,7 +50,7 @@ bool scale_init(void)
 
 bool scale_is_ready(void)
 {
-    return hx711_is_ready(&hx711_device);
+    return scale_adc_is_ready();
 }
 
 bool scale_set_calibration_factor(
@@ -121,20 +115,17 @@ scale_update_sample_collection(void)
         return sample_collection_status;
     }
 
-    if (!hx711_is_ready(&hx711_device))
+    if (!scale_adc_is_ready())
     {
         return sample_collection_status;
     }
 
     int32_t raw_value = 0;
 
-    const hx711_status_t read_status =
-        hx711_read_raw(
-            &hx711_device,
-            &raw_value
-        );
+    const scale_adc_status_t read_status =
+        scale_adc_read_raw(&raw_value);
 
-    if (read_status != HX711_STATUS_OK)
+    if (read_status != SCALE_ADC_STATUS_OK)
     {
         sample_collection_status =
             SCALE_SAMPLE_COLLECTION_ERROR;
@@ -188,23 +179,23 @@ bool scale_recover(void)
 {
     scale_cancel_sample_collection();
 
-    const hx711_status_t power_down_status =
-        hx711_power_down(&hx711_device);
+    const scale_adc_status_t power_down_status =
+        scale_adc_power_down();
 
-    if (power_down_status != HX711_STATUS_OK)
+    if (power_down_status != SCALE_ADC_STATUS_OK)
     {
         return false;
     }
 
     /*
-     * Scale currently keeps the HX711 at its initialized
-     * channel-A, gain-128 setting. At that setting the
-     * driver power-up path does not wait for a conversion.
+     * Both active backends provide a bounded power-up
+     * operation. Conversion readiness is supervised by
+     * the cooperative application recovery state.
      */
-    const hx711_status_t power_up_status =
-        hx711_power_up(&hx711_device);
+    const scale_adc_status_t power_up_status =
+        scale_adc_power_up();
 
-    return power_up_status == HX711_STATUS_OK;
+    return power_up_status == SCALE_ADC_STATUS_OK;
 }
 
 
@@ -222,20 +213,17 @@ scale_read_status_t scale_try_read_measurement(
      * do not start a measurement unless a conversion
      * is already available.
      */
-    if (!hx711_is_ready(&hx711_device))
+    if (!scale_adc_is_ready())
     {
         return SCALE_READ_NO_DATA;
     }
 
     int32_t raw_value = 0;
 
-    const hx711_status_t read_status =
-        hx711_read_raw(
-            &hx711_device,
-            &raw_value
-        );
+    const scale_adc_status_t read_status =
+        scale_adc_read_raw(&raw_value);
 
-    if (read_status != HX711_STATUS_OK)
+    if (read_status != SCALE_ADC_STATUS_OK)
     {
         return SCALE_READ_ERROR;
     }

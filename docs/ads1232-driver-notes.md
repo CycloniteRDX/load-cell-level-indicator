@@ -2,8 +2,8 @@
 
 ## Status
 
-This document records the first isolated ADS1232 increment developed after the
-HX711 prototype characterization.
+This document records the ADS1232 driver and its compile-time application
+integration developed after the HX711 prototype characterization.
 
 The increment adds:
 
@@ -11,10 +11,13 @@ The increment adds:
 - an AVR/Arduino-independent platform boundary;
 - a fake platform for host-side protocol tests;
 - 20 native Unity tests;
-- no change to the active `scale` backend.
+- a small `scale_adc` boundary selected at compile time;
+- dedicated direct-AVR and Arduino-reference ADS1232 environments;
+- independent ADS1232 calibration and tare records.
 
-The application therefore continues to use the HX711 until a later increment
-introduces a small measurement-backend boundary.
+HX711 remains the default backend. Selecting an ADS1232 production environment
+changes only the converter adapter, pin configuration, console backend name and
+active EEPROM slots; `scale` and the application state machine remain shared.
 
 ## Physical module under evaluation
 
@@ -155,18 +158,75 @@ The `native_ads1232` suite verifies:
 - power-down, wake-up and idempotence;
 - invalid-argument rejection.
 
+The two `test_scale_adc` environments add eight adapter tests per backend. They
+verify backend identity, pin and gain forwarding, status mapping, raw-value and
+ready forwarding, power operations, backend-specific default factors and the
+complete four-record EEPROM layout. The existing 35-test `scale` suite now uses
+a fake `scale_adc` implementation, so it verifies the converter-independent
+contract rather than HX711-specific calls.
+
+## Application boundary
+
+`src/scale_adc.c` is a compile-time adapter with five operations:
+
+- initialize the selected converter;
+- report whether one conversion is ready;
+- read one raw signed 24-bit conversion;
+- power down;
+- power up.
+
+There are no function pointers, dynamic allocation or runtime backend choice.
+This keeps the boundary small and gives the linker one statically selected
+path. The default environments select HX711. The following environments select
+ADS1232 with `SCALE_ADC_BACKEND=2`:
+
+```text
+nanoatmega328new_ads1232
+nanoatmega328new_arduino_ads1232
+```
+
+The ADS1232 adapter initializes channel 1, 10 SPS and gain 128 according to the
+documented physical straps and control wiring. Channel and speed remain module
+straps rather than fictitious Nano GPIOs.
+
+Internal offset calibration is deliberately not run automatically in this
+increment. The low-level driver supports starting it asynchronously, but the
+application does not yet have a cooperative state and completion contract for
+it. Tare removes the complete installed system's operating zero; the first
+physical captures will determine whether explicit internal calibration is also
+useful at startup or after recovery.
+
+## Persistent data isolation
+
+Raw counts, tare and calibration factors are converter-specific. The fixed
+EEPROM layout therefore assigns separate records:
+
+| Addresses | Owner | Record |
+| --- | --- | --- |
+| 0–11 | HX711 | calibration |
+| 12–23 | HX711 | tare |
+| 24–35 | ADS1232 | calibration |
+| 36–47 | ADS1232 | tare |
+
+An ADS1232 build cannot load the previous HX711 factor or offset. Its initial
+factor is a non-zero arithmetic placeholder of `1.0 counts/g`, not a claimed
+calibration. With the ADS1232 tare slot initially absent, startup enters
+`TARE_REQUIRED`; the normal calibration workflow must be completed before the
+reported weight is meaningful. Startup prints an explicit warning whenever an
+ADS1232 build has no valid stored calibration.
+
 ## Next increment
 
-After this isolated driver passes both native and production builds, the next
-increment should add a compile-time measurement-backend boundary in front of
-`scale`. That change should:
+After all native suites and both ADS1232 production builds pass, the next
+increment is physical validation on the current platform:
 
-1. keep HX711 as a selectable backend;
-2. add the ADS1232 pin constants without reusing misleading HX711 names;
-3. map driver results into the existing scale result model;
-4. preserve one-conversion-per-update behaviour;
-5. avoid reusing HX711 calibration or tare records for ADS1232 data;
-6. expose raw ADS1232 records before adding filtering.
+1. upload the direct-AVR ADS1232 environment with the documented wiring;
+2. verify startup, backend identification and the expected `TARE_REQUIRED` state;
+3. complete tare and calibration with the configured reference mass;
+4. capture untouched raw ADS1232 data with the LEDs disconnected;
+5. repeat controlled zero and known-load checks across restart;
+6. reconnect the LEDs only as a separate coupling comparison;
+7. decide from those records whether internal offset calibration or filtering is justified.
 
 The LEDs should remain disconnected during the first ADS1232 baseline capture.
 They can then be reintroduced as a controlled comparison of power-return

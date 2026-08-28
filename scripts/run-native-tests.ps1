@@ -46,6 +46,8 @@ $testEnvironments = @(
     "native_button",
     "native_hx711",
     "native_ads1232",
+    "native_scale_adc_hx711",
+    "native_scale_adc_ads1232",
     "native_level_indicator",
     "native_operation_indicator",
     "native_scale",
@@ -105,7 +107,7 @@ foreach ($environment in $testEnvironments)
 
 Write-Host "Native regression completed successfully."
 Write-Host "Suites passed: $completedSuites/$totalSuites"
-Write-Host "Expected project test inventory: 338 tests"
+Write-Host "Expected project test inventory: 354 tests"
 Write-Host ""
 
 exit 0

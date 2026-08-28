@@ -127,7 +127,7 @@ The current flat layout remains appropriate while:
 
 - The number of modules is manageable.
 - There is only one production microcontroller target.
-- There is only one measurement backend.
+- The two measurement backends remain small compile-time adapters.
 - PlatformIO source filters remain easy to understand.
 
 Consider restructuring only when real growth requires it, for example:
@@ -454,14 +454,16 @@ docs/hx711-prototype-characterization.md
 ```
 
 An ADS1232 module became available before the filtering policy was selected.
-The preferred sequence is now:
+The preferred sequence and current status are:
 
-1. Preserve the current HX711 diagnostic branch and datasets.
-2. Add a project-owned ADS1232 driver on `feature/ads1232-support`.
-3. Introduce only the minimum compile-time measurement-backend boundary needed
-   to keep `scale` independent of one converter.
-4. Keep calibration and tare records from different converters distinct.
-5. Repeat comparable raw captures with the same cell and mechanics.
+1. **Complete:** preserve the HX711 diagnostic branch and datasets.
+2. **Complete:** add a project-owned ADS1232 driver on `feature/ads1232-support`.
+3. **Complete in code:** introduce the minimum compile-time boundary needed to
+   keep `scale` independent of one converter.
+4. **Complete in code:** assign distinct calibration and tare records to each
+   converter.
+5. **Next:** pass native and production builds, then repeat comparable physical
+   captures with the same cell and mechanics.
 6. Resume filter selection using evidence from both backends.
 
 This is not a broad source-layout refactor. Any later directory reorganization

@@ -12,7 +12,10 @@ extern "C" {
  *
  * The explicit values are part of the serial diagnostic
  * contract for v1.3. Existing meanings must not be
- * renumbered when new faults are added later.
+ * renumbered when new faults are added later. The four
+ * HX711-named identifiers are retained for source and
+ * diagnostic compatibility, but apply to the selected
+ * measurement ADC backend.
  */
 typedef enum
 {
