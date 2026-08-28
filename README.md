@@ -711,6 +711,8 @@ Start with:
 
 - [`docs/project-seed.md`](docs/project-seed.md) — completed project history and architecture.
 - [`docs/project-roadmap.md`](docs/project-roadmap.md) — active continuation plan after `v1.3`.
+- [`docs/measurement-robustness-notes.md`](docs/measurement-robustness-notes.md) — evidence-driven measurement investigation and capture plan.
+- [`docs/hx711-prototype-characterization.md`](docs/hx711-prototype-characterization.md) — physical HX711 wiring, coupling, drift and noise findings.
 - [`docs/v1.3-release-notes.md`](docs/v1.3-release-notes.md) — fault recovery and watchdog release summary.
 - [`docs/v1.3-fault-recovery-and-watchdog-validation.md`](docs/v1.3-fault-recovery-and-watchdog-validation.md) — native, build and physical validation for `v1.3`.
 - [`docs/fault-recovery-watchdog-notes.md`](docs/fault-recovery-watchdog-notes.md) — `v1.3` design and incremental implementation record.

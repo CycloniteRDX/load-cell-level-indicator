@@ -18,6 +18,18 @@ v1.4-measurement-robustness
 The work must begin with evidence from the real load cell, HX711 and mechanical
 assembly. No filtering or stable-weight algorithm is selected by this document.
 
+The HX711 prototype capture phase has now been completed and is documented in:
+
+```text
+docs/hx711-prototype-characterization.md
+```
+
+The evidence identified a large LED-current return coupling component and a
+smaller unresolved broadband component. Filter selection is paused while an
+available ADS1232 module is evaluated with the same cell and mechanics. The
+ADS1232 work is a separate backend milestone; it does not rewrite the HX711
+baseline or silently add filtering to this branch.
+
 ---
 
 ## 1. Purpose

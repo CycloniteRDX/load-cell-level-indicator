@@ -1,0 +1,2480 @@
+
+=== Load cell level indicator ===
+Reset cause visible to application: unknown.
+Waiting for the first HX711 conversion...
+Stored calibration loaded from EEPROM.
+Calibration factor: 46.606666 counts/g
+Stored tare offset loaded: -166704
+Normal measurement started.
+
+Controls:
+  Hold button on D4 for 3 s = tare
+  Serial command 't'    = tare
+  Serial command 's'    = save calibration
+  Serial command 'x'    = clear calibration
+  Serial command 'z'    = clear tare
+  Serial command 'c'    = calibrate/confirm
+  Serial command 'q'    = cancel current tare/calibration
+  Serial command 'd'    = toggle diagnostic capture
+ Hold button on D8 for 3 s = start calibration
+ Press button on D8 = confirm calibration step
+LED operation status:
+ All LEDs on = tare in progress
+ All LEDs blinking slowly = tare required
+ LOW blinking = waiting for empty platform
+ MEDIUM blinking = waiting for reference mass
+ HIGH blinking = reset-required fault
+ LOW/HIGH alternating = HX711 recovery
+
+Provisional levels:
+ VERY_LOW: below 100 g, LOW LED blinking
+ LOW: 100 to 500 g, LOW LED steady
+ MEDIUM: 500 to 1000 g
+ HIGH: above 1000 g
+Weight: 26.22 g | Level: VERY_LOW
+Weight: 22.64 g | Level: VERY_LOW
+Weight: 33.32 g | Level: VERY_LOW
+Weight: 27.91 g | Level: VERY_LOW
+Weight: 10.34 g | Level: VERY_LOW
+Weight: 26.22 g | Level: VERY_LOW
+Weight: 26.18 g | Level: VERY_LOW
+Weight: 26.46 g | Level: VERY_LOW
+Weight: 24.40 g | Level: VERY_LOW
+Weight: 21.11 g | Level: VERY_LOW
+Weight: 20.25 g | Level: VERY_LOW
+Weight: 25.92 g | Level: VERY_LOW
+Weight: 27.16 g | Level: VERY_LOW
+Weight: 25.81 g | Level: VERY_LOW
+Weight: 23.24 g | Level: VERY_LOW
+Weight: 23.45 g | Level: VERY_LOW
+Weight: 34.74 g | Level: VERY_LOW
+Weight: 21.71 g | Level: VERY_LOW
+Weight: 23.69 g | Level: VERY_LOW
+Weight: 36.48 g | Level: VERY_LOW
+Weight: 19.55 g | Level: VERY_LOW
+Weight: 23.56 g | Level: VERY_LOW
+Weight: 25.49 g | Level: VERY_LOW
+Weight: 20.45 g | Level: VERY_LOW
+Weight: 25.02 g | Level: VERY_LOW
+Weight: 23.71 g | Level: VERY_LOW
+Weight: 28.09 g | Level: VERY_LOW
+Weight: 26.71 g | Level: VERY_LOW
+Weight: 27.66 g | Level: VERY_LOW
+Weight: 20.62 g | Level: VERY_LOW
+Weight: 24.16 g | Level: VERY_LOW
+Weight: 26.09 g | Level: VERY_LOW
+Weight: 28.56 g | Level: VERY_LOW
+Weight: 23.22 g | Level: VERY_LOW
+Weight: 33.11 g | Level: VERY_LOW
+Weight: 29.01 g | Level: VERY_LOW
+Weight: 27.91 g | Level: VERY_LOW
+Weight: 29.14 g | Level: VERY_LOW
+Weight: 21.65 g | Level: VERY_LOW
+Weight: 33.58 g | Level: VERY_LOW
+Weight: 26.52 g | Level: VERY_LOW
+Weight: 28.04 g | Level: VERY_LOW
+Weight: 25.98 g | Level: VERY_LOW
+Weight: 26.54 g | Level: VERY_LOW
+Weight: 28.39 g | Level: VERY_LOW
+Weight: 22.96 g | Level: VERY_LOW
+Weight: 23.34 g | Level: VERY_LOW
+Weight: 28.26 g | Level: VERY_LOW
+Weight: 22.16 g | Level: VERY_LOW
+Weight: 22.44 g | Level: VERY_LOW
+Weight: 22.44 g | Level: VERY_LOW
+Weight: 20.25 g | Level: VERY_LOW
+Weight: 20.81 g | Level: VERY_LOW
+Weight: 31.41 g | Level: VERY_LOW
+Weight: 26.46 g | Level: VERY_LOW
+Weight: 27.14 g | Level: VERY_LOW
+Weight: 24.20 g | Level: VERY_LOW
+Weight: 26.50 g | Level: VERY_LOW
+Weight: 27.36 g | Level: VERY_LOW
+Weight: 25.83 g | Level: VERY_LOW
+Weight: 25.79 g | Level: VERY_LOW
+Weight: 24.80 g | Level: VERY_LOW
+Weight: 20.08 g | Level: VERY_LOW
+Weight: 28.24 g | Level: VERY_LOW
+Weight: 28.79 g | Level: VERY_LOW
+Weight: 19.93 g | Level: VERY_LOW
+Weight: 20.51 g | Level: VERY_LOW
+Weight: 18.97 g | Level: VERY_LOW
+Weight: 29.31 g | Level: VERY_LOW
+Weight: 26.52 g | Level: VERY_LOW
+Weight: 24.59 g | Level: VERY_LOW
+Weight: 27.25 g | Level: VERY_LOW
+Weight: 22.25 g | Level: VERY_LOW
+Weight: 23.67 g | Level: VERY_LOW
+Weight: 22.55 g | Level: VERY_LOW
+Weight: 23.95 g | Level: VERY_LOW
+Weight: 19.42 g | Level: VERY_LOW
+Weight: 23.34 g | Level: VERY_LOW
+Weight: 20.98 g | Level: VERY_LOW
+Weight: 29.91 g | Level: VERY_LOW
+Weight: 21.80 g | Level: VERY_LOW
+Weight: 30.60 g | Level: VERY_LOW
+Weight: 22.85 g | Level: VERY_LOW
+Weight: 17.06 g | Level: VERY_LOW
+Weight: 18.69 g | Level: VERY_LOW
+Weight: 28.17 g | Level: VERY_LOW
+Weight: 30.64 g | Level: VERY_LOW
+Weight: 29.39 g | Level: VERY_LOW
+Weight: 29.61 g | Level: VERY_LOW
+Weight: 22.87 g | Level: VERY_LOW
+Weight: 27.57 g | Level: VERY_LOW
+Weight: 26.97 g | Level: VERY_LOW
+Weight: 27.01 g | Level: VERY_LOW
+Weight: 27.74 g | Level: VERY_LOW
+Weight: 28.26 g | Level: VERY_LOW
+Weight: 31.26 g | Level: VERY_LOW
+Weight: 27.23 g | Level: VERY_LOW
+Weight: 27.55 g | Level: VERY_LOW
+Weight: 24.59 g | Level: VERY_LOW
+Weight: 29.50 g | Level: VERY_LOW
+Weight: 25.58 g | Level: VERY_LOW
+Weight: 23.28 g | Level: VERY_LOW
+Weight: 28.47 g | Level: VERY_LOW
+Weight: 22.59 g | Level: VERY_LOW
+Weight: 26.76 g | Level: VERY_LOW
+Weight: 22.31 g | Level: VERY_LOW
+Weight: 18.80 g | Level: VERY_LOW
+Weight: 27.81 g | Level: VERY_LOW
+Weight: 21.97 g | Level: VERY_LOW
+Weight: 19.89 g | Level: VERY_LOW
+Weight: 14.25 g | Level: VERY_LOW
+Weight: 21.37 g | Level: VERY_LOW
+Weight: 24.70 g | Level: VERY_LOW
+Weight: 22.08 g | Level: VERY_LOW
+Weight: 28.71 g | Level: VERY_LOW
+Weight: 18.65 g | Level: VERY_LOW
+Weight: 24.52 g | Level: VERY_LOW
+Weight: 17.36 g | Level: VERY_LOW
+Weight: 27.98 g | Level: VERY_LOW
+Weight: 22.76 g | Level: VERY_LOW
+Weight: 31.30 g | Level: VERY_LOW
+Weight: 20.32 g | Level: VERY_LOW
+Weight: 21.80 g | Level: VERY_LOW
+Weight: 23.77 g | Level: VERY_LOW
+Weight: 26.26 g | Level: VERY_LOW
+Weight: 22.72 g | Level: VERY_LOW
+Weight: 23.92 g | Level: VERY_LOW
+Weight: 20.04 g | Level: VERY_LOW
+Weight: 26.16 g | Level: VERY_LOW
+Weight: 28.37 g | Level: VERY_LOW
+Weight: 27.74 g | Level: VERY_LOW
+Weight: 25.21 g | Level: VERY_LOW
+Weight: 24.97 g | Level: VERY_LOW
+Weight: 27.40 g | Level: VERY_LOW
+Weight: 21.56 g | Level: VERY_LOW
+Weight: 31.39 g | Level: VERY_LOW
+Weight: 22.23 g | Level: VERY_LOW
+Weight: 19.50 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 26.46 g | Level: VERY_LOW
+Weight: 25.62 g | Level: VERY_LOW
+Weight: 23.28 g | Level: VERY_LOW
+Weight: 24.87 g | Level: VERY_LOW
+Weight: 21.52 g | Level: VERY_LOW
+Weight: 25.08 g | Level: VERY_LOW
+Weight: 24.76 g | Level: VERY_LOW
+Weight: 20.96 g | Level: VERY_LOW
+Weight: 25.21 g | Level: VERY_LOW
+Weight: 23.73 g | Level: VERY_LOW
+Weight: 22.72 g | Level: VERY_LOW
+Weight: 24.03 g | Level: VERY_LOW
+Weight: 23.86 g | Level: VERY_LOW
+Weight: 23.58 g | Level: VERY_LOW
+Weight: 19.50 g | Level: VERY_LOW
+Weight: 27.49 g | Level: VERY_LOW
+Weight: 33.32 g | Level: VERY_LOW
+Weight: 33.97 g | Level: VERY_LOW
+Weight: 15.51 g | Level: VERY_LOW
+Weight: 23.52 g | Level: VERY_LOW
+Weight: 24.33 g | Level: VERY_LOW
+Weight: 23.71 g | Level: VERY_LOW
+Weight: 22.04 g | Level: VERY_LOW
+Weight: 22.06 g | Level: VERY_LOW
+Weight: 25.75 g | Level: VERY_LOW
+Weight: 21.11 g | Level: VERY_LOW
+Weight: 20.45 g | Level: VERY_LOW
+Weight: 21.16 g | Level: VERY_LOW
+Weight: 25.83 g | Level: VERY_LOW
+Weight: 27.53 g | Level: VERY_LOW
+Weight: 28.86 g | Level: VERY_LOW
+Weight: 26.84 g | Level: VERY_LOW
+Weight: 20.40 g | Level: VERY_LOW
+Weight: 24.18 g | Level: VERY_LOW
+Weight: 25.00 g | Level: VERY_LOW
+Weight: 21.33 g | Level: VERY_LOW
+Weight: 23.77 g | Level: VERY_LOW
+Weight: 25.75 g | Level: VERY_LOW
+Weight: 15.11 g | Level: VERY_LOW
+Weight: 21.89 g | Level: VERY_LOW
+Weight: 28.64 g | Level: VERY_LOW
+Weight: 23.58 g | Level: VERY_LOW
+Weight: 24.97 g | Level: VERY_LOW
+Weight: 24.87 g | Level: VERY_LOW
+Weight: 13.22 g | Level: VERY_LOW
+Weight: 29.74 g | Level: VERY_LOW
+Weight: 21.41 g | Level: VERY_LOW
+Weight: 25.30 g | Level: VERY_LOW
+Weight: 17.36 g | Level: VERY_LOW
+Weight: 32.03 g | Level: VERY_LOW
+Weight: 20.36 g | Level: VERY_LOW
+Weight: 24.59 g | Level: VERY_LOW
+Weight: 24.95 g | Level: VERY_LOW
+Weight: 23.71 g | Level: VERY_LOW
+Weight: 25.45 g | Level: VERY_LOW
+Weight: 23.09 g | Level: VERY_LOW
+Weight: 23.26 g | Level: VERY_LOW
+Weight: 30.19 g | Level: VERY_LOW
+Weight: 27.01 g | Level: VERY_LOW
+Weight: 22.81 g | Level: VERY_LOW
+Weight: 22.81 g | Level: VERY_LOW
+Weight: 28.94 g | Level: VERY_LOW
+Weight: 22.61 g | Level: VERY_LOW
+Weight: 26.86 g | Level: VERY_LOW
+Weight: 24.25 g | Level: VERY_LOW
+Weight: 34.37 g | Level: VERY_LOW
+Weight: 28.73 g | Level: VERY_LOW
+Weight: 23.41 g | Level: VERY_LOW
+Weight: 23.52 g | Level: VERY_LOW
+Weight: 20.92 g | Level: VERY_LOW
+Weight: 22.68 g | Level: VERY_LOW
+Weight: 23.75 g | Level: VERY_LOW
+Weight: 23.09 g | Level: VERY_LOW
+Weight: 27.36 g | Level: VERY_LOW
+Weight: 21.31 g | Level: VERY_LOW
+Weight: 24.03 g | Level: VERY_LOW
+Weight: 20.40 g | Level: VERY_LOW
+Weight: 20.58 g | Level: VERY_LOW
+Weight: 23.97 g | Level: VERY_LOW
+Weight: 18.86 g | Level: VERY_LOW
+Weight: 26.56 g | Level: VERY_LOW
+Weight: 28.06 g | Level: VERY_LOW
+Weight: 23.77 g | Level: VERY_LOW
+Weight: 19.83 g | Level: VERY_LOW
+Weight: 26.26 g | Level: VERY_LOW
+Weight: 28.13 g | Level: VERY_LOW
+Weight: 19.65 g | Level: VERY_LOW
+Weight: 22.66 g | Level: VERY_LOW
+Weight: 23.00 g | Level: VERY_LOW
+Weight: 23.09 g | Level: VERY_LOW
+Weight: 24.85 g | Level: VERY_LOW
+Weight: 24.29 g | Level: VERY_LOW
+Weight: 21.35 g | Level: VERY_LOW
+Weight: 23.79 g | Level: VERY_LOW
+Weight: 22.85 g | Level: VERY_LOW
+Weight: 26.78 g | Level: VERY_LOW
+Weight: 12.85 g | Level: VERY_LOW
+Weight: 21.84 g | Level: VERY_LOW
+Weight: 22.79 g | Level: VERY_LOW
+Weight: 21.65 g | Level: VERY_LOW
+Weight: 18.50 g | Level: VERY_LOW
+Weight: 28.26 g | Level: VERY_LOW
+Weight: 25.02 g | Level: VERY_LOW
+Weight: 24.59 g | Level: VERY_LOW
+Weight: 21.86 g | Level: VERY_LOW
+Weight: 32.59 g | Level: VERY_LOW
+Weight: 23.71 g | Level: VERY_LOW
+Weight: 21.48 g | Level: VERY_LOW
+Weight: 16.97 g | Level: VERY_LOW
+Weight: 29.33 g | Level: VERY_LOW
+Weight: 28.56 g | Level: VERY_LOW
+Weight: 22.14 g | Level: VERY_LOW
+Weight: 21.35 g | Level: VERY_LOW
+Weight: 24.31 g | Level: VERY_LOW
+Weight: 19.55 g | Level: VERY_LOW
+Weight: 27.98 g | Level: VERY_LOW
+Weight: 31.39 g | Level: VERY_LOW
+Weight: 20.23 g | Level: VERY_LOW
+Weight: 20.32 g | Level: VERY_LOW
+Weight: 23.30 g | Level: VERY_LOW
+Weight: 16.69 g | Level: VERY_LOW
+Weight: 22.72 g | Level: VERY_LOW
+Weight: 23.07 g | Level: VERY_LOW
+Weight: 22.49 g | Level: VERY_LOW
+Weight: 31.65 g | Level: VERY_LOW
+Weight: 23.69 g | Level: VERY_LOW
+Weight: 28.62 g | Level: VERY_LOW
+Weight: 28.69 g | Level: VERY_LOW
+Weight: 30.21 g | Level: VERY_LOW
+Weight: 25.00 g | Level: VERY_LOW
+Weight: 17.16 g | Level: VERY_LOW
+Weight: 23.30 g | Level: VERY_LOW
+Weight: 22.19 g | Level: VERY_LOW
+Weight: 17.74 g | Level: VERY_LOW
+Weight: 24.85 g | Level: VERY_LOW
+Weight: 22.79 g | Level: VERY_LOW
+Weight: 24.07 g | Level: VERY_LOW
+Weight: 31.63 g | Level: VERY_LOW
+Weight: 17.06 g | Level: VERY_LOW
+Weight: 22.59 g | Level: VERY_LOW
+Weight: 21.65 g | Level: VERY_LOW
+Weight: 25.79 g | Level: VERY_LOW
+Weight: 29.80 g | Level: VERY_LOW
+Weight: 21.35 g | Level: VERY_LOW
+Weight: 23.62 g | Level: VERY_LOW
+Weight: 23.75 g | Level: VERY_LOW
+Weight: 27.16 g | Level: VERY_LOW
+Weight: 21.67 g | Level: VERY_LOW
+Weight: 22.79 g | Level: VERY_LOW
+Weight: 31.54 g | Level: VERY_LOW
+Weight: 26.20 g | Level: VERY_LOW
+Weight: 18.17 g | Level: VERY_LOW
+Weight: 21.16 g | Level: VERY_LOW
+Weight: 25.79 g | Level: VERY_LOW
+Weight: 23.95 g | Level: VERY_LOW
+Weight: 30.08 g | Level: VERY_LOW
+Weight: 24.57 g | Level: VERY_LOW
+Weight: 22.34 g | Level: VERY_LOW
+Weight: 25.68 g | Level: VERY_LOW
+Weight: 31.67 g | Level: VERY_LOW
+Weight: 23.39 g | Level: VERY_LOW
+Weight: 18.41 g | Level: VERY_LOW
+Weight: 25.08 g | Level: VERY_LOW
+Weight: 23.88 g | Level: VERY_LOW
+Weight: 24.37 g | Level: VERY_LOW
+Weight: 22.81 g | Level: VERY_LOW
+Weight: 24.40 g | Level: VERY_LOW
+Weight: 29.55 g | Level: VERY_LOW
+Weight: 26.78 g | Level: VERY_LOW
+Weight: 21.16 g | Level: VERY_LOW
+Weight: 18.60 g | Level: VERY_LOW
+Weight: 24.01 g | Level: VERY_LOW
+Weight: 24.22 g | Level: VERY_LOW
+Weight: 23.71 g | Level: VERY_LOW
+Weight: 30.53 g | Level: VERY_LOW
+Weight: 26.03 g | Level: VERY_LOW
+Weight: 26.28 g | Level: VERY_LOW
+Weight: 25.98 g | Level: VERY_LOW
+Weight: 24.18 g | Level: VERY_LOW
+Weight: 32.36 g | Level: VERY_LOW
+Weight: 20.75 g | Level: VERY_LOW
+Weight: 28.04 g | Level: VERY_LOW
+Weight: 23.30 g | Level: VERY_LOW
+Weight: 26.41 g | Level: VERY_LOW
+Weight: 27.81 g | Level: VERY_LOW
+Weight: 21.35 g | Level: VERY_LOW
+Weight: 21.71 g | Level: VERY_LOW
+Weight: 22.64 g | Level: VERY_LOW
+Weight: 18.13 g | Level: VERY_LOW
+Weight: 23.32 g | Level: VERY_LOW
+Weight: 18.95 g | Level: VERY_LOW
+Weight: 23.90 g | Level: VERY_LOW
+Weight: 25.73 g | Level: VERY_LOW
+Weight: 27.57 g | Level: VERY_LOW
+Weight: 28.41 g | Level: VERY_LOW
+Weight: 25.68 g | Level: VERY_LOW
+Weight: 26.65 g | Level: VERY_LOW
+Weight: 25.40 g | Level: VERY_LOW
+Weight: 27.34 g | Level: VERY_LOW
+Weight: 23.92 g | Level: VERY_LOW
+Weight: 22.08 g | Level: VERY_LOW
+Weight: 27.72 g | Level: VERY_LOW
+Weight: 29.91 g | Level: VERY_LOW
+Weight: 24.14 g | Level: VERY_LOW
+Weight: 25.55 g | Level: VERY_LOW
+Weight: 17.14 g | Level: VERY_LOW
+Weight: 29.27 g | Level: VERY_LOW
+Weight: 25.94 g | Level: VERY_LOW
+Weight: 19.33 g | Level: VERY_LOW
+Weight: 26.48 g | Level: VERY_LOW
+Weight: 24.40 g | Level: VERY_LOW
+Weight: 27.29 g | Level: VERY_LOW
+Weight: 24.16 g | Level: VERY_LOW
+Weight: 24.27 g | Level: VERY_LOW
+Weight: 18.54 g | Level: VERY_LOW
+Weight: 23.54 g | Level: VERY_LOW
+Weight: 21.16 g | Level: VERY_LOW
+Weight: 23.79 g | Level: VERY_LOW
+Weight: 21.52 g | Level: VERY_LOW
+Weight: 22.64 g | Level: VERY_LOW
+Weight: 19.74 g | Level: VERY_LOW
+Weight: 24.05 g | Level: VERY_LOW
+Weight: 23.58 g | Level: VERY_LOW
+Weight: 24.65 g | Level: VERY_LOW
+Weight: 20.64 g | Level: VERY_LOW
+Weight: 22.59 g | Level: VERY_LOW
+Weight: 24.55 g | Level: VERY_LOW
+Weight: 18.99 g | Level: VERY_LOW
+Weight: 25.49 g | Level: VERY_LOW
+Weight: 17.36 g | Level: VERY_LOW
+Weight: 26.11 g | Level: VERY_LOW
+Weight: 29.24 g | Level: VERY_LOW
+Weight: 24.80 g | Level: VERY_LOW
+Weight: 27.18 g | Level: VERY_LOW
+Weight: 29.14 g | Level: VERY_LOW
+Weight: 20.53 g | Level: VERY_LOW
+Weight: 29.95 g | Level: VERY_LOW
+Weight: 17.81 g | Level: VERY_LOW
+Weight: 22.98 g | Level: VERY_LOW
+Weight: 31.05 g | Level: VERY_LOW
+Weight: 31.07 g | Level: VERY_LOW
+Weight: 33.66 g | Level: VERY_LOW
+Weight: 23.69 g | Level: VERY_LOW
+Weight: 27.76 g | Level: VERY_LOW
+Weight: 22.27 g | Level: VERY_LOW
+Weight: 32.38 g | Level: VERY_LOW
+Weight: 26.05 g | Level: VERY_LOW
+Weight: 20.43 g | Level: VERY_LOW
+Weight: 22.81 g | Level: VERY_LOW
+Weight: 25.55 g | Level: VERY_LOW
+Weight: 26.09 g | Level: VERY_LOW
+Weight: 25.19 g | Level: VERY_LOW
+Weight: 25.81 g | Level: VERY_LOW
+Weight: 28.04 g | Level: VERY_LOW
+Weight: 24.85 g | Level: VERY_LOW
+Weight: 18.88 g | Level: VERY_LOW
+Weight: 23.24 g | Level: VERY_LOW
+Weight: 24.74 g | Level: VERY_LOW
+Weight: 20.23 g | Level: VERY_LOW
+Weight: 18.84 g | Level: VERY_LOW
+Weight: 24.50 g | Level: VERY_LOW
+Weight: 18.56 g | Level: VERY_LOW
+Weight: 21.84 g | Level: VERY_LOW
+Weight: 25.68 g | Level: VERY_LOW
+Weight: 29.91 g | Level: VERY_LOW
+Weight: 28.21 g | Level: VERY_LOW
+Weight: 31.63 g | Level: VERY_LOW
+Weight: 22.36 g | Level: VERY_LOW
+Weight: 25.21 g | Level: VERY_LOW
+Weight: 27.79 g | Level: VERY_LOW
+Weight: 26.82 g | Level: VERY_LOW
+Weight: 24.29 g | Level: VERY_LOW
+Weight: 23.82 g | Level: VERY_LOW
+Weight: 22.61 g | Level: VERY_LOW
+Weight: 27.68 g | Level: VERY_LOW
+Weight: 19.61 g | Level: VERY_LOW
+Weight: 30.27 g | Level: VERY_LOW
+Weight: 15.53 g | Level: VERY_LOW
+Weight: 27.06 g | Level: VERY_LOW
+Weight: 20.55 g | Level: VERY_LOW
+Weight: 23.58 g | Level: VERY_LOW
+Weight: 24.18 g | Level: VERY_LOW
+Weight: 23.56 g | Level: VERY_LOW
+Weight: 22.96 g | Level: VERY_LOW
+Weight: 22.76 g | Level: VERY_LOW
+Weight: 21.03 g | Level: VERY_LOW
+Weight: 20.86 g | Level: VERY_LOW
+Weight: 19.91 g | Level: VERY_LOW
+Weight: 25.13 g | Level: VERY_LOW
+Weight: 15.43 g | Level: VERY_LOW
+Weight: 22.92 g | Level: VERY_LOW
+Weight: 19.16 g | Level: VERY_LOW
+Weight: 24.95 g | Level: VERY_LOW
+Weight: 26.86 g | Level: VERY_LOW
+Weight: 22.55 g | Level: VERY_LOW
+Weight: 24.37 g | Level: VERY_LOW
+Weight: 21.16 g | Level: VERY_LOW
+Weight: 28.52 g | Level: VERY_LOW
+Weight: 22.21 g | Level: VERY_LOW
+Weight: 26.93 g | Level: VERY_LOW
+Weight: 22.76 g | Level: VERY_LOW
+Weight: 26.97 g | Level: VERY_LOW
+Weight: 23.67 g | Level: VERY_LOW
+Weight: 22.72 g | Level: VERY_LOW
+Weight: 20.13 g | Level: VERY_LOW
+Weight: 21.78 g | Level: VERY_LOW
+Weight: 8.93 g | Level: VERY_LOW
+Weight: 23.52 g | Level: VERY_LOW
+Weight: 23.15 g | Level: VERY_LOW
+Weight: 23.09 g | Level: VERY_LOW
+Weight: 23.69 g | Level: VERY_LOW
+Weight: 17.10 g | Level: VERY_LOW
+Weight: 20.75 g | Level: VERY_LOW
+Weight: 28.52 g | Level: VERY_LOW
+Weight: 25.04 g | Level: VERY_LOW
+Weight: 25.70 g | Level: VERY_LOW
+Weight: 24.37 g | Level: VERY_LOW
+Weight: 24.55 g | Level: VERY_LOW
+Weight: 24.52 g | Level: VERY_LOW
+Weight: 21.93 g | Level: VERY_LOW
+Weight: 22.34 g | Level: VERY_LOW
+Weight: 25.19 g | Level: VERY_LOW
+Weight: 28.79 g | Level: VERY_LOW
+Weight: 28.06 g | Level: VERY_LOW
+Weight: 26.35 g | Level: VERY_LOW
+Weight: 23.86 g | Level: VERY_LOW
+Weight: 30.51 g | Level: VERY_LOW
+Weight: 27.27 g | Level: VERY_LOW
+Weight: 25.94 g | Level: VERY_LOW
+Weight: 28.73 g | Level: VERY_LOW
+Weight: 20.45 g | Level: VERY_LOW
+Weight: 21.11 g | Level: VERY_LOW
+Weight: 24.22 g | Level: VERY_LOW
+Weight: 16.48 g | Level: VERY_LOW
+Weight: 32.06 g | Level: VERY_LOW
+Weight: 25.88 g | Level: VERY_LOW
+Weight: 26.09 g | Level: VERY_LOW
+Weight: 27.49 g | Level: VERY_LOW
+Weight: 19.18 g | Level: VERY_LOW
+Weight: 22.44 g | Level: VERY_LOW
+Weight: 24.29 g | Level: VERY_LOW
+Weight: 26.31 g | Level: VERY_LOW
+Weight: 28.73 g | Level: VERY_LOW
+Weight: 22.08 g | Level: VERY_LOW
+Weight: 22.57 g | Level: VERY_LOW
+Weight: 19.85 g | Level: VERY_LOW
+Weight: 23.19 g | Level: VERY_LOW
+Weight: 19.16 g | Level: VERY_LOW
+Weight: 28.04 g | Level: VERY_LOW
+Weight: 22.55 g | Level: VERY_LOW
+Weight: 24.63 g | Level: VERY_LOW
+Weight: 16.93 g | Level: VERY_LOW
+Weight: 26.13 g | Level: VERY_LOW
+Weight: 28.04 g | Level: VERY_LOW
+Weight: 24.57 g | Level: VERY_LOW
+Weight: 28.21 g | Level: VERY_LOW
+Weight: 24.27 g | Level: VERY_LOW
+Weight: 24.67 g | Level: VERY_LOW
+Weight: 27.66 g | Level: VERY_LOW
+Weight: 29.01 g | Level: VERY_LOW
+Weight: 22.01 g | Level: VERY_LOW
+Weight: 26.41 g | Level: VERY_LOW
+Weight: 23.41 g | Level: VERY_LOW
+Weight: 26.16 g | Level: VERY_LOW
+Weight: 31.52 g | Level: VERY_LOW
+Weight: 20.79 g | Level: VERY_LOW
+Weight: 20.79 g | Level: VERY_LOW
+Weight: 19.12 g | Level: VERY_LOW
+Weight: 18.84 g | Level: VERY_LOW
+Weight: 28.69 g | Level: VERY_LOW
+Weight: 23.77 g | Level: VERY_LOW
+Weight: 30.12 g | Level: VERY_LOW
+Weight: 31.28 g | Level: VERY_LOW
+Weight: 22.94 g | Level: VERY_LOW
+Weight: 29.59 g | Level: VERY_LOW
+Weight: 23.92 g | Level: VERY_LOW
+Weight: 16.65 g | Level: VERY_LOW
+Weight: 23.49 g | Level: VERY_LOW
+Weight: 22.06 g | Level: VERY_LOW
+Weight: 26.35 g | Level: VERY_LOW
+Weight: 19.83 g | Level: VERY_LOW
+Weight: 21.56 g | Level: VERY_LOW
+Weight: 16.39 g | Level: VERY_LOW
+Weight: 22.59 g | Level: VERY_LOW
+Weight: 26.84 g | Level: VERY_LOW
+Weight: 25.75 g | Level: VERY_LOW
+Weight: 21.86 g | Level: VERY_LOW
+Weight: 27.87 g | Level: VERY_LOW
+Weight: 25.70 g | Level: VERY_LOW
+Weight: 23.79 g | Level: VERY_LOW
+Weight: 26.69 g | Level: VERY_LOW
+Weight: 24.67 g | Level: VERY_LOW
+Weight: 20.47 g | Level: VERY_LOW
+Weight: 27.87 g | Level: VERY_LOW
+Weight: 18.11 g | Level: VERY_LOW
+Weight: 17.64 g | Level: VERY_LOW
+Weight: 18.35 g | Level: VERY_LOW
+Weight: 19.40 g | Level: VERY_LOW
+Weight: 21.86 g | Level: VERY_LOW
+Weight: 23.54 g | Level: VERY_LOW
+Weight: 23.43 g | Level: VERY_LOW
+Weight: 29.52 g | Level: VERY_LOW
+Weight: 21.22 g | Level: VERY_LOW
+Weight: 23.92 g | Level: VERY_LOW
+Weight: 18.19 g | Level: VERY_LOW
+Weight: 22.92 g | Level: VERY_LOW
+Weight: 26.39 g | Level: VERY_LOW
+Weight: 19.76 g | Level: VERY_LOW
+Weight: 24.72 g | Level: VERY_LOW
+Weight: 21.16 g | Level: VERY_LOW
+Weight: 25.70 g | Level: VERY_LOW
+Weight: 26.80 g | Level: VERY_LOW
+Weight: 26.82 g | Level: VERY_LOW
+Weight: 24.85 g | Level: VERY_LOW
+Weight: 20.64 g | Level: VERY_LOW
+Weight: 21.80 g | Level: VERY_LOW
+Weight: 16.82 g | Level: VERY_LOW
+Weight: 21.20 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 24.72 g | Level: VERY_LOW
+Weight: 25.49 g | Level: VERY_LOW
+Weight: 25.28 g | Level: VERY_LOW
+Weight: 21.61 g | Level: VERY_LOW
+Weight: 25.02 g | Level: VERY_LOW
+Weight: 21.99 g | Level: VERY_LOW
+Weight: 23.84 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 28.43 g | Level: VERY_LOW
+Weight: 25.62 g | Level: VERY_LOW
+Weight: 28.86 g | Level: VERY_LOW
+Weight: 30.66 g | Level: VERY_LOW
+Weight: 25.30 g | Level: VERY_LOW
+Weight: 22.57 g | Level: VERY_LOW
+Weight: 23.32 g | Level: VERY_LOW
+Weight: 23.13 g | Level: VERY_LOW
+Weight: 28.73 g | Level: VERY_LOW
+Weight: 20.86 g | Level: VERY_LOW
+Weight: 25.62 g | Level: VERY_LOW
+Weight: 16.69 g | Level: VERY_LOW
+Weight: 28.67 g | Level: VERY_LOW
+Weight: 27.83 g | Level: VERY_LOW
+Weight: 25.17 g | Level: VERY_LOW
+Weight: 26.20 g | Level: VERY_LOW
+Weight: 23.58 g | Level: VERY_LOW
+Weight: 30.32 g | Level: VERY_LOW
+Weight: 26.69 g | Level: VERY_LOW
+Weight: 31.39 g | Level: VERY_LOW
+Weight: 27.25 g | Level: VERY_LOW
+Weight: 24.74 g | Level: VERY_LOW
+Weight: 23.07 g | Level: VERY_LOW
+Weight: 22.25 g | Level: VERY_LOW
+Weight: 25.55 g | Level: VERY_LOW
+Weight: 19.83 g | Level: VERY_LOW
+Weight: 27.40 g | Level: VERY_LOW
+Weight: 19.65 g | Level: VERY_LOW
+Weight: 25.85 g | Level: VERY_LOW
+Weight: 23.69 g | Level: VERY_LOW
+Weight: 30.36 g | Level: VERY_LOW
+Weight: 26.43 g | Level: VERY_LOW
+Weight: 24.91 g | Level: VERY_LOW
+Weight: 21.65 g | Level: VERY_LOW
+Weight: 23.00 g | Level: VERY_LOW
+Weight: 26.86 g | Level: VERY_LOW
+Weight: 22.31 g | Level: VERY_LOW
+Weight: 22.70 g | Level: VERY_LOW
+Weight: 26.65 g | Level: VERY_LOW
+Weight: 18.86 g | Level: VERY_LOW
+Weight: 20.86 g | Level: VERY_LOW
+Weight: 27.89 g | Level: VERY_LOW
+Weight: 25.28 g | Level: VERY_LOW
+Weight: 19.07 g | Level: VERY_LOW
+Weight: 24.57 g | Level: VERY_LOW
+Weight: 22.83 g | Level: VERY_LOW
+Weight: 24.95 g | Level: VERY_LOW
+Weight: 17.72 g | Level: VERY_LOW
+Weight: 19.12 g | Level: VERY_LOW
+Weight: 16.91 g | Level: VERY_LOW
+Weight: 24.31 g | Level: VERY_LOW
+Weight: 31.93 g | Level: VERY_LOW
+Weight: 22.14 g | Level: VERY_LOW
+Weight: 24.65 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 28.73 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 25.60 g | Level: VERY_LOW
+Weight: 15.19 g | Level: VERY_LOW
+Weight: 23.82 g | Level: VERY_LOW
+Weight: 21.28 g | Level: VERY_LOW
+Weight: 26.82 g | Level: VERY_LOW
+Weight: 18.28 g | Level: VERY_LOW
+Weight: 28.28 g | Level: VERY_LOW
+Weight: 24.65 g | Level: VERY_LOW
+Weight: 19.98 g | Level: VERY_LOW
+Weight: 22.53 g | Level: VERY_LOW
+Weight: 31.50 g | Level: VERY_LOW
+Weight: 21.31 g | Level: VERY_LOW
+Weight: 24.33 g | Level: VERY_LOW
+Weight: 18.69 g | Level: VERY_LOW
+Weight: 24.03 g | Level: VERY_LOW
+Weight: 18.86 g | Level: VERY_LOW
+Weight: 17.36 g | Level: VERY_LOW
+Weight: 19.93 g | Level: VERY_LOW
+Weight: 23.22 g | Level: VERY_LOW
+Weight: 24.52 g | Level: VERY_LOW
+Weight: 25.17 g | Level: VERY_LOW
+Weight: 24.16 g | Level: VERY_LOW
+Weight: 28.79 g | Level: VERY_LOW
+Weight: 22.04 g | Level: VERY_LOW
+Weight: 23.82 g | Level: VERY_LOW
+Weight: 23.58 g | Level: VERY_LOW
+Weight: 26.46 g | Level: VERY_LOW
+Weight: 25.51 g | Level: VERY_LOW
+Weight: 19.70 g | Level: VERY_LOW
+Weight: 24.25 g | Level: VERY_LOW
+Weight: 23.62 g | Level: VERY_LOW
+Weight: 20.58 g | Level: VERY_LOW
+Weight: 18.80 g | Level: VERY_LOW
+Weight: 20.00 g | Level: VERY_LOW
+Weight: 20.19 g | Level: VERY_LOW
+Weight: 21.18 g | Level: VERY_LOW
+Weight: 22.68 g | Level: VERY_LOW
+Weight: 18.32 g | Level: VERY_LOW
+Weight: 19.74 g | Level: VERY_LOW
+Weight: 26.35 g | Level: VERY_LOW
+Weight: 30.17 g | Level: VERY_LOW
+Weight: 24.31 g | Level: VERY_LOW
+Weight: 30.25 g | Level: VERY_LOW
+Weight: 18.28 g | Level: VERY_LOW
+Weight: 28.75 g | Level: VERY_LOW
+Weight: 15.96 g | Level: VERY_LOW
+Weight: 19.18 g | Level: VERY_LOW
+Weight: 25.98 g | Level: VERY_LOW
+Weight: 25.66 g | Level: VERY_LOW
+Weight: 22.40 g | Level: VERY_LOW
+Weight: 25.55 g | Level: VERY_LOW
+Weight: 30.83 g | Level: VERY_LOW
+Weight: 26.73 g | Level: VERY_LOW
+Weight: 23.00 g | Level: VERY_LOW
+Weight: 31.13 g | Level: VERY_LOW
+Weight: 21.50 g | Level: VERY_LOW
+Weight: 23.41 g | Level: VERY_LOW
+Weight: 16.09 g | Level: VERY_LOW
+Weight: 24.33 g | Level: VERY_LOW
+Weight: 26.46 g | Level: VERY_LOW
+Weight: 25.02 g | Level: VERY_LOW
+Weight: 25.23 g | Level: VERY_LOW
+Weight: 25.25 g | Level: VERY_LOW
+Weight: 20.75 g | Level: VERY_LOW
+Weight: 23.97 g | Level: VERY_LOW
+Weight: 29.39 g | Level: VERY_LOW
+Weight: 29.31 g | Level: VERY_LOW
+Weight: 27.16 g | Level: VERY_LOW
+Weight: 20.55 g | Level: VERY_LOW
+Weight: 20.96 g | Level: VERY_LOW
+Weight: 20.38 g | Level: VERY_LOW
+Weight: 21.33 g | Level: VERY_LOW
+Weight: 20.75 g | Level: VERY_LOW
+Weight: 19.37 g | Level: VERY_LOW
+Weight: 18.09 g | Level: VERY_LOW
+Weight: 21.89 g | Level: VERY_LOW
+Weight: 27.68 g | Level: VERY_LOW
+Weight: 17.85 g | Level: VERY_LOW
+Weight: 18.75 g | Level: VERY_LOW
+Weight: 19.22 g | Level: VERY_LOW
+Weight: 21.16 g | Level: VERY_LOW
+Weight: 17.38 g | Level: VERY_LOW
+Weight: 20.15 g | Level: VERY_LOW
+Weight: 26.31 g | Level: VERY_LOW
+Weight: 24.50 g | Level: VERY_LOW
+Weight: 26.52 g | Level: VERY_LOW
+Weight: 29.67 g | Level: VERY_LOW
+Weight: 27.18 g | Level: VERY_LOW
+Weight: 21.82 g | Level: VERY_LOW
+Weight: 26.65 g | Level: VERY_LOW
+Weight: 13.54 g | Level: VERY_LOW
+Weight: 24.05 g | Level: VERY_LOW
+Weight: 18.67 g | Level: VERY_LOW
+Weight: 19.68 g | Level: VERY_LOW
+Weight: 29.42 g | Level: VERY_LOW
+Weight: 23.24 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 23.97 g | Level: VERY_LOW
+Weight: 26.93 g | Level: VERY_LOW
+Weight: 19.22 g | Level: VERY_LOW
+Weight: 23.39 g | Level: VERY_LOW
+Weight: 21.41 g | Level: VERY_LOW
+Weight: 23.71 g | Level: VERY_LOW
+Weight: 24.12 g | Level: VERY_LOW
+Weight: 27.83 g | Level: VERY_LOW
+Weight: 23.88 g | Level: VERY_LOW
+Weight: 24.33 g | Level: VERY_LOW
+Weight: 18.30 g | Level: VERY_LOW
+Weight: 15.86 g | Level: VERY_LOW
+Weight: 20.08 g | Level: VERY_LOW
+Weight: 23.69 g | Level: VERY_LOW
+Weight: 18.00 g | Level: VERY_LOW
+Weight: 25.19 g | Level: VERY_LOW
+Weight: 28.13 g | Level: VERY_LOW
+Weight: 18.32 g | Level: VERY_LOW
+Weight: 22.23 g | Level: VERY_LOW
+Weight: 31.50 g | Level: VERY_LOW
+Weight: 24.25 g | Level: VERY_LOW
+Weight: 30.70 g | Level: VERY_LOW
+Weight: 22.87 g | Level: VERY_LOW
+Weight: 20.75 g | Level: VERY_LOW
+Weight: 18.56 g | Level: VERY_LOW
+Weight: 25.19 g | Level: VERY_LOW
+Weight: 22.21 g | Level: VERY_LOW
+Weight: 23.69 g | Level: VERY_LOW
+Weight: 26.84 g | Level: VERY_LOW
+Weight: 22.27 g | Level: VERY_LOW
+Weight: 19.48 g | Level: VERY_LOW
+Weight: 27.61 g | Level: VERY_LOW
+Weight: 25.30 g | Level: VERY_LOW
+Weight: 29.70 g | Level: VERY_LOW
+Weight: 22.49 g | Level: VERY_LOW
+Weight: 25.64 g | Level: VERY_LOW
+Weight: 27.18 g | Level: VERY_LOW
+Weight: 29.18 g | Level: VERY_LOW
+Weight: 20.34 g | Level: VERY_LOW
+Weight: 24.16 g | Level: VERY_LOW
+Weight: 19.31 g | Level: VERY_LOW
+Weight: 21.95 g | Level: VERY_LOW
+Weight: 20.28 g | Level: VERY_LOW
+Weight: 20.40 g | Level: VERY_LOW
+Weight: 28.09 g | Level: VERY_LOW
+Weight: 26.95 g | Level: VERY_LOW
+Weight: 23.64 g | Level: VERY_LOW
+Weight: 24.42 g | Level: VERY_LOW
+Weight: 25.17 g | Level: VERY_LOW
+Weight: 23.28 g | Level: VERY_LOW
+Weight: 21.76 g | Level: VERY_LOW
+Weight: 21.58 g | Level: VERY_LOW
+Weight: 21.82 g | Level: VERY_LOW
+Weight: 23.02 g | Level: VERY_LOW
+Weight: 21.03 g | Level: VERY_LOW
+Weight: 19.18 g | Level: VERY_LOW
+Weight: 18.24 g | Level: VERY_LOW
+Weight: 26.48 g | Level: VERY_LOW
+Weight: 25.30 g | Level: VERY_LOW
+Weight: 19.68 g | Level: VERY_LOW
+Weight: 28.26 g | Level: VERY_LOW
+Weight: 24.37 g | Level: VERY_LOW
+Weight: 21.52 g | Level: VERY_LOW
+Weight: 17.85 g | Level: VERY_LOW
+Weight: 20.43 g | Level: VERY_LOW
+Weight: 17.96 g | Level: VERY_LOW
+Weight: 26.09 g | Level: VERY_LOW
+Weight: 21.31 g | Level: VERY_LOW
+Weight: 32.21 g | Level: VERY_LOW
+Weight: 26.67 g | Level: VERY_LOW
+Weight: 19.98 g | Level: VERY_LOW
+Weight: 22.64 g | Level: VERY_LOW
+Weight: 22.29 g | Level: VERY_LOW
+Weight: 28.71 g | Level: VERY_LOW
+Weight: 28.13 g | Level: VERY_LOW
+Weight: 22.66 g | Level: VERY_LOW
+Weight: 24.33 g | Level: VERY_LOW
+Weight: 20.75 g | Level: VERY_LOW
+Weight: 25.28 g | Level: VERY_LOW
+Weight: 21.82 g | Level: VERY_LOW
+Weight: 21.61 g | Level: VERY_LOW
+Weight: 18.82 g | Level: VERY_LOW
+Weight: 25.88 g | Level: VERY_LOW
+Weight: 21.41 g | Level: VERY_LOW
+Weight: 22.94 g | Level: VERY_LOW
+Weight: 23.84 g | Level: VERY_LOW
+Weight: 29.37 g | Level: VERY_LOW
+Weight: 26.65 g | Level: VERY_LOW
+Weight: 27.89 g | Level: VERY_LOW
+Weight: 20.06 g | Level: VERY_LOW
+Weight: 19.80 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 19.44 g | Level: VERY_LOW
+Weight: 20.77 g | Level: VERY_LOW
+Weight: 27.94 g | Level: VERY_LOW
+Weight: 29.46 g | Level: VERY_LOW
+Weight: 22.83 g | Level: VERY_LOW
+Weight: 25.64 g | Level: VERY_LOW
+Weight: 19.22 g | Level: VERY_LOW
+Weight: 23.62 g | Level: VERY_LOW
+Weight: 23.19 g | Level: VERY_LOW
+Weight: 26.00 g | Level: VERY_LOW
+Weight: 21.24 g | Level: VERY_LOW
+Weight: 26.73 g | Level: VERY_LOW
+Weight: 27.01 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 26.63 g | Level: VERY_LOW
+Weight: 19.57 g | Level: VERY_LOW
+Weight: 26.39 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 22.27 g | Level: VERY_LOW
+Weight: 23.75 g | Level: VERY_LOW
+Weight: 20.62 g | Level: VERY_LOW
+Weight: 22.98 g | Level: VERY_LOW
+Weight: 24.22 g | Level: VERY_LOW
+Weight: 24.70 g | Level: VERY_LOW
+Weight: 17.12 g | Level: VERY_LOW
+Weight: 26.52 g | Level: VERY_LOW
+Weight: 16.80 g | Level: VERY_LOW
+Weight: 25.77 g | Level: VERY_LOW
+Weight: 26.99 g | Level: VERY_LOW
+Weight: 20.88 g | Level: VERY_LOW
+Weight: 17.66 g | Level: VERY_LOW
+Weight: 24.42 g | Level: VERY_LOW
+Weight: 21.76 g | Level: VERY_LOW
+Weight: 25.88 g | Level: VERY_LOW
+Weight: 18.73 g | Level: VERY_LOW
+Weight: 21.76 g | Level: VERY_LOW
+Weight: 24.46 g | Level: VERY_LOW
+Weight: 26.35 g | Level: VERY_LOW
+Weight: 20.79 g | Level: VERY_LOW
+Weight: 23.15 g | Level: VERY_LOW
+Weight: 20.71 g | Level: VERY_LOW
+Weight: 20.51 g | Level: VERY_LOW
+Weight: 26.00 g | Level: VERY_LOW
+Weight: 22.55 g | Level: VERY_LOW
+Weight: 30.60 g | Level: VERY_LOW
+Weight: 20.71 g | Level: VERY_LOW
+Weight: 27.23 g | Level: VERY_LOW
+Weight: 30.00 g | Level: VERY_LOW
+Weight: 28.34 g | Level: VERY_LOW
+Weight: 11.29 g | Level: VERY_LOW
+Weight: 27.23 g | Level: VERY_LOW
+Weight: 26.46 g | Level: VERY_LOW
+Weight: 29.31 g | Level: VERY_LOW
+Weight: 30.73 g | Level: VERY_LOW
+Weight: 21.39 g | Level: VERY_LOW
+Weight: 17.14 g | Level: VERY_LOW
+Weight: 24.70 g | Level: VERY_LOW
+Weight: 26.69 g | Level: VERY_LOW
+Weight: 20.86 g | Level: VERY_LOW
+Weight: 23.17 g | Level: VERY_LOW
+Weight: 24.22 g | Level: VERY_LOW
+Weight: 19.65 g | Level: VERY_LOW
+Weight: 21.74 g | Level: VERY_LOW
+Weight: 20.08 g | Level: VERY_LOW
+Weight: 18.11 g | Level: VERY_LOW
+Weight: 16.95 g | Level: VERY_LOW
+Weight: 14.31 g | Level: VERY_LOW
+Weight: 25.90 g | Level: VERY_LOW
+Weight: 25.66 g | Level: VERY_LOW
+Weight: 27.40 g | Level: VERY_LOW
+Weight: 19.40 g | Level: VERY_LOW
+Weight: 23.17 g | Level: VERY_LOW
+Weight: 25.45 g | Level: VERY_LOW
+Weight: 25.06 g | Level: VERY_LOW
+Weight: 24.46 g | Level: VERY_LOW
+Weight: 17.81 g | Level: VERY_LOW
+Weight: 19.98 g | Level: VERY_LOW
+Weight: 27.27 g | Level: VERY_LOW
+Weight: 22.59 g | Level: VERY_LOW
+Weight: 26.28 g | Level: VERY_LOW
+Weight: 27.36 g | Level: VERY_LOW
+Weight: 23.41 g | Level: VERY_LOW
+Weight: 18.71 g | Level: VERY_LOW
+Weight: 20.71 g | Level: VERY_LOW
+Weight: 23.95 g | Level: VERY_LOW
+Weight: 29.31 g | Level: VERY_LOW
+Weight: 20.19 g | Level: VERY_LOW
+Weight: 21.54 g | Level: VERY_LOW
+Weight: 24.50 g | Level: VERY_LOW
+Weight: 24.16 g | Level: VERY_LOW
+Weight: 18.09 g | Level: VERY_LOW
+Weight: 25.60 g | Level: VERY_LOW
+Weight: 23.99 g | Level: VERY_LOW
+Weight: 28.02 g | Level: VERY_LOW
+Weight: 16.07 g | Level: VERY_LOW
+Weight: 20.55 g | Level: VERY_LOW
+Weight: 18.90 g | Level: VERY_LOW
+Weight: 16.80 g | Level: VERY_LOW
+Weight: 32.31 g | Level: VERY_LOW
+Weight: 26.73 g | Level: VERY_LOW
+Weight: 21.28 g | Level: VERY_LOW
+Weight: 20.51 g | Level: VERY_LOW
+Weight: 17.94 g | Level: VERY_LOW
+Weight: 21.20 g | Level: VERY_LOW
+Weight: 23.32 g | Level: VERY_LOW
+Weight: 24.82 g | Level: VERY_LOW
+Weight: 21.67 g | Level: VERY_LOW
+Weight: 18.62 g | Level: VERY_LOW
+Weight: 24.95 g | Level: VERY_LOW
+Weight: 14.10 g | Level: VERY_LOW
+Weight: 22.23 g | Level: VERY_LOW
+Weight: 23.09 g | Level: VERY_LOW
+Weight: 25.94 g | Level: VERY_LOW
+Weight: 21.24 g | Level: VERY_LOW
+Weight: 22.74 g | Level: VERY_LOW
+Weight: 20.58 g | Level: VERY_LOW
+Weight: 20.98 g | Level: VERY_LOW
+Weight: 24.67 g | Level: VERY_LOW
+Weight: 17.19 g | Level: VERY_LOW
+Weight: 24.01 g | Level: VERY_LOW
+Weight: 16.39 g | Level: VERY_LOW
+Weight: 22.74 g | Level: VERY_LOW
+Weight: 16.59 g | Level: VERY_LOW
+Weight: 23.19 g | Level: VERY_LOW
+Weight: 21.52 g | Level: VERY_LOW
+Weight: 21.99 g | Level: VERY_LOW
+Weight: 24.10 g | Level: VERY_LOW
+Weight: 23.90 g | Level: VERY_LOW
+Weight: 20.64 g | Level: VERY_LOW
+Weight: 24.07 g | Level: VERY_LOW
+Weight: 17.83 g | Level: VERY_LOW
+Weight: 20.60 g | Level: VERY_LOW
+Weight: 25.94 g | Level: VERY_LOW
+Weight: 25.64 g | Level: VERY_LOW
+Weight: 22.38 g | Level: VERY_LOW
+Weight: 23.60 g | Level: VERY_LOW
+Weight: 19.76 g | Level: VERY_LOW
+Weight: 25.28 g | Level: VERY_LOW
+Weight: 29.48 g | Level: VERY_LOW
+Weight: 23.41 g | Level: VERY_LOW
+Weight: 21.05 g | Level: VERY_LOW
+Weight: 25.70 g | Level: VERY_LOW
+Weight: 12.08 g | Level: VERY_LOW
+Weight: 26.69 g | Level: VERY_LOW
+Weight: 21.28 g | Level: VERY_LOW
+Weight: 22.31 g | Level: VERY_LOW
+Weight: 25.00 g | Level: VERY_LOW
+Weight: 18.35 g | Level: VERY_LOW
+Weight: 21.56 g | Level: VERY_LOW
+Weight: 14.27 g | Level: VERY_LOW
+Weight: 19.48 g | Level: VERY_LOW
+Weight: 20.32 g | Level: VERY_LOW
+Weight: 16.84 g | Level: VERY_LOW
+Weight: 26.52 g | Level: VERY_LOW
+Weight: 18.39 g | Level: VERY_LOW
+Weight: 20.73 g | Level: VERY_LOW
+Weight: 25.00 g | Level: VERY_LOW
+Weight: 18.69 g | Level: VERY_LOW
+Weight: 19.44 g | Level: VERY_LOW
+Weight: 21.78 g | Level: VERY_LOW
+
+Diagnostic capture started.
+DATA,sequence,timestamp_ms,raw_counts,tare_offset,net_counts,weight_grams
+DATA,0,486553,-165386,-166704,1318,28.279216
+DATA,1,486637,-165597,-166704,1107,23.751966
+DATA,2,486721,-165739,-166704,965,20.705192
+DATA,3,486805,-165653,-166704,1051,22.550422
+DATA,4,486889,-165732,-166704,972,20.855384
+DATA,5,486974,-165861,-166704,843,18.087541
+DATA,6,487058,-165588,-166704,1116,23.945072
+DATA,7,487142,-165572,-166704,1132,24.288370
+DATA,8,487226,-165666,-166704,1038,22.271492
+DATA,9,487310,-165824,-166704,880,18.881418
+DATA,10,487394,-165892,-166704,812,17.422399
+DATA,11,487479,-165590,-166704,1114,23.902160
+DATA,12,487563,-165713,-166704,991,21.263051
+DATA,13,487647,-165831,-166704,873,18.731225
+DATA,14,487731,-165700,-166704,1004,21.541982
+DATA,15,487815,-165684,-166704,1020,21.885280
+DATA,16,487899,-165548,-166704,1156,24.803318
+DATA,17,487983,-165559,-166704,1145,24.567300
+DATA,18,488068,-165612,-166704,1092,23.430124
+DATA,19,488152,-165740,-166704,964,20.683736
+DATA,20,488236,-165842,-166704,862,18.495208
+DATA,21,488320,-165578,-166704,1126,24.159633
+DATA,22,488404,-165311,-166704,1393,29.888427
+DATA,23,488488,-165280,-166704,1424,30.553569
+DATA,24,488572,-165411,-166704,1293,27.742813
+DATA,25,488657,-165678,-166704,1026,22.014019
+DATA,26,488741,-165680,-166704,1024,21.971105
+DATA,27,488825,-165631,-166704,1073,23.022457
+DATA,28,488909,-166060,-166704,644,13.817767
+DATA,29,488993,-166037,-166704,667,14.311258
+DATA,30,489077,-165777,-166704,927,19.889858
+DATA,31,489162,-165668,-166704,1036,22.228580
+DATA,32,489246,-165602,-166704,1102,23.644685
+DATA,33,489330,-165496,-166704,1208,25.919038
+DATA,34,489414,-165624,-166704,1080,23.172651
+DATA,35,489498,-165682,-166704,1022,21.928194
+DATA,36,489582,-165533,-166704,1171,25.125160
+DATA,37,489666,-165435,-166704,1269,27.227865
+DATA,38,489751,-165730,-166704,974,20.898298
+DATA,39,489835,-165544,-166704,1160,24.889142
+DATA,40,489919,-165596,-166704,1108,23.773422
+DATA,41,490003,-165609,-166704,1095,23.494493
+DATA,42,490087,-165724,-166704,980,21.027034
+DATA,43,490171,-165692,-166704,1012,21.713632
+DATA,44,490255,-165704,-166704,1000,21.456157
+DATA,45,490340,-165736,-166704,968,20.769561
+DATA,46,490424,-165806,-166704,898,19.267629
+DATA,47,490508,-165582,-166704,1122,24.073808
+DATA,48,490592,-165507,-166704,1197,25.683021
+DATA,49,490676,-165290,-166704,1414,30.339006
+DATA,50,490760,-165310,-166704,1394,29.909883
+DATA,51,490845,-165772,-166704,932,19.997138
+DATA,52,490929,-165688,-166704,1016,21.799455
+DATA,53,491013,-165698,-166704,1006,21.584894
+DATA,54,491097,-165963,-166704,741,15.899014
+DATA,55,491181,-165742,-166704,962,20.640823
+DATA,56,491265,-165445,-166704,1259,27.013303
+DATA,57,491349,-165475,-166704,1229,26.369617
+DATA,58,491434,-165605,-166704,1099,23.580318
+DATA,59,491518,-165869,-166704,835,17.915891
+DATA,60,491602,-165736,-166704,968,20.769561
+DATA,61,491686,-165889,-166704,815,17.486768
+DATA,62,491770,-165915,-166704,789,16.928909
+DATA,63,491854,-165867,-166704,837,17.958805
+DATA,64,491939,-165566,-166704,1138,24.417108
+DATA,65,492023,-165561,-166704,1143,24.524389
+DATA,66,492107,-165562,-166704,1142,24.502931
+DATA,67,492191,-165711,-166704,993,21.305965
+DATA,68,492275,-165940,-166704,764,16.392503
+DATA,69,492359,-165971,-166704,733,15.727364
+DATA,70,492443,-165776,-166704,928,19.911314
+DATA,71,492528,-165602,-166704,1102,23.644685
+DATA,72,492612,-165415,-166704,1289,27.656988
+DATA,73,492696,-165433,-166704,1271,27.270776
+DATA,74,492780,-165713,-166704,991,21.263051
+DATA,75,492864,-165604,-166704,1100,23.601774
+DATA,76,492948,-165672,-166704,1032,22.142755
+DATA,77,493032,-165452,-166704,1252,26.863109
+DATA,78,493117,-165523,-166704,1181,25.339721
+DATA,79,493201,-165816,-166704,888,19.053068
+DATA,80,493285,-165879,-166704,825,17.701330
+DATA,81,493369,-165752,-166704,952,20.426261
+DATA,82,493453,-165824,-166704,880,18.881418
+DATA,83,493537,-165905,-166704,799,17.143470
+DATA,84,493622,-165778,-166704,926,19.868402
+DATA,85,493706,-165862,-166704,842,18.066085
+DATA,86,493790,-165817,-166704,887,19.031612
+DATA,87,493874,-165715,-166704,989,21.220140
+DATA,88,493958,-165679,-166704,1025,21.992561
+DATA,89,494042,-165430,-166704,1274,27.335145
+DATA,90,494126,-165368,-166704,1336,28.665426
+DATA,91,494211,-165547,-166704,1157,24.824775
+DATA,92,494295,-165646,-166704,1058,22.700614
+DATA,93,494379,-165451,-166704,1253,26.884565
+DATA,94,494463,-165329,-166704,1375,29.502216
+DATA,95,494547,-165366,-166704,1338,28.708339
+DATA,96,494631,-165661,-166704,1043,22.378772
+DATA,97,494715,-165715,-166704,989,21.220140
+DATA,98,494800,-165972,-166704,732,15.705908
+DATA,99,494884,-165955,-166704,749,16.070661
+DATA,100,494968,-165591,-166704,1113,23.880702
+DATA,101,495052,-165708,-166704,996,21.370332
+DATA,102,495136,-165892,-166704,812,17.422399
+DATA,103,495220,-165822,-166704,882,18.924331
+DATA,104,495304,-165671,-166704,1033,22.164211
+DATA,105,495389,-165631,-166704,1073,23.022457
+DATA,106,495473,-165424,-166704,1280,27.463882
+DATA,107,495557,-165634,-166704,1070,22.958089
+DATA,108,495641,-165968,-166704,736,15.791732
+DATA,109,495725,-165648,-166704,1056,22.657703
+DATA,110,495809,-165562,-166704,1142,24.502931
+DATA,111,495894,-165494,-166704,1210,25.961950
+DATA,112,495978,-165503,-166704,1201,25.768846
+DATA,113,496062,-165696,-166704,1008,21.627807
+DATA,114,496146,-165561,-166704,1143,24.524389
+DATA,115,496230,-165595,-166704,1109,23.794879
+DATA,116,496314,-165866,-166704,838,17.980260
+DATA,117,496398,-165866,-166704,838,17.980260
+DATA,118,496483,-165645,-166704,1059,22.722070
+DATA,119,496567,-165563,-166704,1141,24.481475
+DATA,120,496651,-165681,-166704,1023,21.949649
+DATA,121,496735,-165788,-166704,916,19.653841
+DATA,122,496819,-165839,-166704,865,18.559576
+DATA,123,496903,-165501,-166704,1203,25.811758
+DATA,124,496987,-165497,-166704,1207,25.897583
+DATA,125,497072,-165538,-166704,1166,25.017879
+DATA,126,497156,-165554,-166704,1150,24.674581
+DATA,127,497240,-165597,-166704,1107,23.751966
+DATA,128,497324,-165654,-166704,1050,22.528964
+DATA,129,497408,-165787,-166704,917,19.675296
+DATA,130,497492,-165533,-166704,1171,25.125160
+DATA,131,497577,-165524,-166704,1180,25.318265
+DATA,132,497661,-165664,-166704,1040,22.314403
+DATA,133,497745,-165670,-166704,1034,22.185667
+DATA,134,497829,-165840,-166704,864,18.538120
+DATA,135,497913,-165793,-166704,911,19.546560
+DATA,136,497997,-165613,-166704,1091,23.408668
+DATA,137,498081,-165577,-166704,1127,24.181089
+DATA,138,498166,-165863,-166704,841,18.044628
+DATA,139,498250,-166004,-166704,700,15.019311
+DATA,140,498334,-165983,-166704,721,15.469890
+DATA,141,498418,-165955,-166704,749,16.070661
+DATA,142,498502,-165572,-166704,1132,24.288370
+DATA,143,498586,-165867,-166704,837,17.958805
+DATA,144,498670,-165951,-166704,753,16.156486
+DATA,145,498755,-165598,-166704,1106,23.730510
+DATA,146,498839,-165639,-166704,1065,22.850809
+DATA,147,498923,-165468,-166704,1236,26.519811
+DATA,148,499007,-165347,-166704,1357,29.116006
+DATA,149,499091,-165316,-166704,1388,29.781147
+DATA,150,499175,-165480,-166704,1224,26.262336
+DATA,151,499259,-165968,-166704,736,15.791732
+DATA,152,499344,-165879,-166704,825,17.701330
+DATA,153,499428,-165872,-166704,832,17.851524
+DATA,154,499512,-165996,-166704,708,15.190960
+DATA,155,499596,-165506,-166704,1198,25.704477
+DATA,156,499680,-165546,-166704,1158,24.846231
+DATA,157,499764,-165565,-166704,1139,24.438564
+DATA,158,499849,-165591,-166704,1113,23.880702
+DATA,159,499933,-165602,-166704,1102,23.644685
+DATA,160,500017,-165633,-166704,1071,22.979545
+DATA,161,500101,-165561,-166704,1143,24.524389
+DATA,162,500185,-165592,-166704,1112,23.859247
+DATA,163,500269,-165757,-166704,947,20.318981
+DATA,164,500353,-165708,-166704,996,21.370332
+DATA,165,500438,-165766,-166704,938,20.125875
+DATA,166,500522,-165986,-166704,718,15.405522
+DATA,167,500606,-165754,-166704,950,20.383350
+DATA,168,500690,-165521,-166704,1183,25.382635
+DATA,169,500774,-165572,-166704,1132,24.288370
+DATA,170,500858,-165702,-166704,1002,21.499071
+DATA,171,500942,-165702,-166704,1002,21.499071
+DATA,172,501027,-165607,-166704,1097,23.537405
+DATA,173,501111,-165544,-166704,1160,24.889142
+DATA,174,501195,-165577,-166704,1127,24.181089
+DATA,175,501279,-165755,-166704,949,20.361894
+DATA,176,501363,-165732,-166704,972,20.855384
+DATA,177,501447,-165624,-166704,1080,23.172651
+DATA,178,501532,-165524,-166704,1180,25.318265
+DATA,179,501616,-165641,-166704,1063,22.807895
+DATA,180,501700,-165802,-166704,902,19.353454
+DATA,181,501784,-165832,-166704,872,18.709770
+DATA,182,501868,-165815,-166704,889,19.074523
+DATA,183,501952,-165883,-166704,821,17.615505
+DATA,184,502036,-165852,-166704,852,18.280647
+DATA,185,502121,-165821,-166704,883,18.945787
+DATA,186,502205,-165916,-166704,788,16.907451
+DATA,187,502289,-165799,-166704,905,19.417823
+DATA,188,502373,-165562,-166704,1142,24.502931
+DATA,189,502457,-165713,-166704,991,21.263051
+DATA,190,502541,-165874,-166704,830,17.808610
+DATA,191,502625,-165860,-166704,844,18.108997
+DATA,192,502710,-165621,-166704,1083,23.237018
+DATA,193,502794,-165557,-166704,1147,24.610212
+DATA,194,502878,-165647,-166704,1057,22.679159
+DATA,195,502962,-165838,-166704,866,18.581033
+DATA,196,503046,-165801,-166704,903,19.374910
+DATA,197,503130,-165812,-166704,892,19.138893
+DATA,198,503215,-165675,-166704,1029,22.078386
+DATA,199,503299,-165538,-166704,1166,25.017879
+DATA,200,503383,-165447,-166704,1257,26.970390
+DATA,201,503467,-165716,-166704,988,21.198684
+DATA,202,503551,-165848,-166704,856,18.366470
+DATA,203,503635,-165748,-166704,956,20.512086
+DATA,204,503719,-165547,-166704,1157,24.824775
+DATA,205,503804,-165639,-166704,1065,22.850809
+DATA,206,503888,-165824,-166704,880,18.881418
+DATA,207,503972,-165589,-166704,1115,23.923616
+DATA,208,504056,-165498,-166704,1206,25.876127
+DATA,209,504140,-165595,-166704,1109,23.794879
+DATA,210,504224,-165602,-166704,1102,23.644685
+DATA,211,504309,-165680,-166704,1024,21.971105
+DATA,212,504393,-165757,-166704,947,20.318981
+DATA,213,504477,-165784,-166704,920,19.739665
+DATA,214,504561,-165686,-166704,1018,21.842369
+DATA,215,504645,-165588,-166704,1116,23.945072
+DATA,216,504729,-165761,-166704,943,20.233156
+DATA,217,504813,-166100,-166704,604,12.959520
+DATA,218,504898,-165802,-166704,902,19.353454
+DATA,219,504982,-165612,-166704,1092,23.430124
+DATA,220,505066,-165679,-166704,1025,21.992561
+DATA,221,505150,-165759,-166704,945,20.276069
+DATA,222,505234,-165663,-166704,1041,22.335861
+DATA,223,505318,-165829,-166704,875,18.774137
+DATA,224,505402,-165812,-166704,892,19.138893
+DATA,225,505487,-165625,-166704,1079,23.151193
+DATA,226,505571,-165557,-166704,1147,24.610212
+DATA,227,505655,-165532,-166704,1172,25.146617
+DATA,228,505739,-165766,-166704,938,20.125875
+DATA,229,505823,-165626,-166704,1078,23.129737
+DATA,230,505907,-165639,-166704,1065,22.850809
+DATA,231,505991,-165860,-166704,844,18.108997
+DATA,232,506076,-165613,-166704,1091,23.408668
+DATA,233,506160,-165534,-166704,1170,25.103704
+DATA,234,506244,-165681,-166704,1023,21.949649
+DATA,235,506328,-165503,-166704,1201,25.768846
+DATA,236,506412,-165403,-166704,1301,27.914461
+DATA,237,506496,-165778,-166704,926,19.868402
+DATA,238,506580,-165873,-166704,831,17.830066
+DATA,239,506665,-165646,-166704,1058,22.700614
+DATA,240,506749,-165408,-166704,1296,27.807180
+DATA,241,506833,-165716,-166704,988,21.198684
+DATA,242,506917,-165857,-166704,847,18.173366
+DATA,243,507001,-165744,-166704,960,20.597911
+DATA,244,507085,-165683,-166704,1021,21.906736
+DATA,245,507170,-165580,-166704,1124,24.116722
+DATA,246,507254,-165633,-166704,1071,22.979545
+DATA,247,507338,-165662,-166704,1042,22.357316
+DATA,248,507422,-165814,-166704,890,19.095979
+DATA,249,507506,-165666,-166704,1038,22.271492
+DATA,250,507590,-165490,-166704,1214,26.047775
+DATA,251,507674,-165491,-166704,1213,26.026319
+DATA,252,507759,-165628,-166704,1076,23.086826
+DATA,253,507843,-165622,-166704,1082,23.215562
+DATA,254,507927,-165575,-166704,1129,24.224002
+DATA,255,508011,-165485,-166704,1219,26.155055
+DATA,256,508095,-165489,-166704,1215,26.069231
+DATA,257,508179,-165376,-166704,1328,28.493778
+DATA,258,508263,-165594,-166704,1110,23.816335
+DATA,259,508348,-165657,-166704,1047,22.464597
+DATA,260,508432,-165543,-166704,1161,24.910598
+DATA,261,508516,-165552,-166704,1152,24.717493
+DATA,262,508600,-165461,-166704,1243,26.670003
+DATA,263,508684,-165209,-166704,1495,32.076957
+DATA,264,508768,-165407,-166704,1297,27.828636
+DATA,265,508852,-165471,-166704,1233,26.455442
+DATA,266,508937,-165503,-166704,1201,25.768846
+DATA,267,509021,-165416,-166704,1288,27.635532
+DATA,268,509105,-165773,-166704,931,19.975683
+DATA,269,509189,-165890,-166704,814,17.465312
+DATA,270,509273,-165786,-166704,918,19.696752
+DATA,271,509357,-165687,-166704,1017,21.820913
+DATA,272,509442,-165866,-166704,838,17.980260
+DATA,273,509526,-165886,-166704,818,17.551137
+DATA,274,509610,-165853,-166704,851,18.259189
+DATA,275,509694,-165878,-166704,826,17.722785
+DATA,276,509778,-165883,-166704,821,17.615505
+DATA,277,509862,-165600,-166704,1104,23.687599
+DATA,278,509946,-165500,-166704,1204,25.833213
+DATA,279,510031,-165661,-166704,1043,22.378772
+DATA,280,510115,-165624,-166704,1080,23.172651
+DATA,281,510199,-165562,-166704,1142,24.502931
+DATA,282,510283,-165742,-166704,962,20.640823
+DATA,283,510367,-165598,-166704,1106,23.730510
+DATA,284,510451,-165629,-166704,1075,23.065370
+DATA,285,510535,-165683,-166704,1021,21.906736
+DATA,286,510620,-165801,-166704,903,19.374910
+DATA,287,510704,-165625,-166704,1079,23.151193
+DATA,288,510788,-165732,-166704,972,20.855384
+DATA,289,510872,-165822,-166704,882,18.924331
+DATA,290,510956,-165742,-166704,962,20.640823
+DATA,291,511040,-165636,-166704,1068,22.915176
+DATA,292,511125,-165583,-166704,1121,24.052352
+DATA,293,511209,-165648,-166704,1056,22.657703
+DATA,294,511293,-165783,-166704,921,19.761121
+DATA,295,511377,-165848,-166704,856,18.366470
+DATA,296,511461,-165700,-166704,1004,21.541982
+DATA,297,511545,-165766,-166704,938,20.125875
+DATA,298,511630,-165711,-166704,993,21.305965
+DATA,299,511714,-165599,-166704,1105,23.709054
+DATA,300,511798,-165434,-166704,1270,27.249320
+DATA,301,511882,-165583,-166704,1121,24.052352
+DATA,302,511966,-165717,-166704,987,21.177227
+DATA,303,512050,-165620,-166704,1084,23.258474
+DATA,304,512134,-165658,-166704,1046,22.443141
+DATA,305,512219,-165738,-166704,966,20.726648
+DATA,306,512303,-165559,-166704,1145,24.567300
+DATA,307,512387,-165713,-166704,991,21.263051
+DATA,308,512471,-165681,-166704,1023,21.949649
+DATA,309,512555,-165750,-166704,954,20.469175
+DATA,310,512639,-165828,-166704,876,18.795595
+DATA,311,512723,-165679,-166704,1025,21.992561
+DATA,312,512808,-165700,-166704,1004,21.541982
+DATA,313,512892,-165666,-166704,1038,22.271492
+DATA,314,512976,-165920,-166704,784,16.821628
+DATA,315,513060,-165846,-166704,858,18.409383
+DATA,316,513144,-165711,-166704,993,21.305965
+DATA,317,513228,-165618,-166704,1086,23.301387
+DATA,318,513313,-165739,-166704,965,20.705192
+DATA,319,513397,-165945,-166704,759,16.285223
+DATA,320,513481,-165929,-166704,775,16.628522
+DATA,321,513565,-165633,-166704,1071,22.979545
+DATA,322,513649,-165477,-166704,1227,26.326705
+DATA,323,513733,-165781,-166704,923,19.804033
+DATA,324,513817,-165863,-166704,841,18.044628
+DATA,325,513902,-165850,-166704,854,18.323558
+DATA,326,513986,-165787,-166704,917,19.675296
+DATA,327,514070,-165908,-166704,796,17.079101
+DATA,328,514154,-165856,-166704,848,18.194822
+DATA,329,514238,-165534,-166704,1170,25.103704
+DATA,330,514322,-165459,-166704,1245,26.712917
+DATA,331,514407,-165603,-166704,1101,23.623229
+DATA,332,514491,-165869,-166704,835,17.915891
+DATA,333,514575,-165817,-166704,887,19.031612
+DATA,334,514659,-165541,-166704,1163,24.953512
+DATA,335,514743,-165499,-166704,1205,25.854669
+DATA,336,514827,-165664,-166704,1040,22.314403
+DATA,337,514912,-165297,-166704,1407,30.188814
+DATA,338,514996,-165334,-166704,1370,29.394935
+DATA,339,515080,-165657,-166704,1047,22.464597
+DATA,340,515164,-165594,-166704,1110,23.816335
+DATA,341,515248,-165751,-166704,953,20.447717
+DATA,342,515332,-165754,-166704,950,20.383350
+DATA,343,515416,-165780,-166704,924,19.825489
+DATA,344,515501,-165774,-166704,930,19.954227
+DATA,345,515585,-165581,-166704,1123,24.095266
+DATA,346,515669,-165683,-166704,1021,21.906736
+DATA,347,515753,-165658,-166704,1046,22.443141
+DATA,348,515837,-165478,-166704,1226,26.305250
+DATA,349,515921,-165655,-166704,1049,22.507509
+DATA,350,516005,-165884,-166704,820,17.594049
+DATA,351,516090,-165814,-166704,890,19.095979
+DATA,352,516174,-165607,-166704,1097,23.537405
+DATA,353,516258,-165272,-166704,1432,30.725217
+DATA,354,516342,-165522,-166704,1182,25.361179
+DATA,355,516426,-165656,-166704,1048,22.486053
+DATA,356,516510,-165718,-166704,986,21.155771
+DATA,357,516595,-165714,-166704,990,21.241596
+DATA,358,516679,-165929,-166704,775,16.628522
+DATA,359,516763,-165897,-166704,807,17.315118
+DATA,360,516847,-165682,-166704,1022,21.928194
+DATA,361,516931,-165725,-166704,979,21.005578
+DATA,362,517015,-165817,-166704,887,19.031612
+DATA,363,517099,-165592,-166704,1112,23.859247
+DATA,364,517184,-165505,-166704,1199,25.725933
+DATA,365,517268,-165273,-166704,1431,30.703762
+DATA,366,517352,-165670,-166704,1034,22.185667
+DATA,367,517436,-165739,-166704,965,20.705192
+DATA,368,517520,-165602,-166704,1102,23.644685
+DATA,369,517604,-165511,-166704,1193,25.597196
+DATA,370,517689,-165542,-166704,1162,24.932056
+DATA,371,517773,-165697,-166704,1007,21.606351
+DATA,372,517857,-165777,-166704,927,19.889858
+DATA,373,517941,-165680,-166704,1024,21.971105
+DATA,374,518025,-165838,-166704,866,18.581033
+DATA,375,518109,-165627,-166704,1077,23.108282
+DATA,376,518194,-165404,-166704,1300,27.893005
+DATA,377,518278,-165568,-166704,1136,24.374195
+DATA,378,518362,-165668,-166704,1036,22.228580
+DATA,379,518446,-165625,-166704,1079,23.151193
+DATA,380,518530,-165675,-166704,1029,22.078386
+DATA,381,518614,-165689,-166704,1015,21.777999
+DATA,382,518698,-165604,-166704,1100,23.601774
+DATA,383,518783,-165505,-166704,1199,25.725933
+DATA,384,518867,-165546,-166704,1158,24.846231
+DATA,385,518951,-165676,-166704,1028,22.056930
+DATA,386,519035,-165770,-166704,934,20.040052
+DATA,387,519119,-165732,-166704,972,20.855384
+DATA,388,519203,-165531,-166704,1173,25.168073
+DATA,389,519288,-165681,-166704,1023,21.949649
+DATA,390,519372,-165653,-166704,1051,22.550422
+DATA,391,519456,-165693,-166704,1011,21.692174
+DATA,392,519540,-165611,-166704,1093,23.451580
+DATA,393,519624,-165775,-166704,929,19.932771
+DATA,394,519708,-165892,-166704,812,17.422399
+DATA,395,519792,-165677,-166704,1027,22.035474
+DATA,396,519877,-165669,-166704,1035,22.207122
+DATA,397,519961,-165787,-166704,917,19.675296
+DATA,398,520045,-165557,-166704,1147,24.610212
+DATA,399,520129,-165446,-166704,1258,26.991846
+DATA,400,520213,-165532,-166704,1172,25.146617
+DATA,401,520297,-165637,-166704,1067,22.893720
+DATA,402,520382,-165497,-166704,1207,25.897583
+DATA,403,520466,-165705,-166704,999,21.434701
+DATA,404,520550,-165731,-166704,973,20.876842
+DATA,405,520634,-165645,-166704,1059,22.722070
+DATA,406,520718,-165356,-166704,1348,28.922901
+DATA,407,520802,-165742,-166704,962,20.640823
+DATA,408,520886,-165673,-166704,1031,22.121299
+DATA,409,520971,-165740,-166704,964,20.683736
+DATA,410,521055,-165735,-166704,969,20.791017
+DATA,411,521139,-165671,-166704,1033,22.164211
+DATA,412,521223,-165736,-166704,968,20.769561
+DATA,413,521307,-165976,-166704,728,15.620083
+DATA,414,521391,-166049,-166704,655,14.053784
+DATA,415,521475,-165790,-166704,914,19.610927
+DATA,416,521560,-165704,-166704,1000,21.456157
+DATA,417,521644,-165764,-166704,940,20.168788
+DATA,418,521728,-165779,-166704,925,19.846946
+DATA,419,521812,-165860,-166704,844,18.108997
+DATA,420,521896,-165594,-166704,1110,23.816335
+DATA,421,521980,-165613,-166704,1091,23.408668
+DATA,422,522065,-165863,-166704,841,18.044628
+DATA,423,522149,-165545,-166704,1159,24.867687
+DATA,424,522233,-165339,-166704,1365,29.287654
+DATA,425,522317,-165582,-166704,1122,24.073808
+DATA,426,522401,-166085,-166704,619,13.281362
+DATA,427,522485,-166162,-166704,542,11.629238
+DATA,428,522569,-165864,-166704,840,18.023172
+DATA,429,522654,-165680,-166704,1024,21.971105
+DATA,430,522738,-165780,-166704,924,19.825489
+DATA,431,522822,-166000,-166704,704,15.105135
+DATA,432,522906,-165932,-166704,772,16.564153
+DATA,433,522990,-165835,-166704,869,18.645401
+DATA,434,523074,-165634,-166704,1070,22.958089
+DATA,435,523159,-165685,-166704,1019,21.863824
+DATA,436,523243,-165704,-166704,1000,21.456157
+DATA,437,523327,-165533,-166704,1171,25.125160
+DATA,438,523411,-165593,-166704,1111,23.837791
+DATA,439,523495,-165705,-166704,999,21.434701
+DATA,440,523579,-165888,-166704,816,17.508224
+DATA,441,523663,-165711,-166704,993,21.305965
+DATA,442,523748,-165471,-166704,1233,26.455442
+DATA,443,523832,-165756,-166704,948,20.340436
+DATA,444,523916,-165770,-166704,934,20.040052
+DATA,445,524000,-165631,-166704,1073,23.022457
+DATA,446,524084,-165459,-166704,1245,26.712917
+DATA,447,524168,-165670,-166704,1034,22.185667
+DATA,448,524253,-165581,-166704,1123,24.095266
+DATA,449,524337,-165450,-166704,1254,26.906023
+DATA,450,524421,-165861,-166704,843,18.087541
+DATA,451,524505,-165755,-166704,949,20.361894
+DATA,452,524589,-165544,-166704,1160,24.889142
+DATA,453,524673,-165577,-166704,1127,24.181089
+DATA,454,524757,-165432,-166704,1272,27.292232
+DATA,455,524842,-165323,-166704,1381,29.630954
+DATA,456,524926,-165479,-166704,1225,26.283794
+DATA,457,525010,-165518,-166704,1186,25.447002
+DATA,458,525094,-165721,-166704,983,21.091403
+DATA,459,525178,-165688,-166704,1016,21.799455
+DATA,460,525262,-165396,-166704,1308,28.064655
+DATA,461,525347,-165434,-166704,1270,27.249320
+DATA,462,525431,-165693,-166704,1011,21.692174
+DATA,463,525515,-165674,-166704,1030,22.099842
+DATA,464,525599,-165677,-166704,1027,22.035474
+DATA,465,525683,-165748,-166704,956,20.512086
+DATA,466,525767,-165509,-166704,1195,25.640108
+DATA,467,525851,-165473,-166704,1231,26.412530
+DATA,468,525936,-165568,-166704,1136,24.374195
+DATA,469,526020,-165493,-166704,1211,25.983407
+DATA,470,526104,-165485,-166704,1219,26.155055
+DATA,471,526188,-165541,-166704,1163,24.953512
+DATA,472,526272,-165835,-166704,869,18.645401
+DATA,473,526356,-165623,-166704,1081,23.194107
+DATA,474,526441,-165746,-166704,958,20.554998
+DATA,475,526525,-165813,-166704,891,19.117437
+DATA,476,526609,-165671,-166704,1033,22.164211
+DATA,477,526693,-165673,-166704,1031,22.121299
+DATA,478,526777,-165782,-166704,922,19.782577
+DATA,479,526861,-165784,-166704,920,19.739665
+DATA,480,526945,-165890,-166704,814,17.465312
+DATA,481,527030,-165912,-166704,792,16.993276
+DATA,482,527114,-165816,-166704,888,19.053068
+DATA,483,527198,-165778,-166704,926,19.868402
+DATA,484,527282,-165636,-166704,1068,22.915176
+DATA,485,527366,-165457,-166704,1247,26.755828
+DATA,486,527450,-165371,-166704,1333,28.601058
+DATA,487,527534,-165388,-166704,1316,28.236303
+DATA,488,527619,-165427,-166704,1277,27.399513
+DATA,489,527703,-165512,-166704,1192,25.575740
+DATA,490,527787,-165781,-166704,923,19.804033
+DATA,491,527871,-165573,-166704,1131,24.266914
+DATA,492,527955,-165574,-166704,1130,24.245458
+DATA,493,528039,-165408,-166704,1296,27.807180
+DATA,494,528124,-165644,-166704,1060,22.743528
+DATA,495,528208,-165665,-166704,1039,22.292947
+DATA,496,528292,-165621,-166704,1083,23.237018
+DATA,497,528376,-165596,-166704,1108,23.773422
+DATA,498,528460,-165602,-166704,1102,23.644685
+DATA,499,528544,-165627,-166704,1077,23.108282
+DATA,500,528629,-165555,-166704,1149,24.653125
+DATA,501,528713,-165628,-166704,1076,23.086826
+DATA,502,528797,-165715,-166704,989,21.220140
+DATA,503,528881,-165740,-166704,964,20.683736
+DATA,504,528965,-165554,-166704,1150,24.674581
+DATA,505,529049,-165611,-166704,1093,23.451580
+DATA,506,529133,-165645,-166704,1059,22.722070
+DATA,507,529218,-165712,-166704,992,21.284507
+DATA,508,529302,-165569,-166704,1135,24.352739
+DATA,509,529386,-165720,-166704,984,21.112859
+DATA,510,529470,-165752,-166704,952,20.426261
+DATA,511,529554,-165526,-166704,1178,25.275354
+DATA,512,529638,-165651,-166704,1053,22.593334
+DATA,513,529722,-165618,-166704,1086,23.301387
+DATA,514,529807,-165646,-166704,1058,22.700614
+DATA,515,529891,-165788,-166704,916,19.653841
+DATA,516,529975,-165620,-166704,1084,23.258474
+DATA,517,530059,-165512,-166704,1192,25.575740
+DATA,518,530143,-165731,-166704,973,20.876842
+DATA,519,530227,-165671,-166704,1033,22.164211
+DATA,520,530312,-165663,-166704,1041,22.335861
+DATA,521,530396,-165546,-166704,1158,24.846231
+DATA,522,530480,-165588,-166704,1116,23.945072
+DATA,523,530564,-165678,-166704,1026,22.014019
+DATA,524,530648,-165392,-166704,1312,28.150478
+DATA,525,530732,-165634,-166704,1070,22.958089
+DATA,526,530816,-165677,-166704,1027,22.035474
+DATA,527,530901,-165434,-166704,1270,27.249320
+DATA,528,530985,-165513,-166704,1191,25.554285
+DATA,529,531069,-165429,-166704,1275,27.356601
+DATA,530,531153,-165542,-166704,1162,24.932056
+DATA,531,531237,-165723,-166704,981,21.048490
+DATA,532,531321,-165773,-166704,931,19.975683
+DATA,533,531406,-165886,-166704,818,17.551137
+DATA,534,531490,-165770,-166704,934,20.040052
+DATA,535,531574,-165953,-166704,751,16.113574
+DATA,536,531658,-165789,-166704,915,19.632385
+DATA,537,531742,-165619,-166704,1085,23.279932
+DATA,538,531826,-165756,-166704,948,20.340436
+DATA,539,531910,-165717,-166704,987,21.177227
+DATA,540,531995,-165564,-166704,1140,24.460020
+DATA,541,532079,-165612,-166704,1092,23.430124
+DATA,542,532163,-165822,-166704,882,18.924331
+DATA,543,532247,-165589,-166704,1115,23.923616
+DATA,544,532331,-165611,-166704,1093,23.451580
+DATA,545,532415,-165717,-166704,987,21.177227
+DATA,546,532500,-165708,-166704,996,21.370332
+DATA,547,532584,-165578,-166704,1126,24.159633
+DATA,548,532668,-165418,-166704,1286,27.592618
+DATA,549,532752,-165387,-166704,1317,28.257759
+DATA,550,532836,-165757,-166704,947,20.318981
+DATA,551,532920,-165801,-166704,903,19.374910
+DATA,552,533004,-165652,-166704,1052,22.571878
+DATA,553,533089,-165727,-166704,977,20.962665
+DATA,554,533173,-165814,-166704,890,19.095979
+DATA,555,533257,-165851,-166704,853,18.302103
+DATA,556,533341,-165864,-166704,840,18.023172
+DATA,557,533425,-165458,-166704,1246,26.734373
+DATA,558,533509,-165509,-166704,1195,25.640108
+DATA,559,533593,-165593,-166704,1111,23.837791
+DATA,560,533678,-165666,-166704,1038,22.271492
+DATA,561,533762,-165636,-166704,1068,22.915176
+DATA,562,533846,-165720,-166704,984,21.112859
+DATA,563,533930,-165686,-166704,1018,21.842369
+DATA,564,534014,-165552,-166704,1152,24.717493
+DATA,565,534098,-165660,-166704,1044,22.400228
+DATA,566,534183,-165815,-166704,889,19.074523
+DATA,567,534267,-165778,-166704,926,19.868402
+DATA,568,534351,-165717,-166704,987,21.177227
+DATA,569,534435,-165923,-166704,781,16.757259
+DATA,570,534519,-166047,-166704,657,14.096696
+DATA,571,534603,-165850,-166704,854,18.323558
+DATA,572,534688,-165681,-166704,1023,21.949649
+DATA,573,534772,-165819,-166704,885,18.988698
+DATA,574,534856,-165925,-166704,779,16.714347
+DATA,575,534940,-165767,-166704,937,20.104419
+DATA,576,535024,-165621,-166704,1083,23.237018
+DATA,577,535108,-165788,-166704,916,19.653841
+DATA,578,535192,-165634,-166704,1070,22.958089
+DATA,579,535277,-165455,-166704,1249,26.798740
+DATA,580,535361,-165635,-166704,1069,22.936632
+DATA,581,535445,-165942,-166704,762,16.349592
+DATA,582,535529,-165670,-166704,1034,22.185667
+DATA,583,535613,-165523,-166704,1181,25.339721
+DATA,584,535697,-165417,-166704,1287,27.614074
+DATA,585,535781,-165365,-166704,1339,28.729795
+DATA,586,535866,-165673,-166704,1031,22.121299
+DATA,587,535950,-165828,-166704,876,18.795595
+DATA,588,536034,-165638,-166704,1066,22.872264
+DATA,589,536118,-165689,-166704,1015,21.777999
+DATA,590,536202,-165722,-166704,982,21.069946
+DATA,591,536286,-165661,-166704,1043,22.378772
+DATA,592,536371,-165660,-166704,1044,22.400228
+DATA,593,536455,-165812,-166704,892,19.138893
+DATA,594,536539,-165759,-166704,945,20.276069
+DATA,595,536623,-165783,-166704,921,19.761121
+DATA,596,536707,-165970,-166704,734,15.748821
+DATA,597,536791,-165794,-166704,910,19.525104
+DATA,598,536876,-165664,-166704,1040,22.314403
+DATA,599,536960,-165599,-166704,1105,23.709054
+DATA,600,537044,-165578,-166704,1126,24.159633
+DATA,601,537128,-165643,-166704,1061,22.764984
+DATA,602,537212,-165705,-166704,999,21.434701
+DATA,603,537296,-165735,-166704,969,20.791017
+DATA,604,537380,-165556,-166704,1148,24.631669
+DATA,605,537465,-165331,-166704,1373,29.459304
+DATA,606,537549,-165433,-166704,1271,27.270776
+DATA,607,537633,-165584,-166704,1120,24.030897
+DATA,608,537717,-165691,-166704,1013,21.735088
+DATA,609,537801,-165723,-166704,981,21.048490
+DATA,610,537885,-165518,-166704,1186,25.447002
+DATA,611,537969,-165788,-166704,916,19.653841
+DATA,612,538054,-165701,-166704,1003,21.520526
+DATA,613,538138,-165580,-166704,1124,24.116722
+DATA,614,538222,-165819,-166704,885,18.988698
+DATA,615,538306,-165651,-166704,1053,22.593334
+DATA,616,538390,-165403,-166704,1301,27.914461
+DATA,617,538474,-165453,-166704,1251,26.841653
+DATA,618,538559,-165738,-166704,966,20.726648
+DATA,619,538643,-165780,-166704,924,19.825489
+DATA,620,538727,-165643,-166704,1061,22.764984
+DATA,621,538811,-165313,-166704,1391,29.845516
+DATA,622,538895,-165465,-166704,1239,26.584178
+DATA,623,538979,-165652,-166704,1052,22.571878
+DATA,624,539063,-165631,-166704,1073,23.022457
+DATA,625,539148,-165829,-166704,875,18.774137
+DATA,626,539232,-165753,-166704,951,20.404806
+DATA,627,539316,-165444,-166704,1260,27.034759
+DATA,628,539400,-165448,-166704,1256,26.948934
+DATA,629,539484,-165617,-166704,1087,23.322843
+DATA,630,539568,-165833,-166704,871,18.688314
+DATA,631,539653,-165824,-166704,880,18.881418
+DATA,632,539737,-165539,-166704,1165,24.996423
+DATA,633,539821,-165828,-166704,876,18.795595
+DATA,634,539905,-165908,-166704,796,17.079101
+DATA,635,539989,-165653,-166704,1051,22.550422
+DATA,636,540073,-165805,-166704,899,19.289085
+DATA,637,540157,-165593,-166704,1111,23.837791
+DATA,638,540242,-165652,-166704,1052,22.571878
+DATA,639,540326,-165690,-166704,1014,21.756544
+DATA,640,540410,-165448,-166704,1256,26.948934
+DATA,641,540494,-165562,-166704,1142,24.502931
+DATA,642,540578,-165610,-166704,1094,23.473037
+DATA,643,540662,-165680,-166704,1024,21.971105
+DATA,644,540747,-166046,-166704,658,14.118152
+DATA,645,540831,-166138,-166704,566,12.144186
+DATA,646,540915,-165993,-166704,711,15.255329
+DATA,647,540999,-165835,-166704,869,18.645401
+DATA,648,541083,-165476,-166704,1228,26.348161
+DATA,649,541167,-165443,-166704,1261,27.056215
+DATA,650,541251,-165548,-166704,1156,24.803318
+DATA,651,541336,-165526,-166704,1178,25.275354
+DATA,652,541420,-165853,-166704,851,18.259189
+DATA,653,541504,-165819,-166704,885,18.988698
+DATA,654,541588,-165360,-166704,1344,28.837076
+DATA,655,541672,-165406,-166704,1298,27.850093
+DATA,656,541756,-165438,-166704,1266,27.163496
+DATA,657,541840,-165614,-166704,1090,23.387212
+DATA,658,541925,-165564,-166704,1140,24.460020
+DATA,659,542009,-165390,-166704,1314,28.193391
+DATA,660,542093,-165648,-166704,1056,22.657703
+DATA,661,542177,-165692,-166704,1012,21.713632
+DATA,662,542261,-165680,-166704,1024,21.971105
+DATA,663,542345,-165459,-166704,1245,26.712917
+DATA,664,542430,-165513,-166704,1191,25.554285
+DATA,665,542514,-165994,-166704,710,15.233873
+DATA,666,542598,-165994,-166704,710,15.233873
+DATA,667,542682,-165988,-166704,716,15.362609
+DATA,668,542766,-165734,-166704,970,20.812473
+DATA,669,542850,-165592,-166704,1112,23.859247
+DATA,670,542934,-165689,-166704,1015,21.777999
+DATA,671,543019,-165610,-166704,1094,23.473037
+DATA,672,543103,-165689,-166704,1015,21.777999
+DATA,673,543187,-165714,-166704,990,21.241596
+DATA,674,543271,-165573,-166704,1131,24.266914
+DATA,675,543355,-165404,-166704,1300,27.893005
+DATA,676,543439,-165682,-166704,1022,21.928194
+DATA,677,543524,-165831,-166704,873,18.731225
+DATA,678,543608,-165646,-166704,1058,22.700614
+DATA,679,543692,-165707,-166704,997,21.391790
+DATA,680,543776,-165575,-166704,1129,24.224002
+DATA,681,543860,-165487,-166704,1217,26.112144
+DATA,682,543944,-165417,-166704,1287,27.614074
+DATA,683,544028,-165434,-166704,1270,27.249320
+DATA,684,544113,-165510,-166704,1194,25.618652
+DATA,685,544197,-165580,-166704,1124,24.116722
+DATA,686,544281,-165581,-166704,1123,24.095266
+DATA,687,544365,-165508,-166704,1196,25.661565
+DATA,688,544449,-165800,-166704,904,19.396366
+DATA,689,544533,-165791,-166704,913,19.589471
+DATA,690,544618,-165644,-166704,1060,22.743528
+DATA,691,544702,-165752,-166704,952,20.426261
+DATA,692,544786,-165850,-166704,854,18.323558
+DATA,693,544870,-165621,-166704,1083,23.237018
+DATA,694,544954,-165505,-166704,1199,25.725933
+DATA,695,545038,-165546,-166704,1158,24.846231
+DATA,696,545122,-165635,-166704,1069,22.936632
+DATA,697,545207,-165730,-166704,974,20.898298
+DATA,698,545291,-165820,-166704,884,18.967243
+DATA,699,545375,-165742,-166704,962,20.640823
+DATA,700,545459,-165509,-166704,1195,25.640108
+DATA,701,545543,-165494,-166704,1210,25.961950
+DATA,702,545627,-165604,-166704,1100,23.601774
+DATA,703,545711,-165576,-166704,1128,24.202547
+DATA,704,545796,-165651,-166704,1053,22.593334
+DATA,705,545880,-165656,-166704,1048,22.486053
+DATA,706,545964,-165749,-166704,955,20.490631
+DATA,707,546048,-165941,-166704,763,16.371047
+DATA,708,546132,-165878,-166704,826,17.722785
+DATA,709,546216,-165584,-166704,1120,24.030897
+DATA,710,546301,-165680,-166704,1024,21.971105
+DATA,711,546385,-165698,-166704,1006,21.584894
+DATA,712,546469,-165639,-166704,1065,22.850809
+DATA,713,546553,-165564,-166704,1140,24.460020
+DATA,714,546637,-165527,-166704,1177,25.253898
+DATA,715,546721,-165616,-166704,1088,23.344299
+DATA,716,546805,-165701,-166704,1003,21.520526
+DATA,717,546890,-166013,-166704,691,14.826206
+DATA,718,546974,-166056,-166704,648,13.903591
+DATA,719,547058,-165922,-166704,782,16.778715
+DATA,720,547142,-165772,-166704,932,19.997138
+DATA,721,547226,-165757,-166704,947,20.318981
+DATA,722,547310,-165903,-166704,801,17.186382
+DATA,723,547395,-165795,-166704,909,19.503646
+DATA,724,547479,-165603,-166704,1101,23.623229
+DATA,725,547563,-165797,-166704,907,19.460735
+DATA,726,547647,-165955,-166704,749,16.070661
+DATA,727,547731,-165893,-166704,811,17.400943
+DATA,728,547815,-165666,-166704,1038,22.271492
+DATA,729,547899,-165715,-166704,989,21.220140
+DATA,730,547984,-165511,-166704,1193,25.597196
+DATA,731,548068,-165565,-166704,1139,24.438564
+DATA,732,548152,-165461,-166704,1243,26.670003
+DATA,733,548236,-165512,-166704,1192,25.575740
+DATA,734,548320,-165555,-166704,1149,24.653125
+DATA,735,548404,-165520,-166704,1184,25.404090
+DATA,736,548488,-165634,-166704,1070,22.958089
+DATA,737,548573,-165633,-166704,1071,22.979545
+DATA,738,548657,-165655,-166704,1049,22.507509
+DATA,739,548741,-165831,-166704,873,18.731225
+DATA,740,548825,-165685,-166704,1019,21.863824
+DATA,741,548909,-165781,-166704,923,19.804033
+DATA,742,548993,-165679,-166704,1025,21.992561
+DATA,743,549078,-165503,-166704,1201,25.768846
+DATA,744,549162,-165546,-166704,1158,24.846231
+DATA,745,549246,-165763,-166704,941,20.190244
+DATA,746,549330,-165870,-166704,834,17.894435
+DATA,747,549414,-165836,-166704,868,18.623945
+DATA,748,549498,-165801,-166704,903,19.374910
+DATA,749,549582,-165417,-166704,1287,27.614074
+DATA,750,549667,-165365,-166704,1339,28.729795
+DATA,751,549751,-165546,-166704,1158,24.846231
+DATA,752,549835,-165710,-166704,994,21.327421
+DATA,753,549919,-165600,-166704,1104,23.687599
+DATA,754,550003,-165557,-166704,1147,24.610212
+DATA,755,550087,-165451,-166704,1253,26.884565
+DATA,756,550171,-165765,-166704,939,20.147333
+DATA,757,550256,-165559,-166704,1145,24.567300
+DATA,758,550340,-165550,-166704,1154,24.760406
+DATA,759,550424,-165765,-166704,939,20.147333
+DATA,760,550508,-165761,-166704,943,20.233156
+DATA,761,550592,-165256,-166704,1448,31.068517
+DATA,762,550676,-165459,-166704,1245,26.712917
+DATA,763,550761,-165838,-166704,866,18.581033
+DATA,764,550845,-165920,-166704,784,16.821628
+DATA,765,550929,-165750,-166704,954,20.469175
+DATA,766,551013,-165807,-166704,897,19.246173
+DATA,767,551097,-165941,-166704,763,16.371047
+DATA,768,551181,-165735,-166704,969,20.791017
+DATA,769,551265,-165790,-166704,914,19.610927
+DATA,770,551350,-165880,-166704,824,17.679874
+DATA,771,551434,-165900,-166704,804,17.250751
+DATA,772,551518,-165742,-166704,962,20.640823
+DATA,773,551602,-165602,-166704,1102,23.644685
+DATA,774,551686,-165544,-166704,1160,24.889142
+DATA,775,551770,-165723,-166704,981,21.048490
+DATA,776,551855,-165623,-166704,1081,23.194107
+DATA,777,551939,-165444,-166704,1260,27.034759
+DATA,778,552023,-165632,-166704,1072,23.001001
+DATA,779,552107,-165846,-166704,858,18.409383
+DATA,780,552191,-165889,-166704,815,17.486768
+DATA,781,552275,-165650,-166704,1054,22.614789
+DATA,782,552359,-165557,-166704,1147,24.610212
+DATA,783,552444,-165555,-166704,1149,24.653125
+DATA,784,552528,-165236,-166704,1468,31.497640
+DATA,785,552612,-165460,-166704,1244,26.691459
+DATA,786,552696,-165555,-166704,1149,24.653125
+DATA,787,552780,-165661,-166704,1043,22.378772
+DATA,788,552864,-165581,-166704,1123,24.095266
+DATA,789,552948,-165830,-166704,874,18.752681
+DATA,790,553033,-165523,-166704,1181,25.339721
+DATA,791,553117,-165499,-166704,1205,25.854669
+DATA,792,553201,-165529,-166704,1175,25.210985
+DATA,793,553285,-165763,-166704,941,20.190244
+DATA,794,553369,-165562,-166704,1142,24.502931
+DATA,795,553453,-165252,-166704,1452,31.154340
+DATA,796,553538,-165349,-166704,1355,29.073093
+DATA,797,553622,-165612,-166704,1092,23.430124
+DATA,798,553706,-165758,-166704,946,20.297525
+DATA,799,553790,-165607,-166704,1097,23.537405
+DATA,800,553874,-165675,-166704,1029,22.078386
+DATA,801,553958,-165617,-166704,1087,23.322843
+DATA,802,554042,-165730,-166704,974,20.898298
+DATA,803,554127,-165916,-166704,788,16.907451
+DATA,804,554211,-165827,-166704,877,18.817050
+DATA,805,554295,-165563,-166704,1141,24.481475
+DATA,806,554379,-165468,-166704,1236,26.519811
+DATA,807,554463,-165483,-166704,1221,26.197969
+DATA,808,554547,-165630,-166704,1074,23.043912
+DATA,809,554631,-165669,-166704,1035,22.207122
+DATA,810,554716,-165635,-166704,1069,22.936632
+DATA,811,554800,-165765,-166704,939,20.147333
+DATA,812,554884,-165910,-166704,794,17.036190
+DATA,813,554968,-165789,-166704,915,19.632385
+DATA,814,555052,-165795,-166704,909,19.503646
+DATA,815,555136,-165793,-166704,911,19.546560
+DATA,816,555220,-165781,-166704,923,19.804033
+DATA,817,555305,-165485,-166704,1219,26.155055
+DATA,818,555389,-165351,-166704,1353,29.030181
+DATA,819,555473,-165238,-166704,1466,31.454727
+DATA,820,555557,-165658,-166704,1046,22.443141
+DATA,821,555641,-165862,-166704,842,18.066085
+DATA,822,555725,-165745,-166704,959,20.576456
+DATA,823,555810,-165888,-166704,816,17.508224
+DATA,824,555894,-165723,-166704,981,21.048490
+DATA,825,555978,-165669,-166704,1035,22.207122
+DATA,826,556062,-165459,-166704,1245,26.712917
+DATA,827,556146,-165465,-166704,1239,26.584178
+DATA,828,556230,-165566,-166704,1138,24.417108
+DATA,829,556314,-165789,-166704,915,19.632385
+DATA,830,556399,-165808,-166704,896,19.224718
+DATA,831,556483,-165802,-166704,902,19.353454
+DATA,832,556567,-165989,-166704,715,15.341154
+DATA,833,556651,-165575,-166704,1129,24.224002
+DATA,834,556735,-165506,-166704,1198,25.704477
+DATA,835,556819,-165667,-166704,1037,22.250036
+DATA,836,556903,-165397,-166704,1307,28.043197
+DATA,837,556988,-165844,-166704,860,18.452295
+DATA,838,557072,-165856,-166704,848,18.194822
+DATA,839,557156,-165671,-166704,1033,22.164211
+DATA,840,557240,-165673,-166704,1031,22.121299
+DATA,841,557324,-165716,-166704,988,21.198684
+DATA,842,557408,-165709,-166704,995,21.348876
+DATA,843,557492,-165744,-166704,960,20.597911
+DATA,844,557577,-165644,-166704,1060,22.743528
+DATA,845,557661,-165575,-166704,1129,24.224002
+DATA,846,557745,-165655,-166704,1049,22.507509
+DATA,847,557829,-165855,-166704,849,18.216278
+DATA,848,557913,-165832,-166704,872,18.709770
+DATA,849,557997,-165738,-166704,966,20.726648
+DATA,850,558082,-165691,-166704,1013,21.735088
+DATA,851,558166,-165575,-166704,1129,24.224002
+DATA,852,558250,-165409,-166704,1295,27.785724
+DATA,853,558334,-165482,-166704,1222,26.219425
+DATA,854,558418,-165733,-166704,971,20.833929
+DATA,855,558502,-165594,-166704,1110,23.816335
+DATA,856,558586,-165456,-166704,1248,26.777284
+DATA,857,558671,-165692,-166704,1012,21.713632
+DATA,858,558755,-165701,-166704,1003,21.520526
+DATA,859,558839,-165552,-166704,1152,24.717493
+DATA,860,558923,-165768,-166704,936,20.082963
+DATA,861,559007,-165888,-166704,816,17.508224
+DATA,862,559091,-165843,-166704,861,18.473751
+DATA,863,559175,-165574,-166704,1130,24.245458
+DATA,864,559260,-165724,-166704,980,21.027034
+DATA,865,559344,-165585,-166704,1119,24.009441
+DATA,866,559428,-165606,-166704,1098,23.558860
+DATA,867,559512,-165485,-166704,1219,26.155055
+DATA,868,559596,-165352,-166704,1352,29.008726
+DATA,869,559680,-165799,-166704,905,19.417823
+DATA,870,559765,-165624,-166704,1080,23.172651
+DATA,871,559849,-165430,-166704,1274,27.335145
+DATA,872,559933,-165545,-166704,1159,24.867687
+DATA,873,560017,-165671,-166704,1033,22.164211
+DATA,874,560101,-166046,-166704,658,14.118152
+DATA,875,560185,-166072,-166704,632,13.560293
+DATA,876,560269,-165758,-166704,946,20.297525
+DATA,877,560354,-165699,-166704,1005,21.563438
+DATA,878,560438,-165681,-166704,1023,21.949649
+DATA,879,560522,-165641,-166704,1063,22.807895
+DATA,880,560606,-165809,-166704,895,19.203262
+DATA,881,560690,-165718,-166704,986,21.155771
+DATA,882,560774,-165575,-166704,1129,24.224002
+DATA,883,560859,-165403,-166704,1301,27.914461
+DATA,884,560943,-165522,-166704,1182,25.361179
+DATA,885,561027,-165807,-166704,897,19.246173
+DATA,886,561111,-165616,-166704,1088,23.344299
+DATA,887,561195,-165495,-166704,1209,25.940494
+DATA,888,561279,-165683,-166704,1021,21.906736
+DATA,889,561363,-165723,-166704,981,21.048490
+DATA,890,561448,-165867,-166704,837,17.958805
+DATA,891,561532,-165916,-166704,788,16.907451
+DATA,892,561616,-165758,-166704,946,20.297525
+DATA,893,561700,-165790,-166704,914,19.610927
+DATA,894,561784,-165586,-166704,1118,23.987983
+DATA,895,561868,-165552,-166704,1152,24.717493
+DATA,896,561953,-165639,-166704,1065,22.850809
+DATA,897,562037,-165692,-166704,1012,21.713632
+DATA,898,562121,-165681,-166704,1023,21.949649
+DATA,899,562205,-165382,-166704,1322,28.365041
+DATA,900,562289,-165547,-166704,1157,24.824775
+DATA,901,562373,-165485,-166704,1219,26.155055
+DATA,902,562457,-165733,-166704,971,20.833929
+DATA,903,562542,-165735,-166704,969,20.791017
+DATA,904,562626,-165690,-166704,1014,21.756544
+DATA,905,562710,-165662,-166704,1042,22.357316
+DATA,906,562794,-165777,-166704,927,19.889858
+DATA,907,562878,-165801,-166704,903,19.374910
+DATA,908,562962,-165875,-166704,829,17.787155
+DATA,909,563046,-165862,-166704,842,18.066085
+DATA,910,563131,-165669,-166704,1035,22.207122
+DATA,911,563215,-165509,-166704,1195,25.640108
+DATA,912,563299,-166043,-166704,661,14.182521
+DATA,913,563383,-165814,-166704,890,19.095979
+DATA,914,563467,-165724,-166704,980,21.027034
+DATA,915,563551,-165850,-166704,854,18.323558
+DATA,916,563636,-165774,-166704,930,19.954227
+DATA,917,563720,-165675,-166704,1029,22.078386
+DATA,918,563804,-165621,-166704,1083,23.237018
+DATA,919,563888,-165819,-166704,885,18.988698
+DATA,920,563972,-165855,-166704,849,18.216278
+DATA,921,564056,-165672,-166704,1032,22.142755
+DATA,922,564140,-165715,-166704,989,21.220140
+DATA,923,564225,-165779,-166704,925,19.846946
+DATA,924,564309,-165746,-166704,958,20.554998
+DATA,925,564393,-165682,-166704,1022,21.928194
+DATA,926,564477,-165622,-166704,1082,23.215562
+DATA,927,564561,-165759,-166704,945,20.276069
+DATA,928,564645,-165488,-166704,1216,26.090688
+DATA,929,564730,-165409,-166704,1295,27.785724
+DATA,930,564814,-165598,-166704,1106,23.730510
+DATA,931,564898,-165766,-166704,938,20.125875
+DATA,932,564982,-165832,-166704,872,18.709770
+DATA,933,565066,-165656,-166704,1048,22.486053
+DATA,934,565150,-165555,-166704,1149,24.653125
+DATA,935,565235,-165785,-166704,919,19.718208
+DATA,936,565319,-165926,-166704,778,16.692890
+DATA,937,565403,-165821,-166704,883,18.945787
+DATA,938,565487,-165661,-166704,1043,22.378772
+DATA,939,565571,-165765,-166704,939,20.147333
+DATA,940,565655,-165565,-166704,1139,24.438564
+DATA,941,565739,-165398,-166704,1306,28.021741
+DATA,942,565824,-165471,-166704,1233,26.455442
+DATA,943,565908,-165582,-166704,1122,24.073808
+DATA,944,565992,-165460,-166704,1244,26.691459
+DATA,945,566076,-165477,-166704,1227,26.326705
+DATA,946,566160,-165552,-166704,1152,24.717493
+DATA,947,566244,-165351,-166704,1353,29.030181
+DATA,948,566329,-165617,-166704,1087,23.322843
+DATA,949,566413,-165695,-166704,1009,21.649263
+DATA,950,566497,-165563,-166704,1141,24.481475
+DATA,951,566581,-165835,-166704,869,18.645401
+DATA,952,566665,-165944,-166704,760,16.306680
+DATA,953,566749,-165827,-166704,877,18.817050
+DATA,954,566833,-165596,-166704,1108,23.773422
+DATA,955,566917,-165832,-166704,872,18.709770
+DATA,956,567002,-165718,-166704,986,21.155771
+DATA,957,567086,-165512,-166704,1192,25.575740
+DATA,958,567170,-165540,-166704,1164,24.974967
+DATA,959,567254,-165601,-166704,1103,23.666141
+DATA,960,567338,-165675,-166704,1029,22.078386
+DATA,961,567422,-165730,-166704,974,20.898298
+DATA,962,567507,-165786,-166704,918,19.696752
+DATA,963,567591,-165815,-166704,889,19.074523
+DATA,964,567675,-165552,-166704,1152,24.717493
+DATA,965,567759,-165459,-166704,1245,26.712917
+DATA,966,567843,-165742,-166704,962,20.640823
+DATA,967,567927,-165792,-166704,912,19.568016
+DATA,968,568012,-165607,-166704,1097,23.537405
+DATA,969,568096,-165278,-166704,1426,30.596481
+DATA,970,568180,-165503,-166704,1201,25.768846
+DATA,971,568264,-165770,-166704,934,20.040052
+DATA,972,568348,-165733,-166704,971,20.833929
+DATA,973,568432,-165690,-166704,1014,21.756544
+DATA,974,568516,-165829,-166704,875,18.774137
+DATA,975,568601,-165572,-166704,1132,24.288370
+DATA,976,568685,-165457,-166704,1247,26.755828
+DATA,977,568769,-165563,-166704,1141,24.481475
+DATA,978,568853,-165743,-166704,961,20.619367
+DATA,979,568937,-165813,-166704,891,19.117437
+DATA,980,569021,-165697,-166704,1007,21.606351
+DATA,981,569105,-165878,-166704,826,17.722785
+DATA,982,569190,-166066,-166704,638,13.689029
+DATA,983,569274,-165683,-166704,1021,21.906736
+DATA,984,569358,-165599,-166704,1105,23.709054
+DATA,985,569442,-165574,-166704,1130,24.245458
+DATA,986,569526,-165526,-166704,1178,25.275354
+DATA,987,569610,-165806,-166704,898,19.267629
+DATA,988,569695,-165663,-166704,1041,22.335861
+DATA,989,569779,-165502,-166704,1202,25.790302
+DATA,990,569863,-165483,-166704,1221,26.197969
+DATA,991,569947,-165727,-166704,977,20.962665
+DATA,992,570031,-165787,-166704,917,19.675296
+DATA,993,570115,-165818,-166704,886,19.010156
+DATA,994,570199,-166033,-166704,671,14.397083
+DATA,995,570284,-165778,-166704,926,19.868402
+DATA,996,570368,-165974,-166704,730,15.662996
+DATA,997,570452,-165959,-166704,745,15.984838
+DATA,998,570536,-165880,-166704,824,17.679874
+DATA,999,570620,-165670,-166704,1034,22.185667
+DATA,1000,570704,-165674,-166704,1030,22.099842
+DATA,1001,570789,-165435,-166704,1269,27.227865
+DATA,1002,570873,-165493,-166704,1211,25.983407
+DATA,1003,570957,-165731,-166704,973,20.876842
+DATA,1004,571041,-165718,-166704,986,21.155771
+DATA,1005,571125,-165615,-166704,1089,23.365755
+DATA,1006,571209,-165329,-166704,1375,29.502216
+DATA,1007,571293,-165334,-166704,1370,29.394935
+DATA,1008,571378,-165481,-166704,1223,26.240880
+DATA,1009,571462,-165468,-166704,1236,26.519811
+DATA,1010,571546,-165416,-166704,1288,27.635532
+DATA,1011,571630,-165529,-166704,1175,25.210985
+DATA,1012,571714,-165682,-166704,1022,21.928194
+DATA,1013,571798,-165893,-166704,811,17.400943
+DATA,1014,571883,-165760,-166704,944,20.254613
+DATA,1015,571967,-165610,-166704,1094,23.473037
+DATA,1016,572051,-165599,-166704,1105,23.709054
+DATA,1017,572135,-165618,-166704,1086,23.301387
+DATA,1018,572219,-165761,-166704,943,20.233156
+DATA,1019,572303,-165865,-166704,839,18.001716
+DATA,1020,572387,-165868,-166704,836,17.937347
+DATA,1021,572472,-165668,-166704,1036,22.228580
+DATA,1022,572556,-165536,-166704,1168,25.060792
+DATA,1023,572640,-165667,-166704,1037,22.250036
+DATA,1024,572724,-165662,-166704,1042,22.357316
+DATA,1025,572808,-165640,-166704,1064,22.829351
+DATA,1026,572892,-165642,-166704,1062,22.786439
+DATA,1027,572977,-165736,-166704,968,20.769561
+DATA,1028,573061,-165806,-166704,898,19.267629
+DATA,1029,573145,-165665,-166704,1039,22.292947
+DATA,1030,573229,-166008,-166704,696,14.933486
+DATA,1031,573313,-166137,-166704,567,12.165642
+DATA,1032,573397,-165761,-166704,943,20.233156
+DATA,1033,573481,-165836,-166704,868,18.623945
+DATA,1034,573566,-165797,-166704,907,19.460735
+DATA,1035,573650,-165672,-166704,1032,22.142755
+DATA,1036,573734,-165454,-166704,1250,26.820198
+DATA,1037,573818,-165465,-166704,1239,26.584178
+DATA,1038,573902,-165465,-166704,1239,26.584178
+DATA,1039,573986,-165602,-166704,1102,23.644685
+DATA,1040,574070,-165703,-166704,1001,21.477613
+DATA,1041,574155,-165865,-166704,839,18.001716
+DATA,1042,574239,-165823,-166704,881,18.902875
+DATA,1043,574323,-165701,-166704,1003,21.520526
+DATA,1044,574407,-165507,-166704,1197,25.683021
+DATA,1045,574491,-165684,-166704,1020,21.885280
+DATA,1046,574575,-165848,-166704,856,18.366470
+DATA,1047,574660,-165778,-166704,926,19.868402
+DATA,1048,574744,-165575,-166704,1129,24.224002
+DATA,1049,574828,-165461,-166704,1243,26.670003
+DATA,1050,574912,-165502,-166704,1202,25.790302
+DATA,1051,574996,-165880,-166704,824,17.679874
+DATA,1052,575080,-165968,-166704,736,15.791732
+DATA,1053,575164,-165706,-166704,998,21.413246
+DATA,1054,575249,-165445,-166704,1259,27.013303
+DATA,1055,575333,-165521,-166704,1183,25.382635
+DATA,1056,575417,-165734,-166704,970,20.812473
+DATA,1057,575501,-165714,-166704,990,21.241596
+DATA,1058,575585,-165639,-166704,1065,22.850809
+DATA,1059,575669,-165563,-166704,1141,24.481475
+DATA,1060,575754,-165749,-166704,955,20.490631
+DATA,1061,575838,-165894,-166704,810,17.379487
+DATA,1062,575922,-165746,-166704,958,20.554998
+DATA,1063,576006,-165522,-166704,1182,25.361179
+DATA,1064,576090,-165473,-166704,1231,26.412530
+DATA,1065,576174,-165522,-166704,1182,25.361179
+DATA,1066,576258,-165976,-166704,728,15.620083
+DATA,1067,576343,-165766,-166704,938,20.125875
+DATA,1068,576427,-165765,-166704,939,20.147333
+DATA,1069,576511,-165869,-166704,835,17.915891
+DATA,1070,576595,-165711,-166704,993,21.305965
+DATA,1071,576679,-165529,-166704,1175,25.210985
+DATA,1072,576763,-165691,-166704,1013,21.735088
+DATA,1073,576848,-165601,-166704,1103,23.666141
+DATA,1074,576932,-165579,-166704,1125,24.138177
+DATA,1075,577016,-165680,-166704,1024,21.971105
+DATA,1076,577100,-165709,-166704,995,21.348876
+DATA,1077,577184,-166021,-166704,683,14.654557
+DATA,1078,577268,-165675,-166704,1029,22.078386
+DATA,1079,577352,-165535,-166704,1169,25.082248
+DATA,1080,577437,-165472,-166704,1232,26.433986
+DATA,1081,577521,-165706,-166704,998,21.413246
+DATA,1082,577605,-165867,-166704,837,17.958805
+DATA,1083,577689,-165841,-166704,863,18.516664
+DATA,1084,577773,-165647,-166704,1057,22.679159
+DATA,1085,577857,-165509,-166704,1195,25.640108
+DATA,1086,577941,-165681,-166704,1023,21.949649
+DATA,1087,578026,-165722,-166704,982,21.069946
+DATA,1088,578110,-165654,-166704,1050,22.528964
+DATA,1089,578194,-165501,-166704,1203,25.811758
+DATA,1090,578278,-165480,-166704,1224,26.262336
+DATA,1091,578362,-165626,-166704,1078,23.129737
+DATA,1092,578446,-165805,-166704,899,19.289085
+DATA,1093,578531,-165720,-166704,984,21.112859
+DATA,1094,578615,-165491,-166704,1213,26.026319
+DATA,1095,578699,-165435,-166704,1269,27.227865
+DATA,1096,578783,-165616,-166704,1088,23.344299
+DATA,1097,578867,-165714,-166704,990,21.241596
+DATA,1098,578951,-165703,-166704,1001,21.477613
+DATA,1099,579035,-165851,-166704,853,18.302103
+DATA,1100,579120,-165774,-166704,930,19.954227
+DATA,1101,579204,-165699,-166704,1005,21.563438
+DATA,1102,579288,-165938,-166704,766,16.435417
+DATA,1103,579372,-165735,-166704,969,20.791017
+DATA,1104,579456,-165752,-166704,952,20.426261
+DATA,1105,579540,-165584,-166704,1120,24.030897
+DATA,1106,579624,-165654,-166704,1050,22.528964
+DATA,1107,579709,-165623,-166704,1081,23.194107
+DATA,1108,579793,-165448,-166704,1256,26.948934
+DATA,1109,579877,-165518,-166704,1186,25.447002
+DATA,1110,579961,-165392,-166704,1312,28.150478
+DATA,1111,580045,-165523,-166704,1181,25.339721
+DATA,1112,580129,-165787,-166704,917,19.675296
+DATA,1113,580214,-165679,-166704,1025,21.992561
+DATA,1114,580298,-165777,-166704,927,19.889858
+DATA,1115,580382,-165750,-166704,954,20.469175
+DATA,1116,580466,-165791,-166704,913,19.589471
+DATA,1117,580550,-165722,-166704,982,21.069946
+DATA,1118,580634,-165524,-166704,1180,25.318265
+DATA,1119,580718,-165555,-166704,1149,24.653125
+DATA,1120,580803,-165802,-166704,902,19.353454
+DATA,1121,580887,-165879,-166704,825,17.701330
+DATA,1122,580971,-165939,-166704,765,16.413961
+DATA,1123,581055,-165692,-166704,1012,21.713632
+DATA,1124,581139,-165658,-166704,1046,22.443141
+DATA,1125,581223,-165464,-166704,1240,26.605636
+DATA,1126,581308,-165240,-166704,1464,31.411815
+DATA,1127,581392,-165616,-166704,1088,23.344299
+DATA,1128,581476,-165740,-166704,964,20.683736
+DATA,1129,581560,-165717,-166704,987,21.177227
+DATA,1130,581644,-165854,-166704,850,18.237733
+DATA,1131,581728,-165870,-166704,834,17.894435
+DATA,1132,581813,-165756,-166704,948,20.340436
+DATA,1133,581897,-165554,-166704,1150,24.674581
+DATA,1134,581981,-165682,-166704,1022,21.928194
+DATA,1135,582065,-165849,-166704,855,18.345014
+DATA,1136,582149,-165531,-166704,1173,25.168073
+DATA,1137,582233,-165383,-166704,1321,28.343584
+DATA,1138,582318,-165667,-166704,1037,22.250036
+DATA,1139,582402,-165782,-166704,922,19.782577
+DATA,1140,582486,-165765,-166704,939,20.147333
+DATA,1141,582570,-165542,-166704,1162,24.932056
+DATA,1142,582654,-165734,-166704,970,20.812473
+DATA,1143,582739,-165843,-166704,861,18.473751
+DATA,1144,582823,-165791,-166704,913,19.589471
+DATA,1145,582907,-165861,-166704,843,18.087541
+DATA,1146,582991,-166123,-166704,581,12.466029
+DATA,1147,583075,-165976,-166704,728,15.620083
+DATA,1148,583160,-165576,-166704,1128,24.202547
+DATA,1149,583244,-165685,-166704,1019,21.863824
+DATA,1150,583328,-165638,-166704,1066,22.872264
+DATA,1151,583412,-165655,-166704,1049,22.507509
+DATA,1152,583496,-165721,-166704,983,21.091403
+DATA,1153,583580,-165575,-166704,1129,24.224002
+DATA,1154,583664,-165572,-166704,1132,24.288370
+DATA,1155,583749,-165755,-166704,949,20.361894
+DATA,1156,583833,-165491,-166704,1213,26.026319
+DATA,1157,583917,-165279,-166704,1425,30.575025
+DATA,1158,584001,-165457,-166704,1247,26.755828
+DATA,1159,584085,-165580,-166704,1124,24.116722
+DATA,1160,584169,-165586,-166704,1118,23.987983
+DATA,1161,584253,-165551,-166704,1153,24.738950
+DATA,1162,584338,-165634,-166704,1070,22.958089
+DATA,1163,584422,-165558,-166704,1146,24.588756
+DATA,1164,584506,-165679,-166704,1025,21.992561
+DATA,1165,584590,-165771,-166704,933,20.018594
+DATA,1166,584674,-165740,-166704,964,20.683736
+DATA,1167,584758,-165547,-166704,1157,24.824775
+DATA,1168,584843,-165539,-166704,1165,24.996423
+DATA,1169,584927,-165703,-166704,1001,21.477613
+DATA,1170,585011,-165929,-166704,775,16.628522
+DATA,1171,585095,-165814,-166704,890,19.095979
+DATA,1172,585179,-165860,-166704,844,18.108997
+DATA,1173,585263,-165707,-166704,997,21.391790
+DATA,1174,585348,-165533,-166704,1171,25.125160
+DATA,1175,585432,-166279,-166704,425,9.118867
+DATA,1176,585516,-166103,-166704,601,12.895152
+DATA,1177,585600,-165569,-166704,1135,24.352739
+DATA,1178,585684,-165620,-166704,1084,23.258474
+DATA,1179,585768,-165674,-166704,1030,22.099842
+DATA,1180,585852,-165575,-166704,1129,24.224002
+DATA,1181,585937,-165669,-166704,1035,22.207122
+DATA,1182,586021,-165772,-166704,932,19.997138
+DATA,1183,586105,-165467,-166704,1237,26.541267
+DATA,1184,586189,-165613,-166704,1091,23.408668
+DATA,1185,586273,-165924,-166704,780,16.735803
+DATA,1186,586357,-165819,-166704,885,18.988698
+DATA,1187,586441,-165641,-166704,1063,22.807895
+DATA,1188,586526,-165719,-166704,985,21.134315
+DATA,1189,586610,-165959,-166704,745,15.984838
+DATA,1190,586694,-166113,-166704,591,12.680590
+DATA,1191,586778,-165980,-166704,724,15.534259
+DATA,1192,586862,-165686,-166704,1018,21.842369
+DATA,1193,586946,-165385,-166704,1319,28.300672
+DATA,1194,587030,-165359,-166704,1345,28.858531
+DATA,1195,587115,-165438,-166704,1266,27.163496
+DATA,1196,587199,-165857,-166704,847,18.173366
+DATA,1197,587283,-166056,-166704,648,13.903591
+DATA,1198,587367,-165961,-166704,743,15.941926
+DATA,1199,587451,-165527,-166704,1177,25.253898
+DATA,1200,587535,-165276,-166704,1428,30.639392
+DATA,1201,587620,-165473,-166704,1231,26.412530
+DATA,1202,587704,-165530,-166704,1174,25.189529
+DATA,1203,587788,-165678,-166704,1026,22.014019
+DATA,1204,587872,-165777,-166704,927,19.889858
+DATA,1205,587956,-165540,-166704,1164,24.974967
+DATA,1206,588040,-165335,-166704,1369,29.373479
+DATA,1207,588124,-165622,-166704,1082,23.215562
+DATA,1208,588209,-165854,-166704,850,18.237733
+DATA,1209,588293,-166073,-166704,631,13.538836
+DATA,1210,588377,-165912,-166704,792,16.993276
+DATA,1211,588461,-165632,-166704,1072,23.001001
+DATA,1212,588545,-165627,-166704,1077,23.108282
+DATA,1213,588629,-165676,-166704,1028,22.056930
+DATA,1214,588714,-165544,-166704,1160,24.889142
+DATA,1215,588798,-165570,-166704,1134,24.331283
+DATA,1216,588882,-165702,-166704,1002,21.499071
+DATA,1217,588966,-165636,-166704,1068,22.915176
+DATA,1218,589050,-165545,-166704,1159,24.867687
+DATA,1219,589134,-165624,-166704,1080,23.172651
+DATA,1220,589218,-165766,-166704,938,20.125875
+DATA,1221,589303,-165864,-166704,840,18.023172
+DATA,1222,589387,-165922,-166704,782,16.778715
+DATA,1223,589471,-165733,-166704,971,20.833929
+DATA,1224,589555,-165596,-166704,1108,23.773422
+DATA,1225,589639,-165501,-166704,1203,25.811758
+DATA,1226,589723,-165581,-166704,1123,24.095266
+DATA,1227,589807,-165561,-166704,1143,24.524389
+DATA,1228,589892,-165624,-166704,1080,23.172651
+DATA,1229,589976,-165604,-166704,1100,23.601774
+DATA,1230,590060,-165574,-166704,1130,24.245458
+DATA,1231,590144,-165616,-166704,1088,23.344299
+DATA,1232,590228,-165539,-166704,1165,24.996423
+DATA,1233,590312,-165377,-166704,1327,28.472322
+DATA,1234,590397,-165370,-166704,1334,28.622514
+DATA,1235,590481,-165805,-166704,899,19.289085
+DATA,1236,590565,-165593,-166704,1111,23.837791
+DATA,1237,590649,-165624,-166704,1080,23.172651
+DATA,1238,590733,-165858,-166704,846,18.151908
+DATA,1239,590817,-165717,-166704,987,21.177227
+DATA,1240,590902,-165643,-166704,1061,22.764984
+DATA,1241,590986,-165569,-166704,1135,24.352739
+DATA,1242,591070,-165515,-166704,1189,25.511371
+DATA,1243,591154,-165610,-166704,1094,23.473037
+DATA,1244,591238,-165736,-166704,968,20.769561
+DATA,1245,591322,-165508,-166704,1196,25.661565
+DATA,1246,591406,-165409,-166704,1295,27.785724
+DATA,1247,591491,-165399,-166704,1305,28.000286
+DATA,1248,591575,-165470,-166704,1234,26.476898
+DATA,1249,591659,-165799,-166704,905,19.417823
+DATA,1250,591743,-165754,-166704,950,20.383350
+DATA,1251,591827,-165623,-166704,1081,23.194107
+DATA,1252,591911,-165539,-166704,1165,24.996423
+DATA,1253,591995,-165619,-166704,1085,23.279932
+DATA,1254,592080,-165607,-166704,1097,23.537405
+DATA,1255,592164,-165875,-166704,829,17.787155
+DATA,1256,592248,-165920,-166704,784,16.821628
+DATA,1257,592332,-165975,-166704,729,15.641540
+DATA,1258,592416,-165783,-166704,921,19.761121
+DATA,1259,592500,-165589,-166704,1115,23.923616
+DATA,1260,592584,-165659,-166704,1045,22.421684
+DATA,1261,592669,-165878,-166704,826,17.722785
+DATA,1262,592753,-165710,-166704,994,21.327421
+DATA,1263,592837,-165788,-166704,916,19.653841
+DATA,1264,592921,-165735,-166704,969,20.791017
+DATA,1265,593005,-165596,-166704,1108,23.773422
+DATA,1266,593089,-165937,-166704,767,16.456872
+DATA,1267,593174,-165848,-166704,856,18.366470
+DATA,1268,593258,-165627,-166704,1077,23.108282
+DATA,1269,593342,-165705,-166704,999,21.434701
+DATA,1270,593426,-165930,-166704,774,16.607067
+DATA,1271,593510,-165859,-166704,845,18.130453
+DATA,1272,593594,-165716,-166704,988,21.198684
+DATA,1273,593678,-165593,-166704,1111,23.837791
+DATA,1274,593763,-165737,-166704,967,20.748104
+DATA,1275,593847,-165786,-166704,918,19.696752
+DATA,1276,593931,-166019,-166704,685,14.697468
+DATA,1277,594015,-166001,-166704,703,15.083680
+DATA,1278,594099,-165824,-166704,880,18.881418
+DATA,1279,594183,-165636,-166704,1068,22.915176
+DATA,1280,594268,-165738,-166704,966,20.726648
+DATA,1281,594352,-165746,-166704,958,20.554998
+DATA,1282,594436,-165467,-166704,1237,26.541267
+DATA,1283,594520,-165174,-166704,1530,32.827922
+DATA,1284,594604,-165425,-166704,1279,27.442426
+DATA,1285,594688,-165422,-166704,1282,27.506793
+DATA,1286,594772,-165510,-166704,1194,25.618652
+DATA,1287,594857,-165541,-166704,1163,24.953512
+DATA,1288,594941,-165549,-166704,1155,24.781862
+DATA,1289,595025,-165427,-166704,1277,27.399513
+DATA,1290,595109,-165660,-166704,1044,22.400228
+DATA,1291,595193,-165683,-166704,1021,21.906736
+DATA,1292,595277,-165584,-166704,1120,24.030897
+DATA,1293,595361,-165643,-166704,1061,22.764984
+DATA,1294,595446,-165614,-166704,1090,23.387212
+DATA,1295,595530,-165740,-166704,964,20.683736
+DATA,1296,595614,-165778,-166704,926,19.868402
+DATA,1297,595698,-165625,-166704,1079,23.151193
+DATA,1298,595782,-165573,-166704,1131,24.266914
+DATA,1299,595866,-165784,-166704,920,19.739665
+DATA,1300,595950,-165656,-166704,1048,22.486053
+DATA,1301,596035,-165638,-166704,1066,22.872264
+DATA,1302,596119,-165661,-166704,1043,22.378772
+DATA,1303,596203,-165557,-166704,1147,24.610212
+DATA,1304,596287,-165469,-166704,1235,26.498355
+DATA,1305,596371,-165735,-166704,969,20.791017
+DATA,1306,596455,-165670,-166704,1034,22.185667
+DATA,1307,596540,-165568,-166704,1136,24.374195
+DATA,1308,596624,-165563,-166704,1141,24.481475
+DATA,1309,596708,-165789,-166704,915,19.632385
+DATA,1310,596792,-165850,-166704,854,18.323558
+DATA,1311,596876,-165889,-166704,815,17.486768
+DATA,1312,596960,-165655,-166704,1049,22.507509
+DATA,1313,597044,-165709,-166704,995,21.348876
+DATA,1314,597129,-165757,-166704,947,20.318981
+DATA,1315,597213,-165597,-166704,1107,23.751966
+DATA,1316,597297,-165623,-166704,1081,23.194107
+DATA,1317,597381,-165819,-166704,885,18.988698
+DATA,1318,597465,-165771,-166704,933,20.018594
+DATA,1319,597549,-165626,-166704,1078,23.129737
+DATA,1320,597634,-165459,-166704,1245,26.712917
+DATA,1321,597718,-165618,-166704,1086,23.301387
+DATA,1322,597802,-165536,-166704,1168,25.060792
+DATA,1323,597886,-165666,-166704,1038,22.271492
+DATA,1324,597970,-165660,-166704,1044,22.400228
+DATA,1325,598054,-165799,-166704,905,19.417823
+DATA,1326,598138,-165979,-166704,725,15.555715
+DATA,1327,598223,-165787,-166704,917,19.675296
+DATA,1328,598307,-165672,-166704,1032,22.142755
+DATA,1329,598391,-165709,-166704,995,21.348876
+DATA,1330,598475,-165515,-166704,1189,25.511371
+DATA,1331,598559,-165441,-166704,1263,27.099126
+DATA,1332,598643,-165696,-166704,1008,21.627807
+DATA,1333,598728,-165833,-166704,871,18.688314
+DATA,1334,598812,-165741,-166704,963,20.662281
+DATA,1335,598896,-165379,-166704,1325,28.429409
+DATA,1336,598980,-165816,-166704,888,19.053068
+DATA,1337,599064,-166070,-166704,634,13.603204
+DATA,1338,599148,-166151,-166704,553,11.865256
+DATA,1339,599232,-165765,-166704,939,20.147333
+DATA,1340,599317,-165554,-166704,1150,24.674581
+DATA,1341,599401,-165800,-166704,904,19.396366
+DATA,1342,599485,-165771,-166704,933,20.018594
+DATA,1343,599569,-165731,-166704,973,20.876842
+DATA,1344,599653,-165728,-166704,976,20.941209
+DATA,1345,599737,-165434,-166704,1270,27.249320
+DATA,1346,599821,-165396,-166704,1308,28.064655
+DATA,1347,599906,-165393,-166704,1311,28.129022
+DATA,1348,599990,-165376,-166704,1328,28.493778
+DATA,1349,600074,-165467,-166704,1237,26.541267
+DATA,1350,600158,-165880,-166704,824,17.679874
+DATA,1351,600242,-165719,-166704,985,21.134315
+DATA,1352,600326,-165399,-166704,1305,28.000286
+DATA,1353,600411,-165712,-166704,992,21.284507
+DATA,1354,600495,-165768,-166704,936,20.082963
+DATA,1355,600579,-165674,-166704,1030,22.099842
+DATA,1356,600663,-165653,-166704,1051,22.550422
+DATA,1357,600747,-165717,-166704,987,21.177227
+DATA,1358,600831,-165955,-166704,749,16.070661
+DATA,1359,600915,-166030,-166704,674,14.461451
+DATA,1360,601000,-165844,-166704,860,18.452295
+DATA,1361,601084,-165827,-166704,877,18.817050
+DATA,1362,601168,-165765,-166704,939,20.147333
+DATA,1363,601252,-165749,-166704,955,20.490631
+DATA,1364,601336,-165591,-166704,1113,23.880702
+DATA,1365,601420,-165272,-166704,1432,30.725217
+DATA,1366,601505,-165231,-166704,1473,31.604921
+DATA,1367,601589,-165488,-166704,1216,26.090688
+DATA,1368,601673,-165486,-166704,1218,26.133600
+DATA,1369,601757,-165569,-166704,1135,24.352739
+DATA,1370,601841,-165505,-166704,1199,25.725933
+DATA,1371,601925,-165216,-166704,1488,31.926763
+DATA,1372,602009,-165436,-166704,1268,27.206407
+DATA,1373,602094,-165441,-166704,1263,27.099126
+DATA,1374,602178,-165419,-166704,1285,27.571163
+DATA,1375,602262,-165550,-166704,1154,24.760406
+DATA,1376,602346,-165817,-166704,887,19.031612
+DATA,1377,602430,-165808,-166704,896,19.224718
+DATA,1378,602514,-165678,-166704,1026,22.014019
+DATA,1379,602599,-165528,-166704,1176,25.232440
+DATA,1380,602683,-165576,-166704,1128,24.202547
+DATA,1381,602767,-165688,-166704,1016,21.799455
+DATA,1382,602851,-165803,-166704,901,19.331998
+DATA,1383,602935,-165547,-166704,1157,24.824775
+DATA,1384,603019,-165182,-166704,1522,32.656272
+DATA,1385,603103,-165287,-166704,1417,30.403375
+DATA,1386,603188,-165620,-166704,1084,23.258474
+DATA,1387,603272,-165609,-166704,1095,23.494493
+DATA,1388,603356,-165785,-166704,919,19.718208
+DATA,1389,603440,-165652,-166704,1052,22.571878
+DATA,1390,603524,-165464,-166704,1240,26.605636
+DATA,1391,603608,-165671,-166704,1033,22.164211
+DATA,1392,603693,-165801,-166704,903,19.374910
+DATA,1393,603777,-165832,-166704,872,18.709770
+DATA,1394,603861,-165973,-166704,731,15.684452
+DATA,1395,603945,-165776,-166704,928,19.911314
+DATA,1396,604029,-165586,-166704,1118,23.987983
+DATA,1397,604113,-165703,-166704,1001,21.477613
+DATA,1398,604197,-165649,-166704,1055,22.636245
+DATA,1399,604282,-165449,-166704,1255,26.927478
+DATA,1400,604366,-165732,-166704,972,20.855384
+DATA,1401,604450,-165895,-166704,809,17.358032
+DATA,1402,604534,-165690,-166704,1014,21.756544
+DATA,1403,604618,-165531,-166704,1173,25.168073
+DATA,1404,604702,-165581,-166704,1123,24.095266
+DATA,1405,604787,-165730,-166704,974,20.898298
+DATA,1406,604871,-165548,-166704,1156,24.803318
+DATA,1407,604955,-165775,-166704,929,19.932771
+DATA,1408,605039,-165953,-166704,751,16.113574
+DATA,1409,605123,-165846,-166704,858,18.409383
+DATA,1410,605207,-165722,-166704,982,21.069946
+DATA,1411,605291,-165572,-166704,1132,24.288370
+DATA,1412,605376,-165641,-166704,1063,22.807895
+DATA,1413,605460,-165639,-166704,1065,22.850809
+DATA,1414,605544,-165623,-166704,1081,23.194107
+DATA,1415,605628,-165707,-166704,997,21.391790
+DATA,1416,605712,-165799,-166704,905,19.417823
+DATA,1417,605796,-165801,-166704,903,19.374910
+DATA,1418,605881,-165813,-166704,891,19.117437
+DATA,1419,605965,-165958,-166704,746,16.006294
+DATA,1420,606049,-165947,-166704,757,16.242311
+DATA,1421,606133,-165872,-166704,832,17.851524
+DATA,1422,606217,-165795,-166704,909,19.503646
+DATA,1423,606301,-165541,-166704,1163,24.953512
+DATA,1424,606385,-165481,-166704,1223,26.240880
+DATA,1425,606470,-165470,-166704,1234,26.476898
+DATA,1426,606554,-165395,-166704,1309,28.086111
+DATA,1427,606638,-165672,-166704,1032,22.142755
+DATA,1428,606722,-165900,-166704,804,17.250751
+DATA,1429,606806,-165727,-166704,977,20.962665
+DATA,1430,606890,-165630,-166704,1074,23.043912
+DATA,1431,606975,-165722,-166704,982,21.069946
+DATA,1432,607059,-165858,-166704,846,18.151908
+DATA,1433,607143,-165722,-166704,982,21.069946
+DATA,1434,607227,-165703,-166704,1001,21.477613
+DATA,1435,607311,-165564,-166704,1140,24.460020
+DATA,1436,607395,-165762,-166704,942,20.211700
+DATA,1437,607479,-165586,-166704,1118,23.987983
+DATA,1438,607564,-165383,-166704,1321,28.343584
+DATA,1439,607648,-165472,-166704,1232,26.433986
+DATA,1440,607732,-165741,-166704,963,20.662281
+DATA,1441,607816,-165726,-166704,978,20.984123
+DATA,1442,607900,-165592,-166704,1112,23.859247
+DATA,1443,607984,-165603,-166704,1101,23.623229
+DATA,1444,608068,-165931,-166704,773,16.585609
+DATA,1445,608153,-165992,-166704,712,15.276785
+DATA,1446,608237,-165821,-166704,883,18.945787
+DATA,1447,608321,-165842,-166704,862,18.495208
+DATA,1448,608405,-165801,-166704,903,19.374910
+DATA,1449,608489,-165941,-166704,763,16.371047
+DATA,1450,608573,-165914,-166704,790,16.950365
+DATA,1451,608658,-165486,-166704,1218,26.133600
+DATA,1452,608742,-165448,-166704,1256,26.948934
+DATA,1453,608826,-165451,-166704,1253,26.884565
+DATA,1454,608910,-165667,-166704,1037,22.250036
+DATA,1455,608994,-165437,-166704,1267,27.184951
+DATA,1456,609078,-165655,-166704,1049,22.507509
+DATA,1457,609162,-165653,-166704,1051,22.550422
+DATA,1458,609247,-165787,-166704,917,19.675296
+DATA,1459,609331,-165830,-166704,874,18.752681
+DATA,1460,609415,-165744,-166704,960,20.597911
+DATA,1461,609499,-165774,-166704,930,19.954227
+DATA,1462,609583,-165648,-166704,1056,22.657703
+DATA,1463,609667,-165795,-166704,909,19.503646
+
+Diagnostic capture stopped.
+
+Weight: 18.28 g | Level: VERY_LOW
+Weight: 22.08 g | Level: VERY_LOW
+Weight: 25.62 g | Level: VERY_LOW
+Weight: 13.26 g | Level: VERY_LOW
+Weight: 19.25 g | Level: VERY_LOW

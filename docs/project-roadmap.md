@@ -442,6 +442,31 @@ Do not add filtering merely because it is theoretically available.
 
 Record raw data from the real installation before selecting the final filter.
 
+### Evidence-driven pause for ADS1232 comparison
+
+The HX711 capture phase found a strong LED-current return coupling mechanism and
+an unresolved broadband component in the unsoldered breadboard assembly. The
+raw data and conclusions are preserved in:
+
+```text
+logs/
+docs/hx711-prototype-characterization.md
+```
+
+An ADS1232 module became available before the filtering policy was selected.
+The preferred sequence is now:
+
+1. Preserve the current HX711 diagnostic branch and datasets.
+2. Add a project-owned ADS1232 driver on `feature/ads1232-support`.
+3. Introduce only the minimum compile-time measurement-backend boundary needed
+   to keep `scale` independent of one converter.
+4. Keep calibration and tare records from different converters distinct.
+5. Repeat comparable raw captures with the same cell and mechanics.
+6. Resume filter selection using evidence from both backends.
+
+This is not a broad source-layout refactor. Any later directory reorganization
+remains a separate change.
+
 ## v1.5: field configuration
 
 Move deployment-specific values out of hard-coded development assumptions.
@@ -703,13 +728,14 @@ Current recommended order:
 ```text
 1. Add Lesson 20 to the study repository for stable v1.2
 2. Add the later study lesson for stable v1.3
-3. Improve measurement robustness from recorded real data
-4. Validate 24 V power and output hardware
-5. Build the final mechanical installation
-6. Design a custom PCB
-7. Evaluate alternative ADC backends
-8. Add LoRa
-9. Reorganize the source tree only when growth justifies it
+3. Preserve and document the HX711 physical characterization
+4. Implement and evaluate the available ADS1232 backend
+5. Resume measurement robustness using comparable raw data
+6. Validate 24 V power and output hardware
+7. Build the final mechanical installation
+8. Design a custom PCB
+9. Add LoRa
+10. Reorganize the source tree only when growth justifies it
 ```
 
 The educational and production tracks may progres

@@ -1,0 +1,95 @@
+
+=== Load cell level indicator ===
+Reset cause visible to application: unknown.
+Waiting for the first HX711 conversion...
+Stored calibration loaded from EEPROM.
+Calibration factor: 46.606666 counts/g
+Stored tare offset loaded: -166704
+Normal measurement started.
+
+Controls:
+  Hold button on D4 for 3 s = tare
+  Serial command 't'    = tare
+  Serial command 's'    = save calibration
+  Serial command 'x'    = clear calibration
+  Serial command 'z'    = clear tare
+  Serial command 'c'    = calibrate/confirm
+  Serial command 'q'    = cancel current tare/calibration
+  Serial command 'd'    = toggle diagnostic capture
+ Hold button on D8 for 3 s = start calibration
+ Press button on D8 = confirm calibration step
+LED operation status:
+ All LEDs on = tare in progress
+ All LEDs blinking slowly = tare required
+ LOW blinking = waiting for empty platform
+ MEDIUM blinking = waiting for reference mass
+ HIGH blinking = reset-required fault
+ LOW/HIGH alternating = HX711 recovery
+
+Provisional levels:
+ VERY_LOW: below 100 g, LOW LED blinking
+ LOW: 100 to 500 g, LOW LED steady
+ MEDIUM: 500 to 1000 g
+ HIGH: above 1000 g
+Weight: 31.00 g | Level: VERY_LOW
+Weight: 28.92 g | Level: VERY_LOW
+Weight: 27.31 g | Level: VERY_LOW
+Weight: 31.13 g | Level: VERY_LOW
+Weight: 28.56 g | Level: VERY_LOW
+Weight: 25.36 g | Level: VERY_LOW
+Weight: 31.20 g | Level: VERY_LOW
+Weight: 26.48 g | Level: VERY_LOW
+Weight: 25.02 g | Level: VERY_LOW
+Weight: 32.57 g | Level: VERY_LOW
+Weight: 28.45 g | Level: VERY_LOW
+Weight: 28.90 g | Level: VERY_LOW
+Weight: 31.63 g | Level: VERY_LOW
+Weight: 26.67 g | Level: VERY_LOW
+Weight: 29.07 g | Level: VERY_LOW
+Weight: 27.44 g | Level: VERY_LOW
+Weight: 27.40 g | Level: VERY_LOW
+Weight: 23.09 g | Level: VERY_LOW
+Weight: 31.60 g | Level: VERY_LOW
+Weight: 28.90 g | Level: VERY_LOW
+Weight: 36.90 g | Level: VERY_LOW
+Weight: 30.47 g | Level: VERY_LOW
+Weight: 26.24 g | Level: VERY_LOW
+Weight: 33.86 g | Level: VERY_LOW
+Weight: 28.15 g | Level: VERY_LOW
+Weight: 36.41 g | Level: VERY_LOW
+Weight: 25.15 g | Level: VERY_LOW
+Weight: 33.62 g | Level: VERY_LOW
+Weight: 28.41 g | Level: VERY_LOW
+Weight: 25.81 g | Level: VERY_LOW
+Weight: 36.82 g | Level: VERY_LOW
+Weight: 278.18 g | Level: LOW
+Weight: 29.74 g | Level: VERY_LOW
+Weight: 27.18 g | Level: VERY_LOW
+Weight: 28.13 g | Level: VERY_LOW
+Weight: 32.40 g | Level: VERY_LOW
+Weight: 33.90 g | Level: VERY_LOW
+Weight: 34.63 g | Level: VERY_LOW
+Weight: 25.36 g | Level: VERY_LOW
+Weight: 30.98 g | Level: VERY_LOW
+Weight: 29.97 g | Level: VERY_LOW
+Weight: 28.88 g | Level: VERY_LOW
+Weight: 29.74 g | Level: VERY_LOW
+Weight: 28.21 g | Level: VERY_LOW
+Weight: 27.70 g | Level: VERY_LOW
+Weight: 25.51 g | Level: VERY_LOW
+Weight: 29.76 g | Level: VERY_LOW
+Weight: 26.16 g | Level: VERY_LOW
+Weight: 28.06 g | Level: VERY_LOW
+Weight: 28.00 g | Level: VERY_LOW
+Weight: 24.01 g | Level: VERY_LOW
+Weight: 27.42 g | Level: VERY_LOW
+Weight: 28.62 g | Level: VERY_LOW
+Weight: 23.84 g | Level: VERY_LOW
+Weight: 31.28 g | Level: VERY_LOW
+Weight: 26.88 g | Level: VERY_LOW
+Weight: 23.45 g | Level: VERY_LOW
+Weight: 28.99 g | Level: VERY_LOW
+Weight: 25.02 g | Level: VERY_LOW
+Weight: 27.42 g | Level: VERY_LOW
+Weight: 28.45 g | Level: VERY_LOW
+Weight: 36.41 g | Level: VERY_LOW
