@@ -44,7 +44,9 @@ The project began as a small Arduino learning exercise and was progressively evo
 - Direct AVR implementations for GPIO, Timer1, EEPROM, USART0 and watchdog control.
 - Project-owned bare-metal `main()`; the production build does not use Arduino Core.
 - Dedicated direct-AVR and Arduino-reference watchdog hardware-validation builds.
-- 318 native Unity tests across 13 suites.
+- Isolated project-owned ADS1232 driver with native protocol tests; application
+  backend integration remains pending.
+- 338 native Unity tests across 14 suites.
 
 ## Hardware
 
@@ -610,6 +612,7 @@ The individual environments are:
 ```powershell
 pio test -e native_button
 pio test -e native_hx711
+pio test -e native_ads1232
 pio test -e native_level_indicator
 pio test -e native_operation_indicator
 pio test -e native_scale
@@ -629,6 +632,7 @@ Validated test inventory:
 |---|---:|
 | `native_button` | 11 |
 | `native_hx711` | 18 |
+| `native_ads1232` | 20 |
 | `native_level_indicator` | 14 |
 | `native_operation_indicator` | 18 |
 | `native_scale` | 35 |
@@ -640,13 +644,13 @@ Validated test inventory:
 | `native_console` | 45 |
 | `native_time_delay` | 6 |
 | `native_watchdog_validation` | 6 |
-| **Total** | **318** |
+| **Total** | **338** |
 
 Validated result:
 
 ```text
-Suites passed: 13/13
-Tests passed:  318/318
+Suites passed: 14/14
+Tests passed:  338/338
 Failures:      0
 Exit code:     0
 ```
@@ -713,6 +717,7 @@ Start with:
 - [`docs/project-roadmap.md`](docs/project-roadmap.md) — active continuation plan after `v1.3`.
 - [`docs/measurement-robustness-notes.md`](docs/measurement-robustness-notes.md) — evidence-driven measurement investigation and capture plan.
 - [`docs/hx711-prototype-characterization.md`](docs/hx711-prototype-characterization.md) — physical HX711 wiring, coupling, drift and noise findings.
+- [`docs/ads1232-driver-notes.md`](docs/ads1232-driver-notes.md) — ADS1232 module wiring, driver protocol and isolated native-test boundary.
 - [`docs/v1.3-release-notes.md`](docs/v1.3-release-notes.md) — fault recovery and watchdog release summary.
 - [`docs/v1.3-fault-recovery-and-watchdog-validation.md`](docs/v1.3-fault-recovery-and-watchdog-validation.md) — native, build and physical validation for `v1.3`.
 - [`docs/fault-recovery-watchdog-notes.md`](docs/fault-recovery-watchdog-notes.md) — `v1.3` design and incremental implementation record.
